@@ -22,34 +22,34 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
     const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
     const tableSection = tableSectionMatch ? tableSectionMatch[1] : text;
     
-    // Create default summaries for all account types
-    const summaryMap = new Map();
-    accountTypes.forEach(accountType => {
-      summaryMap.set(accountType, createDefaultSummary(accountType));
-    });
-    
     // Split into lines for processing row by row
     const lines = tableSection.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
-      
-    // Look for each account type in the lines and extract the data
-    accountTypes.forEach(accountType => {
-      // Find lines containing this specific account type
-      const accountLine = lines.find(line => 
-        line.match(new RegExp(`^\\s*${accountType}\\b`, 'i')) || 
-        line.match(new RegExp(`\\s+${accountType}\\s+\\d+`, 'i'))
-      );
-      
-      if (accountLine) {
-        processAccountLine(accountLine, accountType, summaryMap.get(accountType));
+    
+    // Create a map to store account type specific data
+    const accountTypeMap = new Map();
+    
+    // First pass - identify lines that contain account type information
+    lines.forEach(line => {
+      for (const accountType of accountTypes) {
+        if (line.match(new RegExp(`\\b${accountType}\\b`, 'i'))) {
+          accountTypeMap.set(accountType, line);
+        }
       }
     });
     
-    // Convert the map to an array and add to summaries
-    summaryMap.forEach(summary => {
+    // Now process each account type individually with its own data
+    for (const accountType of accountTypes) {
+      const summary = createDefaultSummary(accountType);
+      
+      if (accountTypeMap.has(accountType)) {
+        const line = accountTypeMap.get(accountType);
+        processAccountLine(line, accountType, summary);
+      }
+      
       summaries.push(summary);
-    });
+    }
   } else {
     console.log("Could not find Equifax account summary table header");
     // Create default summaries for all account types
@@ -72,37 +72,29 @@ function processAccountLine(line: string, accountType: string, summary: AccountS
   console.log(`Processing line for ${accountType}:`, line);
   
   // Find position of account type in the line
-  let startIndex = line.indexOf(accountType);
-  if (startIndex < 0) {
-    const match = line.match(new RegExp(`\\b${accountType}\\b`, 'i'));
-    startIndex = match ? match.index || 0 : 0;
-  }
+  const typePos = line.indexOf(accountType);
+  if (typePos === -1) return;
   
-  // Skip the account type text itself
-  const afterType = line.substring(startIndex + accountType.length).trim();
+  const afterType = line.substring(typePos + accountType.length).trim();
   
   // Split by whitespace into potential columns
   const columns = afterType.split(/\s+/);
   
-  // Extract numeric values (open and withBalance counts)
-  let openCountIndex = -1;
-  let withBalanceIndex = -1;
-  
-  // Find first two numeric values for open and withBalance
+  // Only grab numeric values for this specific account type
+  let numCounter = 0;
   for (let i = 0; i < columns.length; i++) {
     if (/^\d+$/.test(columns[i])) {
-      if (openCountIndex === -1) {
-        openCountIndex = i;
+      if (numCounter === 0) {
         summary.open = parseInt(columns[i]);
-      } else if (withBalanceIndex === -1) {
-        withBalanceIndex = i;
+        numCounter++;
+      } else if (numCounter === 1) {
         summary.withBalance = parseInt(columns[i]);
         break;
       }
     }
   }
   
-  // Look for dollar values and percentages in specific positions after account type
+  // Look for financial values (dollar amounts, etc.) for this specific account type
   extractFinancialValues(line, accountType, summary);
 }
 
@@ -114,12 +106,11 @@ function extractFinancialValues(line: string, accountType: string, summary: Acco
   
   const afterType = line.substring(typePos + accountType.length);
   
-  // Extract all dollar values using improved pattern that handles negative numbers
+  // Extract all dollar values with improved pattern that handles negative numbers
   const dollarPattern = /(-?\$[0-9,.-]+|\$-[0-9,.-]+)/g;
   const dollars = [];
   let match;
   
-  // Find all dollar value matches after account type position
   while ((match = dollarPattern.exec(afterType)) !== null) {
     dollars.push(match[0]);
   }
@@ -148,9 +139,16 @@ function extractFinancialValues(line: string, accountType: string, summary: Acco
 
 // Normalize dollar format to ensure negative values are consistently formatted
 function normalizeDollarFormat(value: string): string {
+  if (!value) return value;
+  
+  // Handle negative values in either format
   if (value.startsWith('$-')) {
     // Convert $-1,234 format to -$1,234
     return '-$' + value.substring(2);
+  }
+  if (value.startsWith('-$')) {
+    // Already in the correct format
+    return value;
   }
   return value;
 }

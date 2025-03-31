@@ -19,17 +19,8 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     // Convert value to string for consistent processing
     const stringValue = String(value);
     
-    // Check if it's already formatted with $ (don't double format)
-    if (typeof stringValue === 'string' && stringValue.startsWith('$')) {
-      // Handle case where the string already has $ but might need negative sign adjustment
-      if (stringValue.includes('-$')) {
-        return stringValue; // Already properly formatted negative value
-      } else if (stringValue.startsWith('$-')) {
-        // Fix incorrect format of '$-X' to '-$X'
-        return '-$' + stringValue.substring(2);
-      } else if (stringValue.charAt(0) === '-' && stringValue.charAt(1) === '$') {
-        return stringValue; // Already properly formatted as '-$X'
-      }
+    // For values already properly formatted with $ or -$, return as is
+    if (typeof stringValue === 'string' && (stringValue.startsWith('$') || stringValue.startsWith('-$'))) {
       return stringValue;
     }
     
@@ -45,14 +36,10 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
         numericValue = parseFloat(cleanedValue);
       }
       
-      // Check if the value is negative
-      if (numericValue < 0) {
-        // Format negative value as -$X,XXX
-        return `-$${Math.abs(numericValue).toLocaleString()}`;
-      } else {
-        // Format positive value as $X,XXX
-        return `$${numericValue.toLocaleString()}`;
-      }
+      // Format according to sign
+      return numericValue < 0 ? 
+        `-$${Math.abs(numericValue).toLocaleString()}` : 
+        `$${numericValue.toLocaleString()}`;
     }
     
     return value; // Return as is if it's not a numeric value
