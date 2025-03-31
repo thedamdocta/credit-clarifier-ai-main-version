@@ -46,63 +46,50 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     return value; // Return as is if it's not a numeric value
   };
 
-  // Ensure we have all account types for the table
-  const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
-  
-  // Create a prioritized list of account summaries in the correct order
-  const ensureAccountSummaries = () => {
-    if (!report.accountSummaries || report.accountSummaries.length === 0) {
-      return requiredAccountTypes.map(accountType => ({
-        accountType,
-        totalAccounts: null,
-        open: null,
-        closed: null,
-        balance: null,
-        withBalance: null,
-        totalBalance: null,
-        available: null,
-        creditLimit: null,
-        debtToCredit: null,
-        payment: null
-      }));
-    }
-    
-    // Map existing summaries by account type for quick lookup
-    const summariesByType = new Map();
-    report.accountSummaries.forEach(summary => {
-      summariesByType.set(summary.accountType, summary);
-    });
-    
-    // Create the prioritized list with any missing types filled with empty data
-    const prioritizedSummaries = requiredAccountTypes.map(accountType => {
-      if (summariesByType.has(accountType)) {
-        return summariesByType.get(accountType);
-      }
-      return {
-        accountType,
-        totalAccounts: null,
-        open: null,
-        closed: null,
-        balance: null,
-        withBalance: null,
-        totalBalance: null,
-        available: null,
-        creditLimit: null,
-        debtToCredit: null,
-        payment: null
-      };
-    });
-    
-    return prioritizedSummaries;
-  };
-
-  // Get properly ordered account summaries
-  const accountSummaries = ensureAccountSummaries();
-
   // Utility function to check if a cell value exists and should be displayed
   const hasValue = (value: any): boolean => {
     return value !== undefined && value !== null && value !== '';
   };
+
+  // Ensure we have all account types for the table
+  const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+  
+  // Create a mapping of account summaries by account type
+  const getSummaryByType = () => {
+    const summaryMap = new Map<string, AccountSummary>();
+    
+    // First initialize with default empty values for all required types
+    requiredAccountTypes.forEach(type => {
+      summaryMap.set(type, {
+        accountType: type,
+        totalAccounts: null,
+        open: null,
+        closed: null,
+        balance: null,
+        withBalance: null,
+        totalBalance: null,
+        available: null,
+        creditLimit: null,
+        debtToCredit: null,
+        payment: null
+      });
+    });
+    
+    // Then override with any actual values we have
+    if (report.accountSummaries && report.accountSummaries.length > 0) {
+      report.accountSummaries.forEach(summary => {
+        if (summary.accountType) {
+          summaryMap.set(summary.accountType, summary);
+        }
+      });
+    }
+    
+    // Return summaries in the required order
+    return requiredAccountTypes.map(type => summaryMap.get(type)!);
+  };
+
+  // Get properly ordered account summaries
+  const accountSummaries = getSummaryByType();
 
   return (
     <Card>
@@ -133,7 +120,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             {accountSummaries.map((summary, index) => (
               <TableRow 
                 key={`account-summary-${summary.accountType}`} 
-                isHighlighted={summary.accountType === 'Total'}
+                className={summary.accountType === 'Total' ? 'bg-muted/30 font-semibold' : ''}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
                 <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>
