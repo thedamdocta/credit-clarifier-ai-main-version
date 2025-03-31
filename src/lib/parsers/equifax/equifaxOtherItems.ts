@@ -5,6 +5,7 @@ export const extractEquifaxOtherItems = (text: string): {
   publicRecordCount: number;
   collectionCount: number;
   personalInfoItemCount: number;
+  statementCount?: number;
 } => {
   // Default values
   let inquiryCount = 0;
@@ -12,6 +13,7 @@ export const extractEquifaxOtherItems = (text: string): {
   let publicRecordCount = 0;
   let collectionCount = 0;
   let personalInfoItemCount = 0;
+  let statementCount = 0;
   
   // Extract inquiry count
   const inquiryMatch = text.match(/(?:Credit )?Inquiries[:\s]+(\d+)(?:\s*Inquiries?| Records?| Record)?\s*Found/i);
@@ -54,11 +56,18 @@ export const extractEquifaxOtherItems = (text: string): {
     personalInfoItemCount = parseInt(personalInfoMatch[1]);
   }
   
+  // Extract statement count with improved pattern
+  const statementMatch = text.match(/(?:Consumer\s*)?Statements?\s*:?\s*(\d+)(?:\s*Statement|Statements|Record|Records)?\s*Found/i);
+  if (statementMatch && statementMatch[1]) {
+    statementCount = parseInt(statementMatch[1]);
+  }
+  
   return {
     inquiryCount,
     recentInquiry,
     publicRecordCount,
     collectionCount,
-    personalInfoItemCount
+    personalInfoItemCount,
+    statementCount
   };
 };

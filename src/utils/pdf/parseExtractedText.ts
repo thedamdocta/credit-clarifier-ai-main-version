@@ -160,6 +160,15 @@ function extractSummaryData(parsedReport: any, extractedText: string) {
       parsedReport.accountsWithNegativeInfo = negativeMatch[1].trim();
     }
   }
+  
+  // Extract statement count with more specific patterns
+  if (!parsedReport.statementCount) {
+    const statementPattern = /(?:Consumer\s*)?Statements?\s*:?\s*(\d+)(?:\s*Statement|Statements|Record|Records)?\s*Found/i;
+    const statementMatch = extractedText.match(statementPattern);
+    if (statementMatch && statementMatch[1]) {
+      parsedReport.statementCount = parseInt(statementMatch[1]);
+    }
+  }
 }
 
 function enhanceAccountSummaries(parsedReport: any, extractedText: string) {
@@ -213,8 +222,8 @@ function enhanceAccountSummaries(parsedReport: any, extractedText: string) {
 }
 
 function extractCreditMetrics(parsedReport: any, extractedText: string) {
-  // Extract statement count
-  const statementPattern = /statement[:\s]*(\d+)(?:\s*Records?)?\s*Found/i;
+  // Extract statement count with improved patterns for singular/plural forms
+  const statementPattern = /(?:Consumer\s*)?Statements?\s*:?\s*(\d+)(?:\s*Statement|Statements|Record|Records)?\s*Found/i;
   const statementMatch = extractedText.match(statementPattern);
   if (statementMatch && statementMatch[1]) {
     parsedReport.statementCount = parseInt(statementMatch[1]);

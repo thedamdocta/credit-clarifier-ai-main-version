@@ -34,6 +34,9 @@ export const extractReportSummaryWithAI = async (text: string): Promise<Partial<
     extractOldestAccountAI(summarySection, summaryData);
     extractRecentAccountAI(summarySection, summaryData);
     
+    // Extract statements count
+    extractStatementsCountAI(text, summaryData);
+    
     return summaryData;
   } catch (error) {
     console.error("Error extracting summary with AI:", error);
@@ -94,6 +97,16 @@ function extractRecentAccountAI(text: string, data: Partial<CreditReport>): void
       openDate: recentAccountMatch[2].trim()
     };
     console.log("Extracted most recent account:", data.recentAccount);
+  }
+}
+
+function extractStatementsCountAI(text: string, data: Partial<CreditReport>): void {
+  // More specific pattern to look for "X Statement(s) Found"
+  const statementMatch = text.match(/(?:Consumer\s*)?Statements?\s*:?\s*(\d+)\s*(?:Statement|Statements|Record|Records)?\s*Found/i);
+  if (statementMatch && statementMatch[1]) {
+    const count = parseInt(statementMatch[1].trim());
+    data.statementCount = count;
+    console.log("Extracted statement count:", count);
   }
 }
 

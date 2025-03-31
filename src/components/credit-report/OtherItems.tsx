@@ -9,6 +9,25 @@ interface OtherItemsProps {
 }
 
 const OtherItems: React.FC<OtherItemsProps> = ({ report }) => {
+  // Format display text for counts based on value
+  const formatCountDisplay = (count: number | undefined, itemType: string): string => {
+    if (count === undefined) return "Not Available";
+    
+    // Handle singular vs plural for different item types
+    if (itemType === "Statement") {
+      return count === 1 ? `${count} Statement Found` : `${count} Statements Found`;
+    } else if (itemType === "Collection") {
+      return count === 1 ? `${count} Collection Found` : `${count} Collections Found`;
+    } else if (itemType === "Item") {
+      return count === 1 ? `${count} Item Found` : `${count} Items Found`;
+    } else if (itemType === "Inquiry") {
+      return count === 1 ? `${count} Inquiry Found` : `${count} Inquiries Found`;
+    }
+    
+    // Default format for other types
+    return count === 1 ? `${count} Record Found` : `${count} Records Found`;
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -24,20 +43,22 @@ const OtherItems: React.FC<OtherItemsProps> = ({ report }) => {
         <div className="space-y-4">
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium">Consumer Statements</span>
-            <span className="text-muted-foreground">{report.statementCount !== undefined ? `${report.statementCount} Records Found` : "0 Records Found"}</span>
+            <span className="text-muted-foreground">
+              {formatCountDisplay(report.statementCount, "Statement")}
+            </span>
           </div>
           
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium">Personal Information</span>
             <span className="text-muted-foreground">
-              {report.personalInfoItemCount !== undefined ? `${report.personalInfoItemCount} Items Found` : "Not Available"}
+              {formatCountDisplay(report.personalInfoItemCount, "Item")}
             </span>
           </div>
           
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium">Inquiries</span>
             <span className="text-muted-foreground">
-              {report.inquiryCount !== undefined ? `${report.inquiryCount} Records Found` : "Not Available"}
+              {formatCountDisplay(report.inquiryCount, "Inquiry")}
             </span>
           </div>
           
@@ -49,14 +70,14 @@ const OtherItems: React.FC<OtherItemsProps> = ({ report }) => {
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium">Public Records</span>
             <span className="text-muted-foreground">
-              {report.publicRecordCount !== undefined ? `${report.publicRecordCount} Records Found` : "Not Available"}
+              {formatCountDisplay(report.publicRecordCount, "Record")}
             </span>
           </div>
           
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium">Collections</span>
             <span className="text-muted-foreground">
-              {report.collectionCount !== undefined ? `${report.collectionCount} Records Found` : "Not Available"}
+              {formatCountDisplay(report.collectionCount, "Collection")}
             </span>
           </div>
         </div>
