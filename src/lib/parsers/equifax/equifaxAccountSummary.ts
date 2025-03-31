@@ -21,32 +21,32 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
       return accountSummaries;
     }
     
-    // Split the table section into lines for per-type processing
-    const lines = tableSection.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-    
-    // Log the extracted table section for debugging
-    console.log("Extracted table section:");
-    lines.forEach((line, i) => console.log(`Line ${i}: ${line}`));
-    
-    // Process each account type separately
-    // This approach isolates each account type's data to prevent mixing
+    // Get individual rows by finding lines that contain the account types
+    // This ensures we're working with complete rows for each account type
     const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+    const rows: {[key: string]: string} = {};
     
+    // Find complete lines containing each account type
     for (const accountType of accountTypes) {
-      // Find lines containing this specific account type
-      const relevantLines = lines.filter(line => line.includes(accountType));
+      const regex = new RegExp(`.*\\b${accountType}\\b.*`, 'i');
+      const matches = tableSection.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .filter(line => regex.test(line));
       
-      if (relevantLines.length > 0) {
-        const targetLine = relevantLines[0];
-        console.log(`Processing line for ${accountType}: ${targetLine}`);
-        
-        // Get the corresponding account summary object
+      if (matches.length > 0) {
+        rows[accountType] = matches[0];
+        console.log(`Found row for ${accountType}: ${matches[0]}`);
+      }
+    }
+    
+    // Process each account type row separately
+    for (const accountType of accountTypes) {
+      if (rows[accountType]) {
         const accountIndex = accountSummaries.findIndex(a => a.accountType === accountType);
         if (accountIndex !== -1) {
-          // Extract values specifically for this account type only
-          extractValuesForAccountType(targetLine, accountType, accountSummaries[accountIndex]);
+          // Extract values specifically for this account type
+          extractValuesFromRow(rows[accountType], accountType, accountSummaries[accountIndex]);
         }
       }
     }
@@ -91,72 +91,73 @@ function extractTableSection(text: string): string | null {
   return tableSection;
 }
 
-function extractValuesForAccountType(line: string, accountType: string, summary: AccountSummary): void {
-  // Find the position of the account type in the line
-  const accountTypePosition = line.indexOf(accountType);
-  if (accountTypePosition === -1) return;
+function extractValuesFromRow(row: string, accountType: string, summary: AccountSummary): void {
+  // Find the position of the account type in the row
+  const accountTypePos = row.indexOf(accountType);
+  if (accountTypePos === -1) return;
   
-  // Extract only the part of the line that follows the account type
-  const dataSection = line.substring(accountTypePosition + accountType.length).trim();
-  console.log(`Extracting from data section: "${dataSection}" for ${accountType}`);
+  // Extract only the data part after the account type
+  const dataSection = row.substring(accountTypePos + accountType.length);
+  console.log(`Processing data for ${accountType}: "${dataSection}"`);
   
-  // Convert to tokens for more precise value extraction
-  const tokens = dataSection.split(/\s+/);
+  // Split into tokens and classify them
+  const tokens = dataSection.split(/\s+/).filter(token => token.trim().length > 0);
+  const numericValues = [];
+  const monetaryValues = [];
+  let percentValue = null;
   
-  // Track numeric values and monetary values separately to prevent mixing
-  // This prevents values from one column contaminating another
-  let numericValues = [];
-  let monetaryValues = [];
-  let debtToCreditValue = null;
-  
-  // First pass: categorize tokens into different types of values
+  // First pass: classify all tokens
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i].trim();
     
     // Skip empty tokens
     if (!token) continue;
     
-    // Check for percentage (debt-to-credit)
+    // Check for percentage values (debt-to-credit)
     if (token.includes('%')) {
-      debtToCreditValue = token;
+      percentValue = token;
       continue;
     }
     
     // Check for monetary values (with $ sign)
-    if (token.includes('$') || (token.startsWith('-') && tokens[i+1] && tokens[i+1].includes('$'))) {
-      // Handle case where negative sign might be separated
-      if (token === '-' && i+1 < tokens.length && tokens[i+1].includes('$')) {
-        monetaryValues.push('-' + tokens[i+1]);
-        i++; // Skip the next token as we've processed it
+    if (token.includes('$')) {
+      // Handle potential separate negative sign
+      if (i > 0 && tokens[i-1] === '-' && !token.startsWith('-')) {
+        monetaryValues.push('-' + token);
       } else {
         monetaryValues.push(token);
       }
       continue;
     }
     
-    // Check for numeric values (account counts)
+    // Check for standalone negative signs (might be part of next monetary value)
+    if (token === '-' && i+1 < tokens.length && tokens[i+1].includes('$')) {
+      // Skip - we'll handle this in the monetary values check
+      continue;
+    }
+    
+    // Check for plain numeric values (typically account counts)
     if (/^\d+$/.test(token)) {
       numericValues.push(parseInt(token));
     }
   }
   
-  console.log(`Found for ${accountType}: numeric=${numericValues.join(',')} monetary=${monetaryValues.join(',')} debt=${debtToCreditValue}`);
+  console.log(`Extracted for ${accountType}: numbers=${numericValues.join(',')}, money=${monetaryValues.join(',')}, percent=${percentValue}`);
   
-  // Second pass: assign values to the appropriate fields
-  // This ensures values are assigned to the correct fields in the right order
+  // Second pass: assign values to fields in the correct order
   
-  // Assign numeric values (typically open and withBalance)
+  // Assign numeric values (typically count fields)
   if (numericValues.length > 0) summary.open = numericValues[0];
   if (numericValues.length > 1) summary.withBalance = numericValues[1];
   
-  // Assign monetary values (in expected order)
+  // Assign monetary values in expected order
   if (monetaryValues.length > 0) summary.totalBalance = monetaryValues[0];
   if (monetaryValues.length > 1) summary.available = monetaryValues[1];
   if (monetaryValues.length > 2) summary.creditLimit = monetaryValues[2];
   if (monetaryValues.length > 3) summary.payment = monetaryValues[3];
   
-  // Assign debt-to-credit value
-  if (debtToCreditValue) {
-    summary.debtToCredit = debtToCreditValue;
+  // Assign percentage value to debt-to-credit
+  if (percentValue) {
+    summary.debtToCredit = percentValue;
   }
 }
