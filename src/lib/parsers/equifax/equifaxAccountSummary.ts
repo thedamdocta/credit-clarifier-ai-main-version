@@ -82,12 +82,20 @@ function extractDataFromLine(line: string, accountType: string, entities: any[])
   
   // Extract dollar amounts
   const dollarValues = extractDollarValues(afterAccountType);
-  const dollarFields: (keyof AccountSummary)[] = ['totalBalance', 'available', 'creditLimit', 'payment'];
-  dollarValues.forEach((value, index) => {
-    if (index < dollarFields.length) {
-      summary[dollarFields[index]] = value;
-    }
-  });
+  
+  // Fixed: Use explicit type checking for each field to avoid type errors
+  if (dollarValues.length >= 1) {
+    summary.totalBalance = dollarValues[0];
+  }
+  if (dollarValues.length >= 2) {
+    summary.available = dollarValues[1];
+  }
+  if (dollarValues.length >= 3) {
+    summary.creditLimit = dollarValues[2];
+  }
+  if (dollarValues.length >= 4) {
+    summary.payment = dollarValues[3];
+  }
   
   // Extract debt-to-credit percentage
   const debtToCredit = extractPercentage(afterAccountType);
