@@ -13,6 +13,7 @@ import AccountsList from "@/components/AccountsList";
 import WebhookManager from "@/components/WebhookManager";
 import { useToast } from "@/hooks/use-toast";
 import AIAnalysisSummary from "@/components/AIAnalysisSummary";
+import EquifaxCreditReport from "@/components/EquifaxCreditReport";
 
 const Index = () => {
   const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
@@ -113,11 +114,17 @@ const Index = () => {
           <div className="space-y-6">
             <CreditReportHeader report={creditReport} />
             
-            <div className="grid gap-6 md:grid-cols-1">
-              <PersonalInfoCard personalInfo={creditReport.personalInfo} />
-            </div>
-            
-            <AccountsList accounts={creditReport.accounts} />
+            {creditReport.bureau === 'Equifax' ? (
+              <EquifaxCreditReport report={creditReport} />
+            ) : (
+              <>
+                <div className="grid gap-6 md:grid-cols-1">
+                  <PersonalInfoCard personalInfo={creditReport.personalInfo} />
+                </div>
+                
+                <AccountsList accounts={creditReport.accounts} />
+              </>
+            )}
             
             {/* AI Analysis Debug Summary - Temporary */}
             <AIAnalysisSummary report={creditReport} />
