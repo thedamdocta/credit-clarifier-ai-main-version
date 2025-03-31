@@ -53,7 +53,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
           return (
             <TableRow 
               key={`account-summary-${summary.accountType}`} 
-              isHighlighted={isTotal}
+              className={isTotal ? "font-medium bg-muted/30" : ""}
             >
               <TableCell className="font-medium">{summary.accountType}</TableCell>
               <TableCell>{renderCellValue(summary.accountType, 'open', summary.open, formatAccountValue)}</TableCell>

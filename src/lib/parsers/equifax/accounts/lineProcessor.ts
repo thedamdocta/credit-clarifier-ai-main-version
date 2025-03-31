@@ -73,13 +73,46 @@ export function processAccountLineWithColumnAwareness(
     return posA - posB;
   });
   
-  // Process each column in order, checking for empty cells
+  // Track which columns have actual data
+  const columnsWithData = new Set<string>();
+  
+  // First pass: identify which columns actually have data
   for (let i = 0; i < sortedColumnKeys.length; i++) {
     const key = sortedColumnKeys[i];
     const nextKey = i < sortedColumnKeys.length - 1 ? sortedColumnKeys[i + 1] : null;
     
     // Skip accountType as it's already set
     if (key === 'accountType') continue;
+    
+    // Get the position range for this column
+    const startPos = columns[key];
+    const endPos = nextKey ? columns[nextKey] : undefined;
+    
+    // Extract content for this cell position
+    const cellContent = extractCellContent(line, startPos, endPos);
+    
+    // If cell has meaningful content, mark it
+    if (cellContent && cellContent.trim() !== '') {
+      columnsWithData.add(key);
+    }
+  }
+
+  console.log(`${accountSummary.accountType} - Columns with data:`, Array.from(columnsWithData));
+  
+  // Second pass: process the data and ensure values are set properly
+  for (let i = 0; i < sortedColumnKeys.length; i++) {
+    const key = sortedColumnKeys[i];
+    const nextKey = i < sortedColumnKeys.length - 1 ? sortedColumnKeys[i + 1] : null;
+    
+    // Skip accountType as it's already set
+    if (key === 'accountType') continue;
+    
+    // If this column doesn't have data, ensure it's explicitly null
+    if (!columnsWithData.has(key)) {
+      accountSummary[key] = null;
+      console.log(`${accountSummary.accountType} - ${key}: No data found, setting to null`);
+      continue;
+    }
     
     // Get the position range for this column
     const startPos = columns[key];
@@ -124,3 +157,4 @@ export function processAccountLineWithColumnAwareness(
     payment: accountSummary.payment
   });
 }
+
