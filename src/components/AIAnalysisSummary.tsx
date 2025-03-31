@@ -86,12 +86,13 @@ const AIAnalysisSummary: React.FC<AIAnalysisSummaryProps> = ({ report }) => {
           
           {report.accountSummaries && report.accountSummaries.length > 0 && (
             <div>
-              <h3 className="font-medium mb-2">Detected Account Summaries (Full 8x5 Table)</h3>
+              <h3 className="font-medium mb-2">Detected Account Summaries (Full 9x6 Table)</h3>
               <div className="border rounded-md overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Account Type</TableHead>
+                      <TableHead>Total Accounts</TableHead>
                       <TableHead>Open</TableHead>
                       <TableHead>With Balance</TableHead>
                       <TableHead>Total Balance</TableHead>
@@ -108,6 +109,7 @@ const AIAnalysisSummary: React.FC<AIAnalysisSummaryProps> = ({ report }) => {
                         className={summary.accountType === 'Total' ? 'bg-muted/30 font-semibold' : ''}
                       >
                         <TableCell className="font-medium">{summary.accountType}</TableCell>
+                        <TableCell>{hasValue(summary.totalAccounts) ? summary.totalAccounts : ""}</TableCell>
                         <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>
                         <TableCell>{hasValue(summary.withBalance) ? summary.withBalance : ""}</TableCell>
                         <TableCell>{hasValue(summary.totalBalance) ? formatValue(summary.totalBalance) : ""}</TableCell>

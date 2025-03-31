@@ -51,8 +51,8 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     return value !== undefined && value !== null && value !== '';
   };
 
-  // Required account types in order
-  const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+  // Required account types in order - updated to include Collection
+  const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Collection', 'Other', 'Total'];
   
   // Create properly ordered account summaries with empty values for missing types
   const accountSummaries: AccountSummary[] = [];
@@ -109,6 +109,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
           <TableHeader>
             <TableRow className="bg-muted">
               <TableHead>Account Type</TableHead>
+              <TableHead>Total Accounts</TableHead>
               <TableHead>Open</TableHead>
               <TableHead>With Balance</TableHead>
               <TableHead>Total Balance</TableHead>
@@ -122,9 +123,10 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             {accountSummaries.map((summary) => (
               <TableRow 
                 key={`account-summary-${summary.accountType}`} 
-                isHighlighted={summary.accountType === 'Total'}
+                className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
+                <TableCell>{hasValue(summary.totalAccounts) ? summary.totalAccounts : ""}</TableCell>
                 <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>
                 <TableCell>{hasValue(summary.withBalance) ? summary.withBalance : ""}</TableCell>
                 <TableCell>{hasValue(summary.totalBalance) ? formatValue(summary.totalBalance) : ""}</TableCell>
