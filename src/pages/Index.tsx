@@ -1,13 +1,139 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from "react";
+import Layout from "@/components/Layout";
+import PDFUploader from "@/components/PDFUploader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Upload, FileText, Settings, AlertCircle } from "lucide-react";
+import { CreditReport, parseCreditReport } from "@/lib/creditReportParser";
+import CreditReportHeader from "@/components/CreditReportHeader";
+import CreditScoreDisplay from "@/components/CreditScoreDisplay";
+import PersonalInfoCard from "@/components/PersonalInfoCard";
+import AccountsList from "@/components/AccountsList";
+import WebhookManager from "@/components/WebhookManager";
 
 const Index = () => {
+  const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("upload");
+
+  const handlePDFUploaded = async (file: File, text: string) => {
+    try {
+      setIsProcessing(true);
+      
+      // Parse the credit report from the extracted text
+      const parsedReport = parseCreditReport(text);
+      
+      // Update the state with the parsed report
+      setCreditReport(parsedReport);
+      
+      // Switch to the report tab
+      setActiveTab("report");
+      
+    } catch (error) {
+      console.error("Error processing credit report:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <Layout>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 md:w-[400px] mb-6">
+          <TabsTrigger value="upload" className="flex items-center">
+            <Upload className="mr-2 h-4 w-4" />
+            Upload PDF
+          </TabsTrigger>
+          <TabsTrigger value="report" disabled={!creditReport} className="flex items-center">
+            <FileText className="mr-2 h-4 w-4" />
+            Report
+          </TabsTrigger>
+          <TabsTrigger value="webhooks" className="flex items-center">
+            <Settings className="mr-2 h-4 w-4" />
+            Webhooks
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="upload" className="mt-0">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Credit Report</CardTitle>
+                <CardDescription>
+                  Upload a credit report PDF from Equifax, Experian, or TransUnion
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PDFUploader 
+                  onPDFUploaded={handlePDFUploaded}
+                  isProcessing={isProcessing}
+                />
+              </CardContent>
+            </Card>
+            
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Privacy Note</AlertTitle>
+              <AlertDescription>
+                Your credit report data is processed locally in your browser and is never stored on our servers.
+              </AlertDescription>
+            </Alert>
+            
+            {creditReport && (
+              <div className="flex justify-center">
+                <Button onClick={() => setActiveTab("report")}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Processed Report
+                </Button>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="report" className="mt-0">
+          {creditReport ? (
+            <div className="space-y-6">
+              <CreditReportHeader report={creditReport} />
+              
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <CreditScoreDisplay scores={creditReport.creditScores} />
+                </div>
+                <div>
+                  <PersonalInfoCard personalInfo={creditReport.personalInfo} />
+                </div>
+              </div>
+              
+              <AccountsList accounts={creditReport.accounts} />
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10">
+                <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Report Available</h3>
+                <p className="text-muted-foreground text-center mb-6">
+                  Upload a credit report PDF to see the analyzed results
+                </p>
+                <Button onClick={() => setActiveTab("upload")}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Credit Report
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="webhooks" className="mt-0">
+          <WebhookManager 
+            creditReport={creditReport}
+            isProcessing={isProcessing}
+          />
+        </TabsContent>
+      </Tabs>
+    </Layout>
   );
 };
 
