@@ -79,6 +79,7 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
     oldestAccount: summaryData.oldestAccount,
     recentAccount: summaryData.recentAccount,
     confirmationNumber,
-    statementCount
+    statementCount,
+    consumerName: otherItems.consumerName || summaryData.consumerName
   };
 };

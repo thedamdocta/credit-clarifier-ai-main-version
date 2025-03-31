@@ -77,6 +77,7 @@ export interface CreditReport {
     accountName: string;
     openDate: string;
   };
+  consumerName?: string;
   
   // Error information
   parsingError?: string;

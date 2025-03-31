@@ -6,6 +6,7 @@ export const extractEquifaxOtherItems = (text: string): {
   collectionCount: number;
   personalInfoItemCount: number;
   statementCount?: number;
+  consumerName?: string;
 } => {
   // Default values
   let inquiryCount = 0;
@@ -14,6 +15,39 @@ export const extractEquifaxOtherItems = (text: string): {
   let collectionCount = 0;
   let personalInfoItemCount = 0;
   let statementCount = 0;
+  let consumerName = '';
+  
+  // Extract consumer name - try different patterns
+  const namePatterns = [
+    /Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
+    /Consumer\s*Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
+    /Report\s+for\s+([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
+    /CONSUMER\s*NAME:\s*([A-Za-Z\s\.,'-]+?)(?:\n|$|\s{2,})/i
+  ];
+  
+  // Try each name pattern
+  for (const pattern of namePatterns) {
+    const nameMatch = text.match(pattern);
+    if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
+      consumerName = nameMatch[1].trim();
+      break;
+    }
+  }
+  
+  // If still not found, try to look in the first 1000 characters for a name-like pattern
+  if (!consumerName) {
+    const headerText = text.substring(0, 1000);
+    const headerLines = headerText.split(/\n/);
+    
+    for (const line of headerLines) {
+      // Look for lines that might contain a name (2+ words, each capitalized)
+      const nameLikePattern = /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}$/;
+      if (nameLikePattern.test(line.trim()) && line.trim().length > 5) {
+        consumerName = line.trim();
+        break;
+      }
+    }
+  }
   
   // Extract inquiry count
   const inquiryMatch = text.match(/(?:Credit )?Inquiries[:\s]+(\d+)(?:\s*Inquiries?| Records?| Record)?\s*Found/i);
@@ -121,6 +155,7 @@ export const extractEquifaxOtherItems = (text: string): {
     publicRecordCount,
     collectionCount,
     personalInfoItemCount,
-    statementCount
+    statementCount,
+    consumerName
   };
 };

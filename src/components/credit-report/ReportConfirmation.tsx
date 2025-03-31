@@ -23,6 +23,12 @@ const ReportConfirmation: React.FC<ReportConfirmationProps> = ({ report }) => {
       <CardContent className="pt-4">
         <div className="grid gap-4">
           <div className="flex justify-between items-center border-b pb-2">
+            <span className="font-medium">Consumer Name</span>
+            <span className="text-muted-foreground">
+              {report.consumerName || report.personalInfo?.name || "Not Available"}
+            </span>
+          </div>
+          <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium">Report Confirmation</span>
             <span className="text-muted-foreground">{report.confirmationNumber || "Not Available"}</span>
           </div>
