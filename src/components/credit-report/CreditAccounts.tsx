@@ -91,6 +91,9 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Get properly ordered account summaries
   const accountSummaries = getSummaryByType();
 
+  // Log the account summaries for debugging
+  console.log("Account summaries to be displayed:", accountSummaries);
+
   return (
     <Card>
       <CardHeader>
