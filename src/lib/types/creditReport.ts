@@ -1,4 +1,3 @@
-
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -33,10 +32,10 @@ export interface CreditScore {
 export interface AccountSummary {
   accountType: string;
   totalAccounts: number | null;
-  open: string | number | null;
+  open: string | null;
   closed: number | null;
   balance: string | null;
-  withBalance?: string | number | null;
+  withBalance?: string | null;
   totalBalance?: string | null;
   available?: string | null;
   creditLimit?: string | null;
