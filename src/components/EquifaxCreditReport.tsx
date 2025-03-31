@@ -104,7 +104,7 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
         </CardContent>
       </Card>
 
-      {/* Summary Section - Simplified to match the provided image */}
+      {/* Summary Section - Simplified to focus on key information */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -115,7 +115,7 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
             Review this summary for a quick view of key information contained in your Equifax Credit Report.
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent>
           <div className="grid gap-3">
             <div className="flex justify-between items-center bg-muted/20 p-2">
               <span className="font-medium">Report Date</span>
@@ -144,7 +144,7 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
             
             <div className="flex justify-between items-center p-2">
               <span className="font-medium">Accounts with Negative Information</span>
-              <span>{report.accountsWithNegativeInfo || "Not Available"}</span>
+              <span>{report.accountsWithNegativeInfo || "0"}</span>
             </div>
             
             <div className="flex justify-between items-center bg-muted/20 p-2">
