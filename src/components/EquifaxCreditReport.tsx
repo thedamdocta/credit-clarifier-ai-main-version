@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -103,60 +104,65 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
         </CardContent>
       </Card>
 
-      {/* Summary Section */}
+      {/* Summary Section - Simplified to match the provided image */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Info className="h-5 w-5 mr-2" />
             1. Summary
           </CardTitle>
-          <CardDescription>Overview of your Equifax credit file</CardDescription>
+          <CardDescription>
+            Review this summary for a quick view of key information contained in your Equifax Credit Report.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="flex justify-between items-center border-b pb-2">
+        <CardContent className="pt-2">
+          <div className="grid gap-3">
+            <div className="flex justify-between items-center bg-muted/20 p-2">
+              <span className="font-medium">Report Date</span>
+              <span>{report.reportDate || "Not Available"}</span>
+            </div>
+            
+            <div className="flex justify-between items-center p-2">
               <span className="font-medium">Credit File Status</span>
-              <span className="text-green-500 font-medium">{report.creditFileStatus || "No fraud indicator on file"}</span>
+              <span>{report.creditFileStatus || "No fraud indicator on file"}</span>
             </div>
             
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center bg-muted/20 p-2">
               <span className="font-medium">Alert Contacts</span>
-              <span className="text-muted-foreground">{report.alertContacts || "0 Records Found"}</span>
+              <span>{report.alertContacts || "0 Records Found"}</span>
             </div>
             
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center p-2">
               <span className="font-medium">Average Account Age</span>
-              <span className="text-muted-foreground">{report.averageAccountAge || "Not Available"}</span>
+              <span>{report.averageAccountAge || "Not Available"}</span>
             </div>
             
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center bg-muted/20 p-2">
               <span className="font-medium">Length of Credit History</span>
-              <span className="text-muted-foreground">{report.lengthOfCreditHistory || "Not Available"}</span>
+              <span>{report.lengthOfCreditHistory || "Not Available"}</span>
             </div>
             
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center p-2">
               <span className="font-medium">Accounts with Negative Information</span>
-              <span className="text-muted-foreground">{report.accountsWithNegativeInfo || "Not Available"}</span>
+              <span>{report.accountsWithNegativeInfo || "Not Available"}</span>
             </div>
             
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center bg-muted/20 p-2">
               <span className="font-medium">Oldest Account</span>
-              <div className="text-right">
-                <div>{report.oldestAccount?.accountName || "Not Available"}</div>
-                {report.oldestAccount?.openDate && (
-                  <div className="text-xs text-muted-foreground">Opened {report.oldestAccount.openDate}</div>
-                )}
-              </div>
+              <span>
+                {report.oldestAccount ? 
+                  `${report.oldestAccount.accountName} (Opened ${report.oldestAccount.openDate})` : 
+                  "Not Available"}
+              </span>
             </div>
             
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center p-2">
               <span className="font-medium">Most Recent Account</span>
-              <div className="text-right">
-                <div>{report.recentAccount?.accountName || "Not Available"}</div>
-                {report.recentAccount?.openDate && (
-                  <div className="text-xs text-muted-foreground">Opened {report.recentAccount.openDate}</div>
-                )}
-              </div>
+              <span>
+                {report.recentAccount ? 
+                  `${report.recentAccount.accountName} (Opened ${report.recentAccount.openDate})` :
+                  "Not Available"}
+              </span>
             </div>
           </div>
         </CardContent>
