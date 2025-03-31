@@ -2,7 +2,7 @@
 import { AccountSummary } from "../../types/creditReport";
 
 export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
-  console.log("Starting account summary extraction with true cell-by-cell approach");
+  console.log("Starting account summary extraction with improved row-by-row approach");
   
   // Define the empty account summaries structure
   const accountSummaries: AccountSummary[] = [
@@ -21,7 +21,7 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
       return accountSummaries;
     }
     
-    // Process the table content strictly line by line
+    // Process the table content line by line
     const lines = tableSection.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
@@ -30,30 +30,25 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     console.log("Extracted table section:");
     lines.forEach((line, i) => console.log(`Line ${i}: ${line}`));
     
-    // Process each account type row individually
-    for (const accountType of ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total']) {
-      const accountIndex = accountSummaries.findIndex(a => a.accountType === accountType);
-      if (accountIndex === -1) continue;
-      
-      // Find the line that contains this account type
-      const matchingLines = lines.filter(line => 
-        new RegExp(`\\b${accountType}\\b`, 'i').test(line)
-      );
-      
-      if (matchingLines.length === 0) {
-        console.log(`No line found for account type: ${accountType}`);
-        continue;
+    // Extract lines that contain account types and clean them
+    const accountTypeLines = [];
+    for (const line of lines) {
+      for (const accountType of ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total']) {
+        if (line.includes(accountType)) {
+          accountTypeLines.push({ accountType, line });
+          break;
+        }
       }
-      
-      const accountLine = matchingLines[0];
-      console.log(`Processing line for ${accountType}: ${accountLine}`);
-      
-      // Extract values for this account type only if they exist in the line
-      extractExactCellValues(accountLine, accountSummaries[accountIndex]);
     }
     
-    // Clean up any duplicate or incorrect data
-    cleanupSummaryData(accountSummaries);
+    // Process each account type separately with its own line
+    for (const { accountType, line } of accountTypeLines) {
+      console.log(`Processing line for ${accountType}: ${line}`);
+      const accountIndex = accountSummaries.findIndex(a => a.accountType === accountType);
+      if (accountIndex !== -1) {
+        extractValuesForAccountType(line, accountSummaries[accountIndex]);
+      }
+    }
     
     console.log("Final extracted account summaries:", accountSummaries);
     return accountSummaries;
@@ -85,7 +80,7 @@ function extractTableSection(text: string): string | null {
   
   // If we still don't have a match, try a more generic approach
   if (!tableSection) {
-    const genericMatch = text.match(/((?:Revolving|Mortgage|Installment|Other|Total)[\s\S]+?(?:Revolving|Mortgage|Installment|Other|Total)[\s\S]+?(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report))/i);
+    const genericMatch = text.match(/((?:Revolving|Mortgage|Installment|Other|Total)[\s\S]+?(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report))/i);
     if (genericMatch && genericMatch[1]) {
       tableSection = genericMatch[1];
       console.log("Found table section using generic approach");
@@ -95,135 +90,35 @@ function extractTableSection(text: string): string | null {
   return tableSection;
 }
 
-function extractExactCellValues(line: string, summary: AccountSummary): void {
-  // Clean and normalize the line
-  const cleanLine = line.replace(/\s+/g, ' ').trim();
-  console.log(`Cleaned line: ${cleanLine}`);
+function extractValuesForAccountType(line: string, summary: AccountSummary): void {
+  // Focus only on the part of the line after the account type
+  const typePart = line.match(new RegExp(`\\b(${summary.accountType})\\b`, 'i'));
+  if (!typePart || !typePart.index) return;
   
-  // Extract the account type first to anchor our position
-  const accountTypeMatch = cleanLine.match(/\b(Revolving|Mortgage|Installment|Other|Total)\b/i);
-  if (!accountTypeMatch) return;
+  const lineAfterType = line.substring(typePart.index + summary.accountType.length);
+  console.log(`Extracting from: "${lineAfterType}" for ${summary.accountType}`);
   
-  const accountType = accountTypeMatch[1];
-  const startPos = cleanLine.indexOf(accountType) + accountType.length;
-  const remainingText = cleanLine.substring(startPos).trim();
-  console.log(`Remaining text after ${accountType}: "${remainingText}"`);
-  
-  // Split the remaining text into tokens, preserving dollar amounts and percentages
-  const tokens = tokenizeRemainingText(remainingText);
-  console.log(`Tokens for ${accountType}:`, tokens);
-  
-  // Map tokens to specific columns based on their format and position
-  let currentCol = 0;
-  
-  for (const token of tokens) {
-    // Skip empty or invalid tokens
-    if (!token || token === '') continue;
-    
-    // Check if token is a simple integer (usually Open or With Balance columns)
-    if (/^\d+$/.test(token)) {
-      if (currentCol === 0) {
-        summary.open = parseInt(token);
-        currentCol++;
-      } else if (currentCol === 1) {
-        summary.withBalance = parseInt(token);
-        currentCol++;
-      }
-      continue;
-    }
-    
-    // Check if token is a dollar amount (balance, available, limit, or payment)
-    if (/^\$[\d,]+|^\-\$[\d,]+/.test(token)) {
-      if (currentCol <= 1) {
-        // If we haven't set open/withBalance yet, skip ahead
-        currentCol = 2;
-      }
-      
-      if (currentCol === 2) {
-        summary.totalBalance = token;
-        currentCol++;
-      } else if (currentCol === 3) {
-        summary.available = token;
-        currentCol++;
-      } else if (currentCol === 4) {
-        summary.creditLimit = token;
-        currentCol++;
-      } else if (currentCol === 6) { // Skip debt-to-credit ratio
-        summary.payment = token;
-      }
-      continue;
-    }
-    
-    // Check if token is a percentage (debt-to-credit)
-    if (/^\d+\.?\d*\%$/.test(token)) {
-      summary.debtToCredit = token;
-      currentCol = 6; // Move to payment column next
+  // Extract numeric values (first looking for plain integers - typically open/with balance counts)
+  const numericMatches = lineAfterType.match(/\b(\d+)\b/g);
+  if (numericMatches && numericMatches.length >= 1) {
+    summary.open = parseInt(numericMatches[0]);
+    if (numericMatches.length >= 2) {
+      summary.withBalance = parseInt(numericMatches[1]);
     }
   }
-}
-
-function tokenizeRemainingText(text: string): string[] {
-  // This function breaks the line into tokens while preserving special formats
   
-  // First capture dollar amounts with their sign
-  const dollarMatches = text.match(/\-?\$[\d,]+|\$\-[\d,]+/g) || [];
-  
-  // Then capture percentages
-  const percentMatches = text.match(/\d+\.?\d*\%/g) || [];
-  
-  // Remove these special patterns from text to process remaining numbers
-  let cleanedText = text;
-  [...dollarMatches, ...percentMatches].forEach(match => {
-    cleanedText = cleanedText.replace(match, " *** ");
-  });
-  
-  // Get remaining numbers
-  const numberMatches = cleanedText.match(/\b\d+\b/g) || [];
-  
-  // Now reconstruct tokens in their original order
-  const tokens: string[] = [];
-  let currentDollarIndex = 0;
-  let currentPercentIndex = 0;
-  let currentNumberIndex = 0;
-  
-  // Simple tokenization by whitespace
-  const chunks = text.split(/\s+/);
-  for (const chunk of chunks) {
-    if (chunk.match(/\-?\$[\d,]+|\$\-[\d,]+/)) {
-      tokens.push(dollarMatches[currentDollarIndex++]);
-    } else if (chunk.match(/\d+\.?\d*\%/)) {
-      tokens.push(percentMatches[currentPercentIndex++]);
-    } else if (chunk.match(/\b\d+\b/)) {
-      tokens.push(numberMatches[currentNumberIndex++]);
-    }
-    // Skip other text
+  // Extract dollar amounts
+  const dollarMatches = lineAfterType.match(/\$[\d,]+|-\$[\d,]+/g);
+  if (dollarMatches) {
+    if (dollarMatches.length >= 1) summary.totalBalance = dollarMatches[0];
+    if (dollarMatches.length >= 2) summary.available = dollarMatches[1];
+    if (dollarMatches.length >= 3) summary.creditLimit = dollarMatches[2];
+    if (dollarMatches.length >= 4) summary.payment = dollarMatches[3];
   }
   
-  return tokens;
-}
-
-function cleanupSummaryData(summaries: AccountSummary[]): void {
-  // Remove duplicated data across rows
-  // We'll trust the data in its original row and clear it from other rows
-  
-  // Check for null rows that shouldn't have data
-  for (const summary of summaries) {
-    // If a row has almost no data, clear any potentially misplaced values
-    const hasValues = [
-      summary.open, 
-      summary.withBalance, 
-      summary.totalBalance, 
-      summary.available, 
-      summary.creditLimit
-    ].filter(v => v !== null).length;
-    
-    if (hasValues <= 1) {
-      // This row probably doesn't have real data, reset all financial values
-      summary.totalBalance = null;
-      summary.available = null;
-      summary.creditLimit = null;
-      summary.debtToCredit = null;
-      summary.payment = null;
-    }
+  // Extract percentage for debt-to-credit
+  const percentMatch = lineAfterType.match(/(\d+\.?\d*)%/);
+  if (percentMatch) {
+    summary.debtToCredit = percentMatch[0];
   }
 }
