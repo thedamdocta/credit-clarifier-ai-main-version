@@ -28,10 +28,8 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        // Store the summary in our map, preserving null values
-        summariesByType.set(summary.accountType, {
-          ...summary
-        });
+        // Store the summary in our map, preserving all original values (including zeros)
+        summariesByType.set(summary.accountType, summary);
         
         console.log(`Processing ${summary.accountType} account summary:`, summary);
       }
@@ -43,19 +41,9 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     const existingSummary = summariesByType.get(accountType);
     
     if (existingSummary) {
-      // For existing summaries, use as is but ensure null values remain null
+      // For existing summaries, preserve all original values
       accountSummaries.push({
-        accountType,
-        totalAccounts: existingSummary.totalAccounts || null,
-        open: existingSummary.open || null,
-        closed: existingSummary.closed || null,
-        balance: existingSummary.balance || null,
-        withBalance: existingSummary.withBalance || null,
-        totalBalance: existingSummary.totalBalance || null,
-        available: existingSummary.available || null,
-        creditLimit: existingSummary.creditLimit || null,
-        debtToCredit: existingSummary.debtToCredit || null,
-        payment: existingSummary.payment || null
+        ...existingSummary
       });
     } else {
       // For missing types, all values should be explicitly null
