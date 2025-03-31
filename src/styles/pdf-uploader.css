@@ -1,0 +1,13 @@
+
+.pdf-drop-area {
+  min-height: 320px;
+  border: 2px dashed #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  transition: all 0.2s ease;
+}
+
+.pdf-drop-area.active {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
+}
