@@ -1,6 +1,6 @@
 
 import { CreditReport } from "../../types/creditReport";
-import { extractEquifaxAccountSummaries } from "./equifaxAccountSummary";
+import { extractEquifaxAccountSummaries } from "./accounts/accountSummaryExtractor";
 import { extractEquifaxOtherItems } from "./equifaxOtherItems";
 import { extractEquifaxSummary } from "./equifaxSummary";
 import { parsingLogger } from "@/utils/parsingLogger";
