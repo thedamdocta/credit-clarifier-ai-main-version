@@ -1,6 +1,8 @@
+
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
-import { setAccountSummariesFromSampleImage } from "@/lib/parsers/equifax/equifaxParser";
+// Removed the incorrect import of setAccountSummariesFromSampleImage
+import { convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 
 export const identifyDocumentPatterns = (extractedText: string) => {
   // Pre-process text to better identify account tables
@@ -114,12 +116,70 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
     // We don't want to overwrite account summaries if they already have values
     // (including null values that will be displayed as "x")
     if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
-      // Sample data for testing
-      const isTestingWithSample = true; // Set to false for production
-      if (isTestingWithSample) {
-        console.log("Using sample account summaries for testing");
-        parsedReport.accountSummaries = setAccountSummariesFromSampleImage();
-      } else {
+      // For testing purposes, use sample data from the image extraction simulation
+      // This will provide a placeholder for demonstration until real AI processing is implemented
+      try {
+        const sampleTableData = {
+          headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 
+                    'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
+          rows: [
+            {
+              'Account Type': 'Revolving',
+              'Open': '0',
+              'With Balance': '0',
+              'Total Balance': '',
+              'Available': '',
+              'Credit Limit': '',
+              'Debt-to-Credit': '',
+              'Payment': '',
+            },
+            {
+              'Account Type': 'Mortgage',
+              'Open': '',
+              'With Balance': '',
+              'Total Balance': '',
+              'Available': '',
+              'Credit Limit': '',
+              'Debt-to-Credit': '',
+              'Payment': '',
+            },
+            {
+              'Account Type': 'Installment',
+              'Open': '2',
+              'With Balance': '2',
+              'Total Balance': '$31,533',
+              'Available': '-$4,447',
+              'Credit Limit': '$27,086',
+              'Debt-to-Credit': '116.0%',
+              'Payment': '$543',
+            },
+            {
+              'Account Type': 'Other',
+              'Open': '',
+              'With Balance': '',
+              'Total Balance': '',
+              'Available': '',
+              'Credit Limit': '',
+              'Debt-to-Credit': '',
+              'Payment': '',
+            },
+            {
+              'Account Type': 'Total',
+              'Open': '2',
+              'With Balance': '2',
+              'Total Balance': '$31,533',
+              'Available': '-$4,447',
+              'Credit Limit': '$27,086',
+              'Debt-to-Credit': '0.0%',
+              'Payment': '$543',
+            },
+          ]
+        };
+        
+        parsedReport.accountSummaries = convertTableToAccountSummaries(sampleTableData);
+        console.log("Using sample account summaries for testing:", parsedReport.accountSummaries);
+      } catch (error) {
+        console.error("Error creating sample account summaries:", error);
         // Only process account summaries if they don't exist yet
         improvedAccountSummaryExtraction(parsedReport, extractedText);
       }
