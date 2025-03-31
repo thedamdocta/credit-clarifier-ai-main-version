@@ -40,11 +40,11 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
           <div className="grid gap-4">
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Confirmation Number</span>
-              <span className="text-muted-foreground">4862566107</span>
+              <span className="text-muted-foreground">{report.confirmationNumber || "Not Available"}</span>
             </div>
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Report Date</span>
-              <span className="text-muted-foreground">{report.reportDate}</span>
+              <span className="text-muted-foreground">{report.reportDate || "Not Available"}</span>
             </div>
           </div>
         </CardContent>
@@ -63,42 +63,46 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
           <div className="grid gap-4">
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Credit File Status</span>
-              <span className="text-green-500 font-medium">No fraud indicator on file</span>
+              <span className="text-green-500 font-medium">{report.creditFileStatus || "No fraud indicator on file"}</span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Alert Contacts</span>
-              <span className="text-muted-foreground">0 Records Found</span>
+              <span className="text-muted-foreground">{report.alertContacts || "0 Records Found"}</span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Average Account Age</span>
-              <span className="text-muted-foreground">4 Years, 8 Months</span>
+              <span className="text-muted-foreground">{report.averageAccountAge || "Not Available"}</span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Length of Credit History</span>
-              <span className="text-muted-foreground">13 Years</span>
+              <span className="text-muted-foreground">{report.lengthOfCreditHistory || "Not Available"}</span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Accounts with Negative Information</span>
-              <span className="text-muted-foreground">4</span>
+              <span className="text-muted-foreground">{report.accountsWithNegativeInfo || "Not Available"}</span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Oldest Account</span>
               <div className="text-right">
-                <div>DEPT OF ED/AIDVANTAGE</div>
-                <div className="text-xs text-muted-foreground">Opened Dec 15, 2011</div>
+                <div>{report.oldestAccount?.accountName || "Not Available"}</div>
+                {report.oldestAccount?.openDate && (
+                  <div className="text-xs text-muted-foreground">Opened {report.oldestAccount.openDate}</div>
+                )}
               </div>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Most Recent Account</span>
               <div className="text-right">
-                <div>AMERICAN CREDIT ACCEPTANCE</div>
-                <div className="text-xs text-muted-foreground">Opened Jul 12, 2023</div>
+                <div>{report.recentAccount?.accountName || "Not Available"}</div>
+                {report.recentAccount?.openDate && (
+                  <div className="text-xs text-muted-foreground">Opened {report.recentAccount.openDate}</div>
+                )}
               </div>
             </div>
           </div>
@@ -116,54 +120,49 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
         </CardHeader>
         <CardContent>
           <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted">
-                <TableHead>Account Type</TableHead>
-                <TableHead>Total Accounts</TableHead>
-                <TableHead>Open</TableHead>
-                <TableHead>Closed</TableHead>
-                <TableHead>Balance</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Revolving</TableCell>
-                <TableCell>3</TableCell>
-                <TableCell>2</TableCell>
-                <TableCell>1</TableCell>
-                <TableCell>$12,406</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Installment</TableCell>
-                <TableCell>8</TableCell>
-                <TableCell>6</TableCell>
-                <TableCell>2</TableCell>
-                <TableCell>$47,215</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Mortgage</TableCell>
-                <TableCell>0</TableCell>
-                <TableCell>0</TableCell>
-                <TableCell>0</TableCell>
-                <TableCell>$0</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Other</TableCell>
-                <TableCell>0</TableCell>
-                <TableCell>0</TableCell>
-                <TableCell>0</TableCell>
-                <TableCell>$0</TableCell>
-              </TableRow>
-              <TableRow className="font-medium bg-muted/30">
-                <TableCell>Total</TableCell>
-                <TableCell>11</TableCell>
-                <TableCell>8</TableCell>
-                <TableCell>3</TableCell>
-                <TableCell>$59,621</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          {report.accountSummaries && report.accountSummaries.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted">
+                  <TableHead>Account Type</TableHead>
+                  <TableHead>Total Accounts</TableHead>
+                  <TableHead>Open</TableHead>
+                  <TableHead>Closed</TableHead>
+                  <TableHead>Balance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {report.accountSummaries.filter(summary => summary.accountType !== 'Total').map((summary, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{summary.accountType}</TableCell>
+                    <TableCell>{summary.totalAccounts}</TableCell>
+                    <TableCell>{summary.open}</TableCell>
+                    <TableCell>{summary.closed}</TableCell>
+                    <TableCell>{formatValue(summary.balance)}</TableCell>
+                  </TableRow>
+                ))}
+                {report.accountSummaries.find(summary => summary.accountType === 'Total') && (
+                  <TableRow className="font-medium bg-muted/30">
+                    <TableCell>Total</TableCell>
+                    <TableCell>
+                      {report.accountSummaries.find(summary => summary.accountType === 'Total')?.totalAccounts || 0}
+                    </TableCell>
+                    <TableCell>
+                      {report.accountSummaries.find(summary => summary.accountType === 'Total')?.open || 0}
+                    </TableCell>
+                    <TableCell>
+                      {report.accountSummaries.find(summary => summary.accountType === 'Total')?.closed || 0}
+                    </TableCell>
+                    <TableCell>
+                      {formatValue(report.accountSummaries.find(summary => summary.accountType === 'Total')?.balance)}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center p-4 text-muted-foreground">No account summary data available</div>
+          )}
         </CardContent>
       </Card>
 
@@ -182,32 +181,40 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Collections</span>
-              <span className="text-muted-foreground">0 Records Found</span>
+              <span className="text-muted-foreground">
+                {report.collectionCount !== undefined ? `${report.collectionCount} Records Found` : "Not Available"}
+              </span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Public Records</span>
-              <span className="text-muted-foreground">0 Records Found</span>
+              <span className="text-muted-foreground">
+                {report.publicRecordCount !== undefined ? `${report.publicRecordCount} Records Found` : "Not Available"}
+              </span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Credit Inquiries</span>
-              <span className="text-muted-foreground">1 Record Found</span>
+              <span className="text-muted-foreground">
+                {report.inquiryCount !== undefined ? `${report.inquiryCount} Records Found` : "Not Available"}
+              </span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Most Recent Inquiry</span>
-              <span className="text-muted-foreground">EQUIFAX INC (0100) Dec 27, 2024</span>
+              <span className="text-muted-foreground">{report.recentInquiry || "Not Available"}</span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Personal Information</span>
-              <span className="text-muted-foreground">12 Items Found</span>
+              <span className="text-muted-foreground">
+                {report.personalInfoItemCount !== undefined ? `${report.personalInfoItemCount} Items Found` : "Not Available"}
+              </span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Statement</span>
-              <span className="text-muted-foreground">0 Records Found</span>
+              <span className="text-muted-foreground">{report.statementCount !== undefined ? `${report.statementCount} Records Found` : "0 Records Found"}</span>
             </div>
           </div>
         </CardContent>

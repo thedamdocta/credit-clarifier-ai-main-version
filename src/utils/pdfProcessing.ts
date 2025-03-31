@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
 
@@ -56,10 +57,24 @@ export const processPDFDocument = async (
         console.log('Sample text:', extractedText.substring(0, 300) + '...');
         
         // Pre-process text to better identify account tables
-        // Look for Equifax specific table patterns - Updated to match the format in the image
+        // Look for Equifax specific table patterns
         const tablePattern = /Account\s+Type\s+(?:Total\s+Accounts|Open|Closed|Balance)/i;
         if (tablePattern.test(extractedText)) {
           console.log("Identified potential Equifax account summary table");
+        }
+        
+        // Extract confirmation number
+        const confirmationPattern = /confirmation\s+number[:\s]*(\d+)/i;
+        const confirmationMatch = extractedText.match(confirmationPattern);
+        if (confirmationMatch && confirmationMatch[1]) {
+          console.log("Found confirmation number:", confirmationMatch[1]);
+        }
+        
+        // Look for credit file status
+        const statusPattern = /credit\s+file\s+status[:\s]*(.*?)(?:\n|$)/i;
+        const statusMatch = extractedText.match(statusPattern);
+        if (statusMatch && statusMatch[1]) {
+          console.log("Found credit file status:", statusMatch[1].trim());
         }
         
         // Show appropriate processing toast
@@ -74,6 +89,77 @@ export const processPDFDocument = async (
           console.log("Beginning report parsing...");
           const parsedReport = await parseCreditReport(extractedText, useAI);
           console.log("Report parsing complete:", parsedReport.bureau);
+          
+          // Extract additional information for display
+          if (parsedReport.bureau === 'Equifax') {
+            // Try to extract confirmation number
+            if (confirmationMatch && confirmationMatch[1]) {
+              parsedReport.confirmationNumber = confirmationMatch[1].trim();
+            }
+            
+            // Try to extract credit file status
+            if (statusMatch && statusMatch[1]) {
+              parsedReport.creditFileStatus = statusMatch[1].trim();
+            }
+            
+            // Try to find oldest and most recent accounts
+            if (parsedReport.accounts && parsedReport.accounts.length > 0) {
+              // Sort accounts by open date
+              const sortedAccounts = [...parsedReport.accounts]
+                .filter(account => account.openDate && account.openDate !== 'Not Found')
+                .sort((a, b) => {
+                  const dateA = new Date(a.openDate).getTime();
+                  const dateB = new Date(b.openDate).getTime();
+                  return dateA - dateB;
+                });
+              
+              if (sortedAccounts.length > 0) {
+                parsedReport.oldestAccount = {
+                  accountName: sortedAccounts[0].accountName,
+                  openDate: sortedAccounts[0].openDate
+                };
+                
+                parsedReport.recentAccount = {
+                  accountName: sortedAccounts[sortedAccounts.length - 1].accountName,
+                  openDate: sortedAccounts[sortedAccounts.length - 1].openDate
+                };
+              }
+            }
+            
+            // Extract account age metrics
+            const agePattern = /average\s+account\s+age[:\s]*(.*?)(?:\n|$)/i;
+            const ageMatch = extractedText.match(agePattern);
+            if (ageMatch && ageMatch[1]) {
+              parsedReport.averageAccountAge = ageMatch[1].trim();
+            }
+            
+            const historyPattern = /length\s+of\s+credit\s+history[:\s]*(.*?)(?:\n|$)/i;
+            const historyMatch = extractedText.match(historyPattern);
+            if (historyMatch && historyMatch[1]) {
+              parsedReport.lengthOfCreditHistory = historyMatch[1].trim();
+            }
+            
+            const negativeInfoPattern = /accounts\s+with\s+negative\s+information[:\s]*(\d+)/i;
+            const negativeMatch = extractedText.match(negativeInfoPattern);
+            if (negativeMatch && negativeMatch[1]) {
+              parsedReport.accountsWithNegativeInfo = negativeMatch[1].trim();
+            }
+            
+            const alertPattern = /alert\s+contacts[:\s]*(.*?)(?:\n|$)/i;
+            const alertMatch = extractedText.match(alertPattern);
+            if (alertMatch && alertMatch[1]) {
+              parsedReport.alertContacts = alertMatch[1].trim();
+            }
+
+            // Extract statement count
+            const statementPattern = /statement[:\s]*(\d+)(?:\s*Records?)?\s*Found/i;
+            const statementMatch = extractedText.match(statementPattern);
+            if (statementMatch && statementMatch[1]) {
+              parsedReport.statementCount = parseInt(statementMatch[1]);
+            } else {
+              parsedReport.statementCount = 0;
+            }
+          }
           
           // Log account summary info for debugging
           if (parsedReport.accountSummaries) {

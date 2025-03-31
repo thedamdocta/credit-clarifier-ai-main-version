@@ -56,11 +56,28 @@ export interface CreditReport {
   collections: any[];
   creditScores: CreditScore[];
   rawText: string;
+  
+  // Additional fields for displaying in the report
   recentInquiry?: string;
   personalInfoItemCount?: number;
   inquiryCount?: number;
   publicRecordCount?: number;
   collectionCount?: number;
+  statementCount?: number;
+  confirmationNumber?: string;
+  creditFileStatus?: string;
+  alertContacts?: string;
+  averageAccountAge?: string;
+  lengthOfCreditHistory?: string;
+  accountsWithNegativeInfo?: string | number;
+  oldestAccount?: {
+    accountName: string;
+    openDate: string;
+  };
+  recentAccount?: {
+    accountName: string;
+    openDate: string;
+  };
 }
 
 export const identifyBureau = (text: string): CreditReport['bureau'] => {
