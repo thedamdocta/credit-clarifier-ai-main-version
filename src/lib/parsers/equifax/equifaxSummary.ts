@@ -1,4 +1,6 @@
 
+import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
+
 /**
  * Extracts summary information from Equifax credit report format
  */
@@ -23,6 +25,18 @@ export const extractEquifaxSummary = async (text: string): Promise<{
   const summary: any = {};
   
   try {
+    // Try AI-enhanced extraction first
+    const enhancedSummary = await enhanceEquifaxSummaryWithAI(text, summary);
+    
+    // If AI extraction was successful, return the enhanced summary
+    if (Object.keys(enhancedSummary).length > 0) {
+      console.log("AI summary extraction successful");
+      return enhancedSummary;
+    }
+    
+    // Fallback to traditional extraction if AI extraction failed
+    console.log("Falling back to traditional summary extraction...");
+    
     // Look for a "Summary" section - different formats use different headers
     const summaryHeaders = [
       /1\.\s*Summary/i,
