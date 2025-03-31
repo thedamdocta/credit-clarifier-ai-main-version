@@ -12,6 +12,7 @@ interface CreditAccountsProps {
 const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Enhanced function to handle null, empty, and negative values
   const formatValue = (value: string | number | undefined | null) => {
+    // First check if value is empty/null/undefined
     if (value === undefined || value === null || value === '') {
       return ""; // Return empty string for null/undefined values
     }

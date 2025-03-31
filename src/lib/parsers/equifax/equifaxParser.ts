@@ -12,8 +12,8 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
   const summaryData = await extractEquifaxSummary(text);
   console.log("Extracted summary data:", summaryData);
   
-  // Extract account summaries using traditional methods
-  const accountSummaries = extractEquifaxAccountSummaries(text);
+  // Extract account summaries using AI-enhanced methods
+  const accountSummaries = await extractEquifaxAccountSummaries(text);
   console.log("Extracted account summaries:", accountSummaries);
   
   // Extract other items using traditional methods

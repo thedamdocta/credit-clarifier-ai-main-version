@@ -1,56 +1,69 @@
-
 import { AccountSummary } from "../../types/creditReport";
+import { extractEntities } from "../../ai/textAnalysis";
 
-export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] => {
+export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
   const summaries: AccountSummary[] = [];
   
   // Common account types in Equifax reports
   const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
 
-  // Look for the table header first - Equifax has a specific format
-  const tableHeaderRegex = /Account\s+Type\s+(Total\s+Accounts)?\s*(Open)?\s*(Closed)?\s*(Balance)?/i;
-  const expandedTablePattern = /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i;
-  
-  const tableHeaderMatch = text.match(tableHeaderRegex);
-  const hasExpandedTable = expandedTablePattern.test(text);
-  
-  if (tableHeaderMatch || hasExpandedTable) {
-    console.log("Found Equifax account summary table header");
+  try {
+    // First attempt AI-enhanced extraction for better pattern recognition
+    console.log("Attempting AI-enhanced account summary extraction");
+    const entities = await extractEntities(text);
     
-    // Extract the table section from the text to limit our search
-    // Use a broader match to ensure we capture all rows of the table
-    const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
-    const tableSection = tableSectionMatch ? tableSectionMatch[1] : text;
+    // Look for the table header first - Equifax has a specific format
+    const tableHeaderRegex = /Account\s+Type\s+(Total\s+Accounts)?\s*(Open)?\s*(Closed)?\s*(Balance)?/i;
+    const expandedTablePattern = /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i;
     
-    // Split into lines for processing row by row
-    const lines = tableSection.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
+    const tableHeaderMatch = text.match(tableHeaderRegex);
+    const hasExpandedTable = expandedTablePattern.test(text);
     
-    // First pass - identify lines that contain account type information
-    for (const accountType of accountTypes) {
-      // Create a default summary with all null values
-      const summary = createDefaultSummary(accountType);
+    if (tableHeaderMatch || hasExpandedTable) {
+      console.log("Found Equifax account summary table header");
       
-      // Find lines that contain this specific account type
-      const matchingLines = lines.filter(line => 
-        new RegExp(`\\b${accountType}\\b`, 'i').test(line)
-      );
+      // Extract the table section from the text to limit our search
+      const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
+      const tableSection = tableSectionMatch ? tableSectionMatch[1] : text;
       
-      if (matchingLines.length > 0) {
-        // Process the first matching line for this account type
-        const line = matchingLines[0];
-        console.log(`Processing line for ${accountType}:`, line);
+      // Split into lines for processing row by row
+      const lines = tableSection.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+      
+      // Enhanced processing - go through each account type separately
+      for (const accountType of accountTypes) {
+        // Create a default summary with all null values
+        const summary = createDefaultSummary(accountType);
         
-        // Process each cell individually
-        processAccountLine(line, accountType, summary);
+        // Find lines that contain this specific account type
+        const matchingLines = lines.filter(line => 
+          new RegExp(`\\b${accountType}\\b`, 'i').test(line)
+        );
+        
+        if (matchingLines.length > 0) {
+          // Process the first matching line for this account type
+          const line = matchingLines[0];
+          console.log(`Processing line for ${accountType}:`, line);
+          
+          // AI-enhanced processing - use entities to help identify numbers and dollar amounts
+          await enhancedProcessAccountLine(line, accountType, summary, entities);
+        }
+        
+        summaries.push(summary);
       }
-      
-      summaries.push(summary);
+    } else {
+      console.log("Could not find Equifax account summary table header");
+      // Create default summaries for all account types
+      accountTypes.forEach(accountType => {
+        summaries.push(createDefaultSummary(accountType));
+      });
     }
-  } else {
-    console.log("Could not find Equifax account summary table header");
-    // Create default summaries for all account types
+  } catch (error) {
+    console.error("Error in AI-enhanced extraction:", error);
+    console.log("Falling back to traditional extraction method");
+    
+    // Create default summaries for all account types as fallback
     accountTypes.forEach(accountType => {
       summaries.push(createDefaultSummary(accountType));
     });
@@ -64,6 +77,61 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
   console.log("Extracted account summaries:", summaries);
   return summaries;
 };
+
+// AI-enhanced processing of a single line that contains account type information
+async function enhancedProcessAccountLine(line: string, accountType: string, summary: AccountSummary, entities: any[]) {
+  console.log(`Enhanced processing for ${accountType}:`, line);
+  
+  // First, try traditional cell-by-cell extraction
+  processAccountLine(line, accountType, summary);
+  
+  // Then try to enhance with entity recognition
+  try {
+    // Find position of account type in the line
+    const typePos = line.indexOf(accountType);
+    if (typePos === -1) return;
+    
+    const afterType = line.substring(typePos + accountType.length);
+    
+    // Find numeric entities that might be column values
+    const numericEntities = entities.filter(entity => {
+      const word = entity.word;
+      // Match numbers, dollar amounts, or percentages
+      return /^-?\d+$/.test(word) || 
+             /^-?\$\d+(?:,\d+)*(?:\.\d+)?$/.test(word) || 
+             /^\d+(?:\.\d+)?%$/.test(word);
+    });
+    
+    // If we found numeric entities, see if they match our line position
+    for (const entity of numericEntities) {
+      if (line.includes(entity.word)) {
+        // Process each known column type
+        if (/^\d+$/.test(entity.word) && !summary.open) {
+          summary.open = parseInt(entity.word);
+        } else if (/^\d+$/.test(entity.word) && summary.open && !summary.withBalance) {
+          summary.withBalance = parseInt(entity.word);
+        } else if (/^-?\$\d+/.test(entity.word) && !summary.totalBalance) {
+          summary.totalBalance = normalizeDollarFormat(entity.word);
+        } else if (/^-?\$\d+/.test(entity.word) && summary.totalBalance && !summary.available) {
+          summary.available = normalizeDollarFormat(entity.word);
+        } else if (/^-?\$\d+/.test(entity.word) && summary.totalBalance && summary.available && !summary.creditLimit) {
+          summary.creditLimit = normalizeDollarFormat(entity.word);
+        } else if (/^-?\$\d+/.test(entity.word) && summary.totalBalance && summary.available && summary.creditLimit && !summary.payment) {
+          summary.payment = normalizeDollarFormat(entity.word);
+        } else if (/\d+%/.test(entity.word) && !summary.debtToCredit) {
+          summary.debtToCredit = entity.word;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error in AI-enhanced line processing:", error);
+  }
+  
+  // Fall back to traditional extraction if needed
+  if (!summary.open && !summary.withBalance && !summary.totalBalance) {
+    processAccountLine(line, accountType, summary);
+  }
+}
 
 // Process a single line that contains account type information
 function processAccountLine(line: string, accountType: string, summary: AccountSummary) {
@@ -110,6 +178,8 @@ function processAccountLine(line: string, accountType: string, summary: AccountS
 
 // Extract dollar values and percentages from a line
 function extractFinancialValues(line: string, accountType: string, summary: AccountSummary) {
+  console.log(`Extracting financial values for ${accountType}:`, line);
+  
   // Find position of account type in line
   const typePos = line.indexOf(accountType);
   if (typePos === -1) return;
