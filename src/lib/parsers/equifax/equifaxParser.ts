@@ -2,13 +2,13 @@
 import { CreditReport } from "../../types/creditReport";
 import { extractEquifaxAccountSummaries } from "./equifaxAccountSummary";
 import { extractEquifaxOtherItems } from "./equifaxOtherItems";
-import { extractEquifaxReportSummary } from "./equifaxSummary";
+import { extractEquifaxSummary } from "./equifaxSummary";
 import { parsingLogger } from "@/utils/parsingLogger";
 
 export const parseEquifaxReport = async (text: string): Promise<Partial<CreditReport>> => {
   try {
     // Extract report summary (credit file status, confirmation number, etc)
-    const reportSummary = await extractEquifaxReportSummary(text);
+    const reportSummary = await extractEquifaxSummary(text);
     
     // Extract account summaries
     const accountSummaries = await extractEquifaxAccountSummaries(text);
