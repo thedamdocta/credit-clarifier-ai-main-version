@@ -12,7 +12,7 @@ import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import PersonalInfoCard from "@/components/PersonalInfoCard";
 import AccountsList from "@/components/AccountsList";
 import WebhookManager from "@/components/WebhookManager";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
