@@ -25,26 +25,8 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        // Special handling for Mortgage and Other account types
-        if (summary.accountType === 'Mortgage' || summary.accountType === 'Other') {
-          // For Mortgage and Other, set all values to null to ensure "x" display
-          summariesByType.set(summary.accountType, {
-            accountType: summary.accountType,
-            totalAccounts: null,
-            open: null,
-            closed: null,
-            balance: null,
-            withBalance: null,
-            totalBalance: null,
-            available: null,
-            creditLimit: null,
-            debtToCredit: null,
-            payment: null
-          });
-        } else {
-          // For other types (Revolving, Installment, Total), preserve their values
-          summariesByType.set(summary.accountType, { ...summary });
-        }
+        // Preserve all existing data - don't force null values
+        summariesByType.set(summary.accountType, { ...summary });
       }
     });
   }
