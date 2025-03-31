@@ -1,4 +1,3 @@
-
 import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
 import { CreditReport } from '../../types/creditReport';
 
@@ -19,6 +18,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     accountName: string;
     openDate: string;
   };
+  consumerName?: string;
 }> => {
   console.log("Extracting Equifax summary...");
   
@@ -45,6 +45,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     extractNegativeAccounts(text, summary);
     extractOldestAccount(text, summary);
     extractRecentAccount(text, summary);
+    extractConsumerName(text, summary);
     
     // If AI extraction was successful, selectively merge specific fields
     if (Object.keys(enhancedSummary).length > 0) {
@@ -153,5 +154,23 @@ function extractRecentAccount(text: string, summary: any): void {
       accountName: recentAccountMatch[1].trim(),
       openDate: recentAccountMatch[2].trim()
     };
+  }
+}
+
+// Add new function to extract consumer name
+function extractConsumerName(text: string, summary: any): void {
+  // Try various patterns to extract consumer name
+  const namePatterns = [
+    /Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
+    /Consumer\s*Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
+    /Report\s+for\s+([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i
+  ];
+  
+  for (const pattern of namePatterns) {
+    const nameMatch = text.match(pattern);
+    if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
+      summary.consumerName = nameMatch[1].trim();
+      return;
+    }
   }
 }

@@ -22,7 +22,7 @@ export const extractEquifaxOtherItems = (text: string): {
     /Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
     /Consumer\s*Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
     /Report\s+for\s+([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
-    /CONSUMER\s*NAME:\s*([A-Za-Z\s\.,'-]+?)(?:\n|$|\s{2,})/i
+    /CONSUMER\s*NAME:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i
   ];
   
   // Try each name pattern
