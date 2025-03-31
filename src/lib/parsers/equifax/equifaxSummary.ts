@@ -1,5 +1,5 @@
-
 import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
+import { CreditReport } from '../../types/creditReport';
 
 /**
  * Extracts summary information from Equifax credit report format
@@ -28,10 +28,29 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     // Try AI-enhanced extraction first
     const enhancedSummary = await enhanceEquifaxSummaryWithAI(text, summary);
     
+    // Convert accountsWithNegativeInfo to string if it's a number
+    if (typeof enhancedSummary.accountsWithNegativeInfo === 'number') {
+      enhancedSummary.accountsWithNegativeInfo = String(enhancedSummary.accountsWithNegativeInfo);
+    }
+    
     // If AI extraction was successful, return the enhanced summary
     if (Object.keys(enhancedSummary).length > 0) {
       console.log("AI summary extraction successful");
-      return enhancedSummary;
+      return enhancedSummary as {
+        creditFileStatus?: string;
+        alertContacts?: string;
+        averageAccountAge?: string;
+        lengthOfCreditHistory?: string;
+        accountsWithNegativeInfo?: string;
+        oldestAccount?: {
+          accountName: string;
+          openDate: string;
+        };
+        recentAccount?: {
+          accountName: string;
+          openDate: string;
+        };
+      };
     }
     
     // Fallback to traditional extraction if AI extraction failed

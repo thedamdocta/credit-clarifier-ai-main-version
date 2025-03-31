@@ -94,7 +94,7 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
                   {summary.errors > 0 ? (
                     <Badge variant="destructive">{summary.errors} Error(s)</Badge>
                   ) : (
-                    <Badge variant="success">Successful</Badge>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">Successful</Badge>
                   )}
                 </div>
               </div>
