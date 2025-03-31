@@ -34,7 +34,18 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     const existingSummary = summariesByType.get(accountType);
     
     if (existingSummary) {
-      accountSummaries.push(existingSummary);
+      // Ensure all values are either the actual value or null/undefined
+      // This ensures our formatters can correctly identify truly empty values
+      accountSummaries.push({
+        ...existingSummary,
+        open: existingSummary.open || null,
+        withBalance: existingSummary.withBalance || null,
+        totalBalance: existingSummary.totalBalance || null,
+        available: existingSummary.available || null,
+        creditLimit: existingSummary.creditLimit || null,
+        debtToCredit: existingSummary.debtToCredit || null,
+        payment: existingSummary.payment || null
+      });
     } else {
       accountSummaries.push({
         accountType,

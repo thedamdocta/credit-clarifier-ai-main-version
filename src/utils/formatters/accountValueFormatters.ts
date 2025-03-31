@@ -1,3 +1,4 @@
+
 /**
  * Safely formats cell values for the account summary tables
  */

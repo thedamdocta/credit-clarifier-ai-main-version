@@ -11,6 +11,7 @@ interface CreditAccountsTableProps {
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (value: any, formatter: (value: any) => string) => {
+    // Always format the value, the formatter will handle empty values
     return formatter(value);
   };
 
