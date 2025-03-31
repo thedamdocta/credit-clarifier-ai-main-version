@@ -1,4 +1,3 @@
-
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 
@@ -321,16 +320,4 @@ function tryAlternativeTableExtraction(tableSection: string, accountSummaries: A
       }
     }
   }
-}
-
-// Add a helper function to the parsingLogger
-if (!('logEvent' in parsingLogger)) {
-  parsingLogger.logEvent = function(message: string, details?: any) {
-    this.logs.push({
-      timestamp: Date.now(),
-      stage: 'account-summaries',
-      message,
-      details
-    });
-  };
 }

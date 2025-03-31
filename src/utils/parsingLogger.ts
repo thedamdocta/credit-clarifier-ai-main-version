@@ -121,7 +121,7 @@ class ParsingLogger {
     });
   }
   
-  // More general event logging method
+  // Add the logEvent method directly to the class
   logEvent(message: string, details?: any) {
     this.logs.push({
       timestamp: Date.now(),
