@@ -120,6 +120,16 @@ class ParsingLogger {
       report
     });
   }
+  
+  // More general event logging method
+  logEvent(message: string, details?: any) {
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'general',
+      message,
+      details
+    });
+  }
 
   completeParsing() {
     const duration = Date.now() - this.parsingStartTime;

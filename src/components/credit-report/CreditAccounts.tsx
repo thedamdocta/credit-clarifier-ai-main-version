@@ -1,15 +1,18 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Bug, Code } from "lucide-react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
+import { Button } from "@/components/ui/button";
 
 interface CreditAccountsProps {
   report: CreditReport;
 }
 
 const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  
   // Format value function - handles each cell independently
   const formatValue = (value: string | number | undefined | null) => {
     // Return empty string for null/undefined values
@@ -90,20 +93,45 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     }
   });
 
-  // Log the account summaries for debugging
-  console.log("Account summaries to be displayed:", accountSummaries);
-
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <CreditCard className="h-5 w-5 mr-2" />
-          Credit Accounts
-        </CardTitle>
-        <CardDescription>Summary of your credit accounts</CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center">
+            <CreditCard className="h-5 w-5 mr-2" />
+            Credit Accounts
+          </CardTitle>
+          <CardDescription>Summary of your credit accounts</CardDescription>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setShowDebugInfo(!showDebugInfo)}
+          className="flex items-center text-xs"
+        >
+          <Bug className="h-3 w-3 mr-1" />
+          {showDebugInfo ? "Hide Debug" : "Show Debug"}
+        </Button>
       </CardHeader>
       <CardContent>
         <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
+        
+        {showDebugInfo && (
+          <div className="mb-4 p-3 bg-muted/30 rounded-md text-sm">
+            <h4 className="font-medium flex items-center mb-2">
+              <Code className="h-4 w-4 mr-1" />
+              Debug Information
+            </h4>
+            <div className="space-y-2 text-xs">
+              <p>Number of account summaries: {accountSummaries.length}</p>
+              <p>Account types present: {accountSummaries.filter(s => hasValue(s.open) || hasValue(s.totalBalance)).map(s => s.accountType).join(', ')}</p>
+              <p>Raw data sample:</p>
+              <pre className="overflow-auto max-h-32 p-2 bg-muted text-[10px]">
+                {JSON.stringify(report.accountSummaries, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
         
         <Table>
           <TableHeader>

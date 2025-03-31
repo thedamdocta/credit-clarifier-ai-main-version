@@ -4,9 +4,15 @@ import { Account } from "../types/creditReport";
 export const extractAccounts = (text: string): Account[] => {
   const accounts: Account[] = [];
   
+  // Log the start of account extraction for debugging
+  console.log("Starting account extraction from text");
+  
   const accountSections = text.split(/(?:account|credit card|loan|mortgage)s?:?\s*#?\d+/i);
   
-  accountSections.slice(1).forEach(section => {
+  // Log how many potential account sections were found
+  console.log(`Found ${accountSections.length - 1} potential account sections`);
+  
+  accountSections.slice(1).forEach((section, index) => {
     let accountName = '';
     // Improved account name extraction to handle names with special characters
     const nameMatch = section.match(/([A-Za-z\s\/.,]+(?:BANK|CREDIT|CARD|LOAN|MORTGAGE|FINANCE|SERVICES|LLC|INC|CORP|AMERICA|EXPRESS|DISCOVER|CAPITAL|ONE|N\.A\.))/i);
@@ -14,7 +20,10 @@ export const extractAccounts = (text: string): Account[] => {
       accountName = nameMatch[1].trim();
     }
     
-    if (!accountName) return;
+    if (!accountName) {
+      console.log(`Section ${index + 1}: No account name found, skipping`);
+      return;
+    }
     
     let accountNumber = '';
     const numberMatch = section.match(/account\s*#:?\s*([*x\dX-]+)/i) || 
@@ -39,7 +48,7 @@ export const extractAccounts = (text: string): Account[] => {
     
     let status = '';
     const statusMatch = section.match(/status:?\s*([A-Za-z\s]+)/i) ||
-                        section.match(/(open|closed|paid|charged off)/i); // Removed collection
+                        section.match(/(open|closed|paid|charged off)/i);
     if (statusMatch && statusMatch[1]) {
       status = statusMatch[1].trim();
     }
@@ -51,7 +60,7 @@ export const extractAccounts = (text: string): Account[] => {
       balance = `$${balanceMatch[1].trim()}`;
     }
     
-    accounts.push({
+    const account = {
       accountName: accountName || 'Unknown',
       accountNumber: accountNumber || 'Not Found',
       accountType: accountType || 'Not Specified',
@@ -59,8 +68,14 @@ export const extractAccounts = (text: string): Account[] => {
       status: status || 'Not Specified',
       balance,
       paymentHistory: []
-    });
+    };
+    
+    // Log each successfully extracted account
+    console.log(`Extracted account: ${account.accountName} (${account.accountType})`);
+    
+    accounts.push(account);
   });
   
+  console.log(`Total accounts extracted: ${accounts.length}`);
   return accounts;
 };
