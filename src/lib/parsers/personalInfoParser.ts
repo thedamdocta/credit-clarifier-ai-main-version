@@ -1,6 +1,5 @@
-
 import { PersonalInfo } from "../types/creditReport";
-import { extractSSNWithAI } from "../aiTextAnalysis";
+import { extractSSNWithAI } from "../ai";
 
 export const extractPersonalInfo = async (text: string): Promise<PersonalInfo> => {
   let name = '';

@@ -1,5 +1,5 @@
 
-import { enhanceCreditReportWithAI, parseWithAI } from './aiTextAnalysis';
+import { enhanceCreditReportWithAI, parseWithAI } from './ai';
 import { CreditReport } from './types/creditReport';
 import { identifyBureau } from './parsers/bureauIdentifier';
 import { extractDate } from './parsers/dateParser';
