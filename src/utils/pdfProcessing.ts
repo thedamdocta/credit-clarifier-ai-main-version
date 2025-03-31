@@ -58,7 +58,7 @@ export const processPDFDocument = async (
         
         // Pre-process text to better identify account tables
         // Look for Equifax specific table patterns
-        const tablePattern = /Account\s+Type\s+(?:Total\s+Accounts|Open|With\s+Balance|Total\s+Balance|Available|Credit\s+Limit|Debt-to-Credit|Payment)/i;
+        const tablePattern = /Account\s+Type\s+(?:Open|Closed|Total\s+Balance|Available|Credit\s+Limit|Debt-to-Credit|Payment)/i;
         if (tablePattern.test(extractedText)) {
           console.log("Identified potential Equifax account summary table");
         }
@@ -126,3 +126,4 @@ export const processPDFDocument = async (
     setUploadProgress(0);
   }
 };
+
