@@ -9,6 +9,9 @@ interface ReportConfirmationProps {
 }
 
 const ReportConfirmation: React.FC<ReportConfirmationProps> = ({ report }) => {
+  // Extract and clean the consumer name for display
+  const displayName = report.consumerName || report.personalInfo?.name || "Not Available";
+  
   return (
     <Card>
       <CardHeader className="bg-credit-blue bg-opacity-10">
@@ -25,7 +28,7 @@ const ReportConfirmation: React.FC<ReportConfirmationProps> = ({ report }) => {
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium">Consumer Name</span>
             <span className="text-muted-foreground">
-              {report.consumerName || report.personalInfo?.name || "Not Available"}
+              {displayName}
             </span>
           </div>
           <div className="flex justify-between items-center border-b pb-2">

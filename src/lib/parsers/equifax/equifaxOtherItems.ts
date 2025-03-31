@@ -1,4 +1,3 @@
-
 export const extractEquifaxOtherItems = (text: string): {
   inquiryCount: number;
   recentInquiry: string;
@@ -46,6 +45,28 @@ export const extractEquifaxOtherItems = (text: string): {
         consumerName = line.trim();
         break;
       }
+    }
+  }
+  
+  // Clean the consumer name - extract just the primary name without extras
+  if (consumerName) {
+    // Remove "Formerly known as" and anything after it
+    consumerName = consumerName.replace(/\s+formerly\s+known\s+as\s+.*$/i, '');
+    
+    // Remove SSN information if present
+    consumerName = consumerName.replace(/\s+social\s+security\s+number.*$/i, '');
+    
+    // Extract just first part of name if it contains multiple names separated by special markers
+    const namePartSeparators = [' AKA ', ' FKA ', ' DBA ', ' - '];
+    for (const separator of namePartSeparators) {
+      if (consumerName.includes(separator)) {
+        consumerName = consumerName.split(separator)[0].trim();
+      }
+    }
+    
+    // Keep only first 30 characters if it's very long
+    if (consumerName.length > 30) {
+      consumerName = consumerName.substring(0, 30);
     }
   }
   
