@@ -5,7 +5,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { parsingLogger } from "@/utils/parsingLogger";
-import { Bug, Code } from "lucide-react";
+import { Bug, Code, Table } from "lucide-react";
+import CreditAccounts from "@/components/credit-report/CreditAccounts";
+import { CreditReport } from "@/lib/types/creditReport";
 
 interface ParsingDebuggerProps {
   isVisible?: boolean;
@@ -15,6 +17,7 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
   const [logs, setLogs] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(isVisible);
+  const [debugReport, setDebugReport] = useState<CreditReport | null>(null);
   
   useEffect(() => {
     // Update logs every second while parsing is in progress
@@ -23,6 +26,12 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
       if (currentLogs.length > 0) {
         setLogs([...currentLogs]);
         setSummary(parsingLogger.getSummary());
+        
+        // Try to extract a report from the logs to display account summaries
+        const reportLog = currentLogs.find(log => log.report);
+        if (reportLog && reportLog.report) {
+          setDebugReport(reportLog.report);
+        }
       }
     }, 1000);
     
@@ -63,6 +72,10 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
         <TabsList className="w-full">
           <TabsTrigger value="summary">Summary</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="accounts" className="flex items-center">
+            <Table className="h-4 w-4 mr-2" />
+            Account Table
+          </TabsTrigger>
           <TabsTrigger value="logs">Raw Logs</TabsTrigger>
         </TabsList>
         
@@ -146,6 +159,21 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
                 </div>
               )}
             </div>
+          </CardContent>
+        </TabsContent>
+        
+        <TabsContent value="accounts">
+          <CardContent className="pt-4">
+            <div className="text-xs text-muted-foreground mb-2">
+              Account Summary Table (8x5) - Cell by Cell Extraction
+            </div>
+            {debugReport ? (
+              <CreditAccounts report={debugReport} />
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                No account summary data available yet
+              </div>
+            )}
           </CardContent>
         </TabsContent>
         

@@ -74,6 +74,9 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
           };
         }
         
+        // Track the report in the logger
+        parsingLogger.trackReport(combinedReport);
+        
         parsingLogger.completeParsing();
         console.log("AI-first parsing complete");
         return combinedReport;
@@ -119,6 +122,9 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
         ...equifaxSpecific
       };
     }
+    
+    // Track the report in the logger
+    parsingLogger.trackReport(initialReport);
     
     try {
       const enhancedReport = await enhanceCreditReportWithAI(text, initialReport);
