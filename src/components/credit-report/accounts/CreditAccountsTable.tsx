@@ -14,10 +14,13 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     console.log(`Rendering cell: ${fieldName} - value: ${value}`);
+    
     // Display "x" for null, undefined, or empty strings
+    // But treat 0 as a valid value that should be displayed
     if (value === null || value === undefined || value === '') {
       return "x";
     }
+    
     // For actual values (including 0), format them properly
     return formatter(value);
   };

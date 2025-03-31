@@ -25,7 +25,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        // Preserve all existing data - don't force null values
+        // Preserve all existing data including null values
         summariesByType.set(summary.accountType, { ...summary });
       }
     });

@@ -1,8 +1,9 @@
+
 /**
  * Safely formats cell values for the account summary tables
  */
 export const formatAccountValue = (value: any): string => {
-  // Keep 0 values as "0" (don't convert to "x")
+  // Special handling for 0 values - display as "0" not "x"
   if (value === 0 || value === "0") {
     return "0";
   }
@@ -23,6 +24,11 @@ export const formatDollarAmount = (value: any): string => {
   // Convert empty, null, or undefined values to "x"
   if (value === undefined || value === null || value === '') {
     return "x"; 
+  }
+  
+  // Special handling for 0 - display as "$0"
+  if (value === 0 || value === "0") {
+    return "$0";
   }
 
   const stringValue = String(value);
@@ -96,10 +102,15 @@ export const extractCellContent = (line: string, startPos: number, endPos: numbe
 };
 
 /**
- * Extract numeric value with improved empty cell detection
+ * Extract numeric value with improved empty cell detection and specific handling for "0"
  */
 export const extractNumericValue = (cellContent: string | null): string | null => {
   if (!cellContent) return null;
+  
+  // Check for exactly "0" with word boundaries (handles the Revolving row case in your example)
+  if (/\b0\b/.test(cellContent)) {
+    return "0";
+  }
   
   // Look for a number pattern with word boundaries to isolate just the number
   const match = cellContent.match(/\b(\d+)\b/);
@@ -117,18 +128,24 @@ export const extractDollarValue = (cellContent: string | null): string | null =>
   if (!cellContent) return null;
   
   // Check if there's any dollar sign in this cell section
-  if (!cellContent.includes('$')) return null;
-  
-  // Match dollar patterns for both positive and negative values
-  // Handles both -$XXX and $-XXX formats for negative values
-  const match = cellContent.match(/(-?\$[\d,.]+|\$-[\d,.]+)/);
-  if (match && match[1]) {
-    // Normalize negative format to -$XXX
-    let value = match[1];
-    if (value.startsWith('$-')) {
-      value = `-$${value.substring(2)}`;
+  if (cellContent.includes('$')) {
+    // Match dollar patterns for both positive and negative values
+    // Handles both -$XXX and $-XXX formats for negative values
+    const match = cellContent.match(/(-?\$[\d,.]+|\$-[\d,.]+)/);
+    if (match && match[1]) {
+      // Normalize negative format to -$XXX
+      let value = match[1];
+      if (value.startsWith('$-')) {
+        value = `-$${value.substring(2)}`;
+      }
+      return value;
     }
-    return value;
+  } else {
+    // Check for numeric values that should be dollar amounts but don't have $ sign
+    const numericMatch = cellContent.match(/\b(\d[\d,.]*)\.?\b/);
+    if (numericMatch && numericMatch[1]) {
+      return `$${numericMatch[1]}`;
+    }
   }
   
   return null;
@@ -141,12 +158,18 @@ export const extractPercentageValue = (cellContent: string | null): string | nul
   if (!cellContent) return null;
   
   // Check if there's any percentage sign in this cell section
-  if (!cellContent.includes('%')) return null;
-  
-  // Extract percentage value
-  const match = cellContent.match(/([\d.]+%)/);
-  if (match && match[1]) {
-    return match[1];
+  if (cellContent.includes('%')) {
+    // Extract percentage value
+    const match = cellContent.match(/([\d.]+%)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  } else {
+    // Check for numeric values that might be percentages but without % sign
+    const numericMatch = cellContent.match(/(\d+\.?\d*)(?!\d)/);
+    if (numericMatch && numericMatch[1]) {
+      return `${numericMatch[1]}%`;
+    }
   }
   
   return null;

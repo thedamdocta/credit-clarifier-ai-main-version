@@ -12,9 +12,11 @@ const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ account
   // Function to render a cell value
   const renderCellValue = (value: any, formatter: (value: any) => string) => {
     // Display "x" for null, undefined, or empty strings
+    // But treat 0 as a valid value that should be displayed
     if (value === null || value === undefined || value === '') {
       return "x";
     }
+    
     // For actual values (including 0), format them properly
     return formatter(value);
   };

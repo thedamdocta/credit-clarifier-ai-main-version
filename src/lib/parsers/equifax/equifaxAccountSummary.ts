@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -268,11 +269,20 @@ function processAccountLineWithColumnAwareness(
       continue;
     }
     
+    // Special handling for "0" values - check before other processing
+    if (cellContent.trim() === "0") {
+      if (key === 'open' || key === 'withBalance') {
+        accountSummary[key] = 0; // Store as numeric 0, not string "0"
+        continue;
+      }
+    }
+    
     // Process the cell content based on its column type
     if (key === 'open' || key === 'withBalance') {
       const numericValue = extractNumericValue(cellContent);
       if (numericValue !== null) {
-        accountSummary[key] = numericValue;
+        // Convert to number if it's a numeric string
+        accountSummary[key] = isNaN(Number(numericValue)) ? numericValue : Number(numericValue);
       }
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);
