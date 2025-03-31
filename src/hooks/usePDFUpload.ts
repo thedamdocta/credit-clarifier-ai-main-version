@@ -16,7 +16,9 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
 
   const processPDF = (file: File) => {
     if (useAI) {
-      toast.info("Using AI to extract specific report information...");
+      toast.info("Using AI to extract specific report information...", {
+        description: "Analyzing table structures and empty cells precisely"
+      });
     }
     
     processPDFDocument(file, useAI, {
@@ -74,4 +76,3 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
     triggerFileInput
   };
 };
-
