@@ -27,24 +27,22 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
       .map(line => line.trim())
       .filter(line => line.length > 0);
     
-    // Create a map to store account type specific data
-    const accountTypeMap = new Map();
-    
     // First pass - identify lines that contain account type information
-    lines.forEach(line => {
-      for (const accountType of accountTypes) {
-        if (line.match(new RegExp(`\\b${accountType}\\b`, 'i'))) {
-          accountTypeMap.set(accountType, line);
-        }
-      }
-    });
-    
-    // Now process each account type individually with its own data
     for (const accountType of accountTypes) {
+      // Create a default summary with all null values
       const summary = createDefaultSummary(accountType);
       
-      if (accountTypeMap.has(accountType)) {
-        const line = accountTypeMap.get(accountType);
+      // Find lines that contain this specific account type
+      const matchingLines = lines.filter(line => 
+        new RegExp(`\\b${accountType}\\b`, 'i').test(line)
+      );
+      
+      if (matchingLines.length > 0) {
+        // Process the first matching line for this account type
+        const line = matchingLines[0];
+        console.log(`Processing line for ${accountType}:`, line);
+        
+        // Process each cell individually
         processAccountLine(line, accountType, summary);
       }
       
@@ -77,24 +75,36 @@ function processAccountLine(line: string, accountType: string, summary: AccountS
   
   const afterType = line.substring(typePos + accountType.length).trim();
   
+  // Cell-by-cell analysis approach
   // Split by whitespace into potential columns
   const columns = afterType.split(/\s+/);
   
-  // Only grab numeric values for this specific account type
-  let numCounter = 0;
+  // Look for the "Open" cell (first number after account type)
+  let foundOpen = false;
   for (let i = 0; i < columns.length; i++) {
     if (/^\d+$/.test(columns[i])) {
-      if (numCounter === 0) {
-        summary.open = parseInt(columns[i]);
-        numCounter++;
-      } else if (numCounter === 1) {
-        summary.withBalance = parseInt(columns[i]);
-        break;
+      summary.open = parseInt(columns[i]);
+      foundOpen = true;
+      break;
+    }
+  }
+  
+  // Look for "With Balance" cell (second number after account type)
+  // Only if we found "Open" first
+  if (foundOpen) {
+    let numberCount = 0;
+    for (let i = 0; i < columns.length; i++) {
+      if (/^\d+$/.test(columns[i])) {
+        numberCount++;
+        if (numberCount === 2) {
+          summary.withBalance = parseInt(columns[i]);
+          break;
+        }
       }
     }
   }
   
-  // Look for financial values (dollar amounts, etc.) for this specific account type
+  // Extract financial values (dollar amounts, etc.) using cell-by-cell approach
   extractFinancialValues(line, accountType, summary);
 }
 
@@ -115,21 +125,25 @@ function extractFinancialValues(line: string, accountType: string, summary: Acco
     dollars.push(match[0]);
   }
   
-  // Only assign dollar values if they actually appear in this row
+  // Cell-by-cell assignment - only set values if they exist in the text
+  // This ensures empty cells remain null
   if (dollars.length >= 1) {
     summary.totalBalance = normalizeDollarFormat(dollars[0]);
   }
+  
   if (dollars.length >= 2) {
     summary.available = normalizeDollarFormat(dollars[1]);
   }
+  
   if (dollars.length >= 3) {
     summary.creditLimit = normalizeDollarFormat(dollars[2]);
   }
+  
   if (dollars.length >= 4) {
     summary.payment = normalizeDollarFormat(dollars[3]);
   }
   
-  // Extract debt-to-credit percentage
+  // Extract debt-to-credit percentage - only if it exists
   const percentPattern = /(\d+\.?\d*)\s*%/;
   const percentMatch = afterType.match(percentPattern);
   if (percentMatch) {
