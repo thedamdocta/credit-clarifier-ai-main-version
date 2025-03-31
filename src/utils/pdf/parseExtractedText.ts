@@ -37,12 +37,22 @@ export const extractConfirmationNumber = (text: string): string | null => {
 };
 
 export const extractCreditFileStatus = (text: string): string | null => {
+  // First try exact pattern
   const statusPattern = /credit\s+file\s+status[:\s]*(.*?)(?:\n|$)/i;
   const statusMatch = text.match(statusPattern);
   if (statusMatch && statusMatch[1]) {
     console.log("Found credit file status:", statusMatch[1].trim());
     return statusMatch[1].trim();
   }
+  
+  // Try for "No fraud indicator" pattern
+  const fraudPattern = /No\s+fraud\s+indicator\s+on\s+file/i;
+  const fraudMatch = text.match(fraudPattern);
+  if (fraudMatch) {
+    console.log("Found no fraud indicator statement");
+    return "No fraud indicator on file";
+  }
+  
   return null;
 };
 
@@ -68,6 +78,8 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
     const creditFileStatus = extractCreditFileStatus(extractedText);
     if (creditFileStatus) {
       parsedReport.creditFileStatus = creditFileStatus;
+    } else if (!parsedReport.creditFileStatus) {
+      parsedReport.creditFileStatus = "No fraud indicator on file";
     }
     
     // Extract most recent inquiry in a cleaner format
@@ -75,6 +87,9 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
     if (recentInquiry && recentInquiry.length < 100) {
       parsedReport.recentInquiry = recentInquiry;
     }
+    
+    // Extract key summary data with highly targeted approaches
+    extractSummaryData(parsedReport, extractedText);
     
     // Extract expanded account table data if available
     const expandedTablePattern = /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i;
@@ -84,11 +99,40 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
     
     // Additional Equifax-specific enhancements
     extractCreditMetrics(parsedReport, extractedText);
-    findOldestAndMostRecentAccounts(parsedReport);
+    findOldestAndMostRecentAccounts(parsedReport, extractedText);
   }
   
   return parsedReport;
 };
+
+function extractSummaryData(parsedReport: any, extractedText: string) {
+  // Extract alert contacts with more flexible pattern
+  if (!parsedReport.alertContacts) {
+    const alertPattern = /Alert\s+Contacts\s+(\d+)\s+Records\s+Found/i;
+    const alertMatch = extractedText.match(alertPattern);
+    if (alertMatch && alertMatch[1]) {
+      parsedReport.alertContacts = `${alertMatch[1]} Records Found`;
+    }
+  }
+  
+  // Extract average account age with more flexible pattern
+  if (!parsedReport.averageAccountAge) {
+    const agePattern = /Average\s+Account\s+Age\s+(\d+\s+Years?,\s+\d+\s+Months?)/i;
+    const ageMatch = extractedText.match(agePattern);
+    if (ageMatch && ageMatch[1]) {
+      parsedReport.averageAccountAge = ageMatch[1].trim();
+    }
+  }
+  
+  // Extract length of credit history with more flexible pattern
+  if (!parsedReport.lengthOfCreditHistory) {
+    const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?)/i;
+    const historyMatch = extractedText.match(historyPattern);
+    if (historyMatch && historyMatch[1]) {
+      parsedReport.lengthOfCreditHistory = historyMatch[1].trim();
+    }
+  }
+}
 
 function enhanceAccountSummaries(parsedReport: any, extractedText: string) {
   console.log("Attempting to extract expanded account summaries");
@@ -150,34 +194,44 @@ function extractCreditMetrics(parsedReport: any, extractedText: string) {
     parsedReport.statementCount = 0;
   }
   
-  // Extract account age metrics
-  const agePattern = /average\s+account\s+age[:\s]*(.*?)(?:\n|$)/i;
-  const ageMatch = extractedText.match(agePattern);
-  if (ageMatch && ageMatch[1]) {
-    parsedReport.averageAccountAge = ageMatch[1].trim();
-  }
-  
-  const historyPattern = /length\s+of\s+credit\s+history[:\s]*(.*?)(?:\n|$)/i;
-  const historyMatch = extractedText.match(historyPattern);
-  if (historyMatch && historyMatch[1]) {
-    parsedReport.lengthOfCreditHistory = historyMatch[1].trim();
-  }
-  
-  const negativeInfoPattern = /accounts\s+with\s+negative\s+information[:\s]*(\d+)/i;
-  const negativeMatch = extractedText.match(negativeInfoPattern);
-  if (negativeMatch && negativeMatch[1]) {
-    parsedReport.accountsWithNegativeInfo = negativeMatch[1].trim();
-  }
-  
-  const alertPattern = /alert\s+contacts[:\s]*(.*?)(?:\n|$)/i;
-  const alertMatch = extractedText.match(alertPattern);
-  if (alertMatch && alertMatch[1]) {
-    parsedReport.alertContacts = alertMatch[1].trim();
+  // Extract accounts with negative info if not already set
+  if (!parsedReport.accountsWithNegativeInfo) {
+    const negativeInfoPattern = /accounts\s+with\s+negative\s+information\s*:?\s*(\d+)/i;
+    const negativeMatch = extractedText.match(negativeInfoPattern);
+    if (negativeMatch && negativeMatch[1]) {
+      parsedReport.accountsWithNegativeInfo = negativeMatch[1].trim();
+    }
   }
 }
 
-function findOldestAndMostRecentAccounts(parsedReport: any) {
-  if (parsedReport.accounts && parsedReport.accounts.length > 0) {
+function findOldestAndMostRecentAccounts(parsedReport: any, extractedText: string) {
+  // Try direct pattern matching first for oldest account
+  if (!parsedReport.oldestAccount) {
+    const oldestAccountPattern = /Oldest\s+Account\s+([\w\s/]+)\s+\(Opened\s+([^)]+)\)/i;
+    const oldestAccountMatch = extractedText.match(oldestAccountPattern);
+    if (oldestAccountMatch && oldestAccountMatch[1] && oldestAccountMatch[2]) {
+      parsedReport.oldestAccount = {
+        accountName: oldestAccountMatch[1].trim(),
+        openDate: oldestAccountMatch[2].trim()
+      };
+    }
+  }
+  
+  // Try direct pattern matching first for most recent account
+  if (!parsedReport.recentAccount) {
+    const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account\s+([\w\s/]+)\s+\(Opened\s+([^)]+)\)/i;
+    const recentAccountMatch = extractedText.match(recentAccountPattern);
+    if (recentAccountMatch && recentAccountMatch[1] && recentAccountMatch[2]) {
+      parsedReport.recentAccount = {
+        accountName: recentAccountMatch[1].trim(),
+        openDate: recentAccountMatch[2].trim()
+      };
+    }
+  }
+  
+  // If direct patterns didn't work and we have accounts, try to derive from accounts
+  if ((!parsedReport.oldestAccount || !parsedReport.recentAccount) && 
+      parsedReport.accounts && parsedReport.accounts.length > 0) {
     // Sort accounts by open date
     const sortedAccounts = [...parsedReport.accounts]
       .filter(account => account.openDate && account.openDate !== 'Not Found')
@@ -188,15 +242,19 @@ function findOldestAndMostRecentAccounts(parsedReport: any) {
       });
     
     if (sortedAccounts.length > 0) {
-      parsedReport.oldestAccount = {
-        accountName: sortedAccounts[0].accountName,
-        openDate: sortedAccounts[0].openDate
-      };
+      if (!parsedReport.oldestAccount) {
+        parsedReport.oldestAccount = {
+          accountName: sortedAccounts[0].accountName,
+          openDate: sortedAccounts[0].openDate
+        };
+      }
       
-      parsedReport.recentAccount = {
-        accountName: sortedAccounts[sortedAccounts.length - 1].accountName,
-        openDate: sortedAccounts[sortedAccounts.length - 1].openDate
-      };
+      if (!parsedReport.recentAccount) {
+        parsedReport.recentAccount = {
+          accountName: sortedAccounts[sortedAccounts.length - 1].accountName,
+          openDate: sortedAccounts[sortedAccounts.length - 1].openDate
+        };
+      }
     }
   }
 }
@@ -231,4 +289,3 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean) => 
     throw error;
   }
 };
-

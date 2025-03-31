@@ -1,3 +1,4 @@
+
 import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
 import { CreditReport } from '../../types/creditReport';
 
@@ -56,72 +57,51 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     // Fallback to traditional extraction if AI extraction failed
     console.log("Falling back to traditional summary extraction...");
     
-    // Look for a "Summary" section - different formats use different headers
-    const summaryHeaders = [
-      /1\.\s*Summary/i,
-      /Credit\s*Summary/i,
-      /Report\s*Summary/i,
-      /Summary\s*Information/i
-    ];
-    
-    let summarySection = '';
-    let summaryMatch = null;
-    
-    // Try to find a summary section with each header pattern
-    for (const header of summaryHeaders) {
-      summaryMatch = text.match(new RegExp(`(${header.source}[\\s\\S]*?(?=(?:\\d+\\.\\s*\\w+|Credit Accounts:|Other Items:|$)))`, 'i'));
-      if (summaryMatch && summaryMatch[1]) {
-        summarySection = summaryMatch[1];
-        console.log("Found summary section with header:", header.source);
-        break;
+    // Look for Credit File Status directly
+    const fileStatusPattern = /Credit\s+File\s+Status[:\s]*([^]*?)(?=Alert\s+Contacts|\n\n)/i;
+    const fileStatusMatch = text.match(fileStatusPattern);
+    if (fileStatusMatch && fileStatusMatch[1]) {
+      summary.creditFileStatus = fileStatusMatch[1].trim().replace(/\s+/g, ' ');
+    } else {
+      // If not found, look for "No fraud indicator on file"
+      const fraudPattern = /No\s+fraud\s+indicator\s+on\s+file/i;
+      const fraudMatch = text.match(fraudPattern);
+      if (fraudMatch) {
+        summary.creditFileStatus = "No fraud indicator on file";
       }
     }
     
-    if (!summarySection) {
-      console.log("No explicit summary section found, using first part of document");
-      // Take the first 1000 characters as a fallback
-      summarySection = text.substring(0, 1000);
-    }
-    
-    // Extract specific fields with tighter regex patterns
-    // Credit File Status
-    const fileStatusPattern = /(?:Credit\s+File\s+Status|File\s+Status)[:\s]*([^]*?)(?=Alert\s+Contacts|Average\s+Account|Length\s+of\s+Credit|Accounts\s+with\s+Negative|\n\n|\n\s*\n)/i;
-    const fileStatusMatch = summarySection.match(fileStatusPattern);
-    if (fileStatusMatch && fileStatusMatch[1]) {
-      summary.creditFileStatus = fileStatusMatch[1].trim().replace(/\s+/g, ' ');
-    }
-    
-    // Alert Contacts
-    const alertPattern = /Alert\s+Contacts[:\s]*([^]*?)(?=Average\s+Account|Length\s+of\s+Credit|Accounts\s+with\s+Negative|\n\n|\n\s*\n)/i;
-    const alertMatch = summarySection.match(alertPattern);
+    // Extract Alert Contacts - look for pattern like "Alert Contacts 0 Records Found"
+    const alertPattern = /Alert\s+Contacts\s+(\d+)\s+Records\s+Found/i;
+    const alertMatch = text.match(alertPattern);
     if (alertMatch && alertMatch[1]) {
-      summary.alertContacts = alertMatch[1].trim().replace(/\s+/g, ' ');
+      summary.alertContacts = `${alertMatch[1]} Records Found`;
     }
     
-    // Average Account Age
-    const avgAgePattern = /Average\s+Account\s+Age[:\s]*([^]*?)(?=Length\s+of\s+Credit|Accounts\s+with\s+Negative|\n\n|\n\s*\n)/i;
-    const avgAgeMatch = summarySection.match(avgAgePattern);
+    // Extract Average Account Age - look for X Years, Y Months format
+    const avgAgePattern = /Average\s+Account\s+Age\s+(\d+\s+Years?,\s+\d+\s+Months?)/i;
+    const avgAgeMatch = text.match(avgAgePattern);
     if (avgAgeMatch && avgAgeMatch[1]) {
-      summary.averageAccountAge = avgAgeMatch[1].trim().replace(/\s+/g, ' ');
+      summary.averageAccountAge = avgAgeMatch[1].trim();
     }
     
-    // Length of Credit History
-    const historyPattern = /Length\s+of\s+Credit\s+History[:\s]*([^]*?)(?=Accounts\s+with\s+Negative|\n\n|\n\s*\n)/i;
-    const historyMatch = summarySection.match(historyPattern);
+    // Extract Length of Credit History - typically X Years format
+    const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?)/i;
+    const historyMatch = text.match(historyPattern);
     if (historyMatch && historyMatch[1]) {
-      summary.lengthOfCreditHistory = historyMatch[1].trim().replace(/\s+/g, ' ');
+      summary.lengthOfCreditHistory = historyMatch[1].trim();
     }
     
-    // Accounts with Negative Information
-    const negInfoPattern = /Accounts\s+with\s+Negative\s+Information[:\s]*(\d+)/i;
-    const negInfoMatch = summarySection.match(negInfoPattern);
+    // Extract Accounts with Negative Information
+    const negInfoPattern = /Accounts\s+with\s+Negative\s+Information\s+(\d+)/i;
+    const negInfoMatch = text.match(negInfoPattern);
     if (negInfoMatch && negInfoMatch[1]) {
       summary.accountsWithNegativeInfo = negInfoMatch[1].trim();
     }
     
-    // Oldest Account - pattern: Oldest Account: ACCOUNT_NAME (Opened MMM DD, YYYY)
-    const oldestAccountPattern = /Oldest\s+Account[:\s]*([^(]+)\s*\(Opened\s+([^)]+)\)/i;
-    const oldestAccountMatch = summarySection.match(oldestAccountPattern);
+    // Extract Oldest Account - pattern: Oldest Account DEPT OF ED/AIDVANTAGE (Opened Dec 15, 2011)
+    const oldestAccountPattern = /Oldest\s+Account\s+([\w\s/]+)\s+\(Opened\s+([^)]+)\)/i;
+    const oldestAccountMatch = text.match(oldestAccountPattern);
     if (oldestAccountMatch && oldestAccountMatch[1] && oldestAccountMatch[2]) {
       summary.oldestAccount = {
         accountName: oldestAccountMatch[1].trim(),
@@ -129,23 +109,14 @@ export const extractEquifaxSummary = async (text: string): Promise<{
       };
     }
     
-    // Most Recent Account - pattern: Most Recent Account: ACCOUNT_NAME (Opened MMM DD, YYYY)
-    const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account[:\s]*([^(]+)\s*\(Opened\s+([^)]+)\)/i;
-    const recentAccountMatch = summarySection.match(recentAccountPattern);
+    // Extract Most Recent Account - pattern: Most Recent Account AMERICAN CREDIT ACCEPTANCE (Opened Jul 12, 2023)
+    const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account\s+([\w\s/]+)\s+\(Opened\s+([^)]+)\)/i;
+    const recentAccountMatch = text.match(recentAccountPattern);
     if (recentAccountMatch && recentAccountMatch[1] && recentAccountMatch[2]) {
       summary.recentAccount = {
         accountName: recentAccountMatch[1].trim(),
         openDate: recentAccountMatch[2].trim()
       };
-    }
-    
-    // If we don't have the negative info count yet, try a broader search
-    if (!summary.accountsWithNegativeInfo) {
-      const altNegPattern = /with\s+negative\s+information[:\s]*(\d+)/i;
-      const altNegMatch = text.match(altNegPattern);
-      if (altNegMatch && altNegMatch[1]) {
-        summary.accountsWithNegativeInfo = altNegMatch[1];
-      }
     }
     
     return summary;
