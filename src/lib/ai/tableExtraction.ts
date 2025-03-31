@@ -1,6 +1,10 @@
 
-import { pipeline } from '@huggingface/transformers';
+import { pipeline, env } from '@huggingface/transformers';
 import { AccountSummary } from '../types/creditReport';
+
+// Configure environment for transformers
+env.allowLocalModels = true;
+env.useBrowserCache = true;
 
 // Interface to represent the extracted table data
 interface ExtractedTable {
@@ -15,22 +19,14 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
   try {
     console.log('Starting table extraction from image:', imageUrl);
     
-    // Initialize the VQA model
-    const vqa = await pipeline('visual-question-answering', 'Xenova/vilt-b32-finetuned-vqa', {
-      device: 'webgpu'
+    // Initialize the VQA model - using correct pipeline type
+    const vqa = await pipeline('document-question-answering', 'impira/layoutlm-document-qa', {
+      revision: 'main'
     });
     
-    // Extract table headers
-    const headerResponse = await vqa({
-      image: imageUrl,
-      question: "What are the column headers in the credit accounts table?"
-    });
-    
-    console.log('Header extraction response:', headerResponse);
-    
-    // Parse headers from the response
-    let headers = ['Account Type', 'Open', 'With Balance', 'Total Balance', 
-                  'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'];
+    // Extract table headers (headers are fixed for credit account tables)
+    const headers = ['Account Type', 'Open', 'With Balance', 'Total Balance', 
+                    'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'];
     
     // Extract rows using structured queries for each account type
     const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
@@ -38,54 +34,59 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
     
     // Process each row
     for (const accountType of accountTypes) {
+      console.log(`Processing row for account type: ${accountType}`);
       // Create a row object
       const row: Record<string, string> = { 'Account Type': accountType };
       
-      // Extract row values with specific questions
-      const openResponse = await vqa({
-        image: imageUrl,
-        question: `What is the 'Open' value for ${accountType} accounts?`
-      });
-      
-      const withBalanceResponse = await vqa({
-        image: imageUrl,
-        question: `What is the 'With Balance' value for ${accountType} accounts?`
-      });
-      
-      const totalBalanceResponse = await vqa({
-        image: imageUrl,
-        question: `What is the 'Total Balance' value for ${accountType} accounts?`
-      });
-      
-      // Add more questions for other columns
-      const availableResponse = await vqa({
-        image: imageUrl,
-        question: `What is the 'Available' value for ${accountType} accounts?`
-      });
-      
-      const creditLimitResponse = await vqa({
-        image: imageUrl,
-        question: `What is the 'Credit Limit' value for ${accountType} accounts?`
-      });
-      
-      const debtToCreditResponse = await vqa({
-        image: imageUrl,
-        question: `What is the 'Debt-to-Credit' value for ${accountType} accounts?`
-      });
-      
-      const paymentResponse = await vqa({
-        image: imageUrl,
-        question: `What is the 'Payment' value for ${accountType} accounts?`
-      });
-      
-      // Extract values from responses
-      row['Open'] = extractAnswer(openResponse);
-      row['With Balance'] = extractAnswer(withBalanceResponse);
-      row['Total Balance'] = extractAnswer(totalBalanceResponse);
-      row['Available'] = extractAnswer(availableResponse);
-      row['Credit Limit'] = extractAnswer(creditLimitResponse);
-      row['Debt-to-Credit'] = extractAnswer(debtToCreditResponse);
-      row['Payment'] = extractAnswer(paymentResponse);
+      try {
+        // Extract row values with specific questions
+        const openResponse = await vqa({
+          image: imageUrl,
+          question: `What is the 'Open' value for ${accountType} accounts?`
+        });
+        
+        const withBalanceResponse = await vqa({
+          image: imageUrl,
+          question: `What is the 'With Balance' value for ${accountType} accounts?`
+        });
+        
+        const totalBalanceResponse = await vqa({
+          image: imageUrl,
+          question: `What is the 'Total Balance' value for ${accountType} accounts?`
+        });
+        
+        // Add more questions for other columns
+        const availableResponse = await vqa({
+          image: imageUrl,
+          question: `What is the 'Available' value for ${accountType} accounts?`
+        });
+        
+        const creditLimitResponse = await vqa({
+          image: imageUrl,
+          question: `What is the 'Credit Limit' value for ${accountType} accounts?`
+        });
+        
+        const debtToCreditResponse = await vqa({
+          image: imageUrl,
+          question: `What is the 'Debt-to-Credit' value for ${accountType} accounts?`
+        });
+        
+        const paymentResponse = await vqa({
+          image: imageUrl,
+          question: `What is the 'Payment' value for ${accountType} accounts?`
+        });
+        
+        // Extract values from responses
+        row['Open'] = extractAnswer(openResponse);
+        row['With Balance'] = extractAnswer(withBalanceResponse);
+        row['Total Balance'] = extractAnswer(totalBalanceResponse);
+        row['Available'] = extractAnswer(availableResponse);
+        row['Credit Limit'] = extractAnswer(creditLimitResponse);
+        row['Debt-to-Credit'] = extractAnswer(debtToCreditResponse);
+        row['Payment'] = extractAnswer(paymentResponse);
+      } catch (error) {
+        console.error(`Error processing row for ${accountType}:`, error);
+      }
       
       console.log(`Extracted row for ${accountType}:`, row);
       rows.push(row);
@@ -99,11 +100,22 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
 }
 
 /**
- * Helper function to extract answer from VQA response
+ * Helper function to extract answer from response
  */
 function extractAnswer(response: any): string {
-  if (Array.isArray(response) && response.length > 0 && response[0].answer) {
-    return response[0].answer;
+  if (response && typeof response === 'object') {
+    // Different models have different response formats
+    if (response.answer) {
+      return response.answer;
+    } else if (response.text) {
+      return response.text;
+    } else if (Array.isArray(response) && response.length > 0) {
+      if (response[0].answer) {
+        return response[0].answer;
+      } else if (response[0].text) {
+        return response[0].text;
+      }
+    }
   }
   return '';
 }
