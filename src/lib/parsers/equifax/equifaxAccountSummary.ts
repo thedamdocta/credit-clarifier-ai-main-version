@@ -1,4 +1,3 @@
-
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -272,7 +271,8 @@ function processAccountLineWithColumnAwareness(
     // Special handling for "0" values - check before other processing
     if (cellContent.trim() === "0") {
       if (key === 'open' || key === 'withBalance') {
-        accountSummary[key] = 0; // Store as numeric 0, not string "0"
+        // Fix: Convert to string "0" instead of numeric 0 to match type
+        accountSummary[key] = "0"; // Store as string "0", not numeric 0
         continue;
       }
     }
@@ -281,8 +281,8 @@ function processAccountLineWithColumnAwareness(
     if (key === 'open' || key === 'withBalance') {
       const numericValue = extractNumericValue(cellContent);
       if (numericValue !== null) {
-        // Convert to number if it's a numeric string
-        accountSummary[key] = isNaN(Number(numericValue)) ? numericValue : Number(numericValue);
+        // Fix: Ensure we're storing string values, not numbers
+        accountSummary[key] = String(numericValue); // Convert to string to match type
       }
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);
