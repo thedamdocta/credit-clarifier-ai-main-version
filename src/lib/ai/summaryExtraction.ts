@@ -26,7 +26,7 @@ export const extractReportSummaryWithAI = async (text: string): Promise<Partial<
       console.log("Using first part of document for summary extraction");
     }
     
-    // Extract each piece of information separately
+    // Extract each piece of information separately using focused functions
     extractAlertContactsAI(summarySection, summaryData);
     extractAverageAccountAgeAI(summarySection, summaryData);
     extractCreditHistoryLengthAI(summarySection, summaryData);
@@ -41,9 +41,9 @@ export const extractReportSummaryWithAI = async (text: string): Promise<Partial<
   }
 };
 
-// Modular AI extraction functions
+// Modular AI extraction functions with more precise boundaries
 function extractAlertContactsAI(text: string, data: Partial<CreditReport>): void {
-  const alertMatch = text.match(/Alert\s*Contacts\s*:?\s*(\d+)\s*Records?\s*Found/i);
+  const alertMatch = text.match(/Alert\s*Contacts\s*:?\s*(\d+)\s*Records?\s*Found(?:\s|$|\n)/i);
   if (alertMatch && alertMatch[1]) {
     data.alertContacts = alertMatch[1].trim() + " Records Found";
     console.log("Extracted alert contacts:", data.alertContacts);
@@ -51,7 +51,7 @@ function extractAlertContactsAI(text: string, data: Partial<CreditReport>): void
 }
 
 function extractAverageAccountAgeAI(text: string, data: Partial<CreditReport>): void {
-  const ageMatch = text.match(/Average\s*Account\s*Age\s*:?\s*(\d+\s*Years?,\s*\d+\s*Months?)/i);
+  const ageMatch = text.match(/Average\s*Account\s*Age\s*:?\s*(\d+\s*Years?,\s*\d+\s*Months?)(?:\s|$|\n)/i);
   if (ageMatch && ageMatch[1]) {
     data.averageAccountAge = ageMatch[1].trim();
     console.log("Extracted average account age:", data.averageAccountAge);
@@ -59,7 +59,7 @@ function extractAverageAccountAgeAI(text: string, data: Partial<CreditReport>): 
 }
 
 function extractCreditHistoryLengthAI(text: string, data: Partial<CreditReport>): void {
-  const historyMatch = text.match(/Length\s*of\s*Credit\s*History\s*:?\s*(\d+\s*Years?)/i);
+  const historyMatch = text.match(/Length\s*of\s*Credit\s*History\s*:?\s*(\d+\s*Years?)(?:\s|$|\n)/i);
   if (historyMatch && historyMatch[1]) {
     data.lengthOfCreditHistory = historyMatch[1].trim();
     console.log("Extracted credit history length:", data.lengthOfCreditHistory);
@@ -67,7 +67,7 @@ function extractCreditHistoryLengthAI(text: string, data: Partial<CreditReport>)
 }
 
 function extractNegativeAccountsAI(text: string, data: Partial<CreditReport>): void {
-  const negInfoMatch = text.match(/Accounts\s*with\s*Negative\s*Information\s*:?\s*(\d+)/i);
+  const negInfoMatch = text.match(/Accounts\s*with\s*Negative\s*Information\s*:?\s*(\d+)(?:\s|$|\n)/i);
   if (negInfoMatch && negInfoMatch[1]) {
     data.accountsWithNegativeInfo = negInfoMatch[1].trim();
     console.log("Extracted accounts with negative info:", data.accountsWithNegativeInfo);
@@ -75,7 +75,7 @@ function extractNegativeAccountsAI(text: string, data: Partial<CreditReport>): v
 }
 
 function extractOldestAccountAI(text: string, data: Partial<CreditReport>): void {
-  const oldestAccountMatch = text.match(/Oldest\s*Account\s*:?\s*([\w\s/]+)\s*\(Opened\s+([^)]+)\)/i);
+  const oldestAccountMatch = text.match(/Oldest\s*Account\s*:?\s*([\w\s\/]+?)\s*\(Opened\s+([^)]+)\)(?:\s|$|\n)/i);
   if (oldestAccountMatch && oldestAccountMatch[1] && oldestAccountMatch[2]) {
     data.oldestAccount = {
       accountName: oldestAccountMatch[1].trim(),
@@ -86,7 +86,7 @@ function extractOldestAccountAI(text: string, data: Partial<CreditReport>): void
 }
 
 function extractRecentAccountAI(text: string, data: Partial<CreditReport>): void {
-  const recentAccountMatch = text.match(/(?:Most\s*Recent|Newest)\s*Account\s*:?\s*([\w\s/]+)\s*\(Opened\s+([^)]+)\)/i);
+  const recentAccountMatch = text.match(/(?:Most\s*Recent|Newest)\s*Account\s*:?\s*([\w\s\/]+?)\s*\(Opened\s+([^)]+)\)(?:\s|$|\n)/i);
   if (recentAccountMatch && recentAccountMatch[1] && recentAccountMatch[2]) {
     data.recentAccount = {
       accountName: recentAccountMatch[1].trim(),

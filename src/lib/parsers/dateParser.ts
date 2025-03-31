@@ -1,23 +1,23 @@
 
 export const extractDate = (text: string): string => {
-  // Look for explicit report dates first
-  const reportDatePattern = /report\s+date\s*:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+  // First look for explicit report dates with clear labeling
+  const reportDatePattern = /report\s+date\s*:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})(?:\s|$)/i;
   const reportDateMatch = text.match(reportDatePattern);
   
   if (reportDateMatch && reportDateMatch[1]) {
     return reportDateMatch[1].trim();
   }
   
-  // Try getting just the date near "Page X of Y" in header
-  const pageHeaderPattern = /Page\s+\d+\s+of\s+\d+\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+  // Try looking for date specifically in header with page numbers
+  const pageHeaderPattern = /Page\s+\d+\s+of\s+\d+\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})(?:\s|$)/i;
   const pageHeaderMatch = text.match(pageHeaderPattern);
   
   if (pageHeaderMatch && pageHeaderMatch[1]) {
     return pageHeaderMatch[1].trim();
   }
   
-  // Look for REF-D | Date pattern
-  const nameWithDatePattern = /REF-D\s+REF-D\s+\|\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+  // Look for specific pattern with name and pipe delimiter
+  const nameWithDatePattern = /REF-D\s+REF-D\s+\|\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})(?:\s|$)/i;
   const nameWithDateMatch = text.match(nameWithDatePattern);
   
   if (nameWithDateMatch && nameWithDateMatch[1]) {
@@ -25,7 +25,7 @@ export const extractDate = (text: string): string => {
   }
   
   // Try numeric date formats with explicit label
-  const numericDatePattern = /report\s+date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i;
+  const numericDatePattern = /report\s+date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})(?:\s|$)/i;
   const numericDateMatch = text.match(numericDatePattern);
   
   if (numericDateMatch && numericDateMatch[1]) {
@@ -33,8 +33,9 @@ export const extractDate = (text: string): string => {
   }
   
   // Fall back to looking for any month/day/year pattern in first 1000 chars
+  // But limit the match to only the date itself with explicit ending
   const headerSection = text.substring(0, 1000);
-  const anyMonthPattern = /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+  const anyMonthPattern = /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})(?:\s|$)/i;
   const anyMonthMatch = headerSection.match(anyMonthPattern);
   
   if (anyMonthMatch && anyMonthMatch[1]) {

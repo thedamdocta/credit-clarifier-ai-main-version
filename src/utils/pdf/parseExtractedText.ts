@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
 
@@ -37,16 +36,17 @@ export const extractConfirmationNumber = (text: string): string | null => {
 };
 
 export const extractCreditFileStatus = (text: string): string | null => {
-  // First try exact pattern
-  const statusPattern = /credit\s+file\s+status[:\s]*(.*?)(?:\n|$)/i;
+  // First try exact pattern with clear boundaries
+  const statusPattern = /credit\s+file\s+status[:\s]*(.*?)(?:\n|$|\s+Alert\s+Contacts|\s+Average\s+Account)/i;
   const statusMatch = text.match(statusPattern);
   if (statusMatch && statusMatch[1]) {
-    console.log("Found credit file status:", statusMatch[1].trim());
-    return statusMatch[1].trim();
+    const status = statusMatch[1].trim();
+    console.log("Found credit file status:", status);
+    return status;
   }
   
-  // Try for "No fraud indicator" pattern
-  const fraudPattern = /No\s+fraud\s+indicator\s+on\s+file/i;
+  // Try for "No fraud indicator" pattern specifically
+  const fraudPattern = /No\s+fraud\s+indicator\s+on\s+file(?:\s|$|\n)/i;
   const fraudMatch = text.match(fraudPattern);
   if (fraudMatch) {
     console.log("Found no fraud indicator statement");
@@ -106,30 +106,39 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
 };
 
 function extractSummaryData(parsedReport: any, extractedText: string) {
-  // Extract alert contacts with more flexible pattern
+  // Extract alert contacts with more precise boundaries
   if (!parsedReport.alertContacts) {
-    const alertPattern = /Alert\s+Contacts\s+(\d+)\s+Records\s+Found/i;
+    const alertPattern = /Alert\s+Contacts\s+(\d+\s+Records\s+Found)(?:\s|$|\n)/i;
     const alertMatch = extractedText.match(alertPattern);
     if (alertMatch && alertMatch[1]) {
-      parsedReport.alertContacts = `${alertMatch[1]} Records Found`;
+      parsedReport.alertContacts = alertMatch[1].trim();
     }
   }
   
-  // Extract average account age with more flexible pattern
+  // Extract average account age with more precise boundaries
   if (!parsedReport.averageAccountAge) {
-    const agePattern = /Average\s+Account\s+Age\s+(\d+\s+Years?,\s+\d+\s+Months?)/i;
+    const agePattern = /Average\s+Account\s+Age\s+(\d+\s+Years?,\s+\d+\s+Months?)(?:\s|$|\n)/i;
     const ageMatch = extractedText.match(agePattern);
     if (ageMatch && ageMatch[1]) {
       parsedReport.averageAccountAge = ageMatch[1].trim();
     }
   }
   
-  // Extract length of credit history with more flexible pattern
+  // Extract length of credit history with more precise boundaries
   if (!parsedReport.lengthOfCreditHistory) {
-    const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?)/i;
+    const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?)(?:\s|$|\n)/i;
     const historyMatch = extractedText.match(historyPattern);
     if (historyMatch && historyMatch[1]) {
       parsedReport.lengthOfCreditHistory = historyMatch[1].trim();
+    }
+  }
+  
+  // Extract accounts with negative information with more precise boundaries
+  if (!parsedReport.accountsWithNegativeInfo) {
+    const negativeInfoPattern = /Accounts\s+with\s+Negative\s+Information\s*:?\s*(\d+)(?:\s|$|\n)/i;
+    const negativeMatch = extractedText.match(negativeInfoPattern);
+    if (negativeMatch && negativeMatch[1]) {
+      parsedReport.accountsWithNegativeInfo = negativeMatch[1].trim();
     }
   }
 }
