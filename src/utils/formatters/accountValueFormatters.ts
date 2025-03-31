@@ -1,8 +1,13 @@
-
 /**
  * Safely formats cell values for the account summary tables
  */
 export const formatAccountValue = (value: any): string => {
+  // Keep 0 values as "0" (don't convert to "x")
+  if (value === 0 || value === "0") {
+    return "0";
+  }
+  
+  // Convert empty, null, or undefined values to "x"
   if (value === undefined || value === null || value === '') {
     return "x"; 
   }
@@ -15,6 +20,7 @@ export const formatAccountValue = (value: any): string => {
  * Formats dollar amounts properly with $ prefix and handles negative values consistently
  */
 export const formatDollarAmount = (value: any): string => {
+  // Convert empty, null, or undefined values to "x"
   if (value === undefined || value === null || value === '') {
     return "x"; 
   }
