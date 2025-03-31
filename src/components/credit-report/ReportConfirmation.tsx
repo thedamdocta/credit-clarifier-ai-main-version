@@ -14,16 +14,16 @@ const ReportConfirmation: React.FC<ReportConfirmationProps> = ({ report }) => {
       <CardHeader className="bg-credit-blue bg-opacity-10">
         <CardTitle className="text-credit-blue flex items-center">
           <ShieldCheck className="h-5 w-5 mr-2" />
-          Report Confirmation
+          Equifax Credit Report
         </CardTitle>
         <CardDescription>
-          Your Equifax credit report information
+          Report confirmation details
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
         <div className="grid gap-4">
           <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Confirmation Number</span>
+            <span className="font-medium">Report Confirmation</span>
             <span className="text-muted-foreground">{report.confirmationNumber || "Not Available"}</span>
           </div>
           <div className="flex justify-between items-center border-b pb-2">

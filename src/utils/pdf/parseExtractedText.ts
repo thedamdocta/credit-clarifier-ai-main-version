@@ -26,12 +26,31 @@ export const identifyDocumentPatterns = (extractedText: string) => {
 };
 
 export const extractConfirmationNumber = (text: string): string | null => {
-  const confirmationPattern = /confirmation\s+number[:\s]*(\d+)/i;
+  // Look for a report confirmation number with specific format - typically a 10-digit number
+  const reportConfirmPattern = /report\s+confirmation(?:\s*number)?[:\s]*(\d{9,10})(?:\s|$|\n)/i;
+  const reportConfirmMatch = text.match(reportConfirmPattern);
+  if (reportConfirmMatch && reportConfirmMatch[1]) {
+    console.log("Found report confirmation number:", reportConfirmMatch[1]);
+    return reportConfirmMatch[1].trim();
+  }
+  
+  // Try another pattern specific to Equifax format
+  const confirmationPattern = /confirmation\s+number[:\s]*(\d{9,10})(?:\s|$|\n)/i;
   const confirmationMatch = text.match(confirmationPattern);
   if (confirmationMatch && confirmationMatch[1]) {
     console.log("Found confirmation number:", confirmationMatch[1]);
     return confirmationMatch[1].trim();
   }
+  
+  // Look for a standalone 9-10 digit number near the beginning (may be report confirmation)
+  const headerSection = text.substring(0, 2000);
+  const standaloneConfirmPattern = /^\s*(\d{9,10})\s*$/m;
+  const standaloneMatch = headerSection.match(standaloneConfirmPattern);
+  if (standaloneMatch && standaloneMatch[1]) {
+    console.log("Found standalone confirmation number:", standaloneMatch[1]);
+    return standaloneMatch[1].trim();
+  }
+  
   return null;
 };
 

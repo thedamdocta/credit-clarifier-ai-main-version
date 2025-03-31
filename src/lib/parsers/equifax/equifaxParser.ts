@@ -35,9 +35,28 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
   
   // Extract confirmation number if available and not already found
   let confirmationNumber;
-  const confirmationMatch = text.match(/confirmation\s+number[:\s]*(\d+)/i);
-  if (confirmationMatch && confirmationMatch[1]) {
-    confirmationNumber = confirmationMatch[1].trim();
+  const confirmationPatterns = [
+    /report\s+confirmation(?:\s*number)?[:\s]*(\d{9,10})(?:\s|$|\n)/i,
+    /confirmation\s+number[:\s]*(\d{9,10})(?:\s|$|\n)/i
+  ];
+  
+  for (const pattern of confirmationPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      confirmationNumber = match[1].trim();
+      console.log("Found report confirmation number:", confirmationNumber);
+      break;
+    }
+  }
+  
+  // If still not found, look for standalone 9-10 digit number near beginning
+  if (!confirmationNumber) {
+    const headerSection = text.substring(0, 2000);
+    const standaloneMatch = headerSection.match(/^\s*(\d{9,10})\s*$/m);
+    if (standaloneMatch && standaloneMatch[1]) {
+      confirmationNumber = standaloneMatch[1].trim();
+      console.log("Found standalone confirmation number:", confirmationNumber);
+    }
   }
   
   // Extract statement count
