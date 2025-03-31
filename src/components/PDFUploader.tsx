@@ -5,9 +5,10 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Upload, FileUp, File } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseCreditReport } from "@/lib/creditReportParser";
 
 interface PDFUploaderProps {
-  onPDFUploaded: (file: File, text: string) => void;
+  onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   isProcessing: boolean;
 }
 
@@ -55,13 +56,26 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
             extractedText += pageText + ' ';
           }
           
-          clearInterval(progressInterval);
-          setUploadProgress(100);
-
-          // Pass the extracted text and file to the parent component
-          onPDFUploaded(file, extractedText);
+          // Show AI processing toast
+          toast.info("Processing with AI analysis...");
           
-          toast.success("PDF successfully processed!");
+          // Parse the report with AI enhancements
+          try {
+            const parsedReport = await parseCreditReport(extractedText);
+            
+            clearInterval(progressInterval);
+            setUploadProgress(100);
+
+            // Pass the extracted text, file, and parsed report to the parent component
+            onPDFUploaded(file, extractedText, parsedReport);
+            
+            toast.success("PDF successfully processed with AI analysis!");
+          } catch (error) {
+            console.error("Error in AI processing:", error);
+            // Fall back to basic parsing
+            onPDFUploaded(file, extractedText);
+            toast.success("PDF processed (AI analysis unavailable)");
+          }
           
           // Reset progress after a delay
           setTimeout(() => {

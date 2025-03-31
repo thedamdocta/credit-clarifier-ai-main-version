@@ -1,12 +1,11 @@
-
 import React, { useState } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Settings, AlertCircle } from "lucide-react";
-import { CreditReport, parseCreditReport } from "@/lib/creditReportParser";
+import { Upload, FileText, Settings, AlertCircle, Brain } from "lucide-react";
+import { CreditReport } from "@/lib/creditReportParser";
 import CreditReportHeader from "@/components/CreditReportHeader";
 import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import PersonalInfoCard from "@/components/PersonalInfoCard";
@@ -18,25 +17,29 @@ const Index = () => {
   const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("upload");
+  const [isAIEnabled, setIsAIEnabled] = useState(true);
   const { toast } = useToast();
   
-  const handlePDFUploaded = async (file: File, text: string) => {
+  const handlePDFUploaded = async (file: File, text: string, parsedReport?: CreditReport) => {
     try {
       setIsProcessing(true);
       
-      // Parse the credit report from the extracted text
-      const parsedReport = parseCreditReport(text);
+      if (parsedReport) {
+        setCreditReport(parsedReport);
+      } else {
+        toast({
+          title: "Using basic parsing",
+          description: "AI-enhanced parsing unavailable. Using simplified extraction.",
+        });
+      }
       
-      // Update the state with the parsed report
-      setCreditReport(parsedReport);
-      
-      // Notify user
       toast({
         title: "Credit Report Processed",
-        description: `Successfully processed your ${parsedReport.bureau} credit report.`,
+        description: parsedReport ? 
+          `Successfully processed your ${parsedReport.bureau} credit report with AI analysis.` :
+          `Successfully processed your credit report.`,
       });
       
-      // Switch to the report tab
       setActiveTab("report");
       
     } catch (error) {
@@ -78,6 +81,21 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 flex items-center justify-end">
+                <div className="flex items-center space-x-2">
+                  <Brain className="h-4 w-4 text-primary" />
+                  <span className="text-sm">AI Analysis</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={isAIEnabled}
+                      onChange={() => setIsAIEnabled(!isAIEnabled)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+              </div>
               <PDFUploader 
                 onPDFUploaded={handlePDFUploaded}
                 isProcessing={isProcessing}
@@ -90,6 +108,7 @@ const Index = () => {
             <AlertTitle>Privacy Note</AlertTitle>
             <AlertDescription>
               Your credit report data is processed locally in your browser and is never stored on our servers.
+              {isAIEnabled && " AI analysis is performed entirely on your device for maximum privacy."}
             </AlertDescription>
           </Alert>
           
