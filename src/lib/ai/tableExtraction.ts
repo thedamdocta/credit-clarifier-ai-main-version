@@ -24,10 +24,10 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
       try {
         // Initialize visual document understanding pipeline
         // Note: This would use a document understanding model like Donut
+        // The pipeline function requires at least two arguments: task and model
         const docExtractor = await pipeline(
           'document-question-answering',
-          TABLE_EXTRACTION_MODEL,
-          { revision: 'main' }
+          TABLE_EXTRACTION_MODEL
         );
         
         // Ask model to extract table content
