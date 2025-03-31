@@ -13,13 +13,20 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Function to handle null or empty values
   const formatValue = (value: string | number | undefined | null) => {
     if (value === undefined || value === null || value === '') {
-      return "";
+      return ""; // Return empty string for null/undefined values
     }
     if (typeof value === 'number') {
       return `$${value.toLocaleString()}`;
     }
-    if (typeof value === 'string' && value.match(/^\d+$/)) {
-      return `$${parseInt(value).toLocaleString()}`;
+    if (typeof value === 'string') {
+      // Check if it's already formatted with $ (don't double format)
+      if (value.startsWith('$')) {
+        return value;
+      }
+      // Check if it's a number string
+      if (value.match(/^-?\d+(\.\d+)?$/)) {
+        return `$${parseInt(value).toLocaleString()}`;
+      }
     }
     return value;
   };
@@ -77,6 +84,11 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Get properly ordered account summaries
   const accountSummaries = ensureAccountSummaries();
 
+  // Utility function to check if a cell value exists
+  const hasValue = (value: any): boolean => {
+    return value !== undefined && value !== null && value !== '';
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -106,16 +118,16 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             {accountSummaries.map((summary, index) => (
               <TableRow 
                 key={`account-summary-${summary.accountType}`} 
-                isHighlighted={summary.accountType === 'Total'}
+                className={summary.accountType === 'Total' ? "font-semibold bg-muted/30" : ""}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
-                <TableCell>{summary.open !== null ? summary.open : ""}</TableCell>
-                <TableCell>{summary.withBalance !== null ? summary.withBalance : ""}</TableCell>
-                <TableCell>{formatValue(summary.totalBalance)}</TableCell>
-                <TableCell>{formatValue(summary.available)}</TableCell>
-                <TableCell>{formatValue(summary.creditLimit)}</TableCell>
-                <TableCell>{summary.debtToCredit || ""}</TableCell>
-                <TableCell>{formatValue(summary.payment)}</TableCell>
+                <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>
+                <TableCell>{hasValue(summary.withBalance) ? summary.withBalance : ""}</TableCell>
+                <TableCell>{hasValue(summary.totalBalance) ? formatValue(summary.totalBalance) : ""}</TableCell>
+                <TableCell>{hasValue(summary.available) ? formatValue(summary.available) : ""}</TableCell>
+                <TableCell>{hasValue(summary.creditLimit) ? formatValue(summary.creditLimit) : ""}</TableCell>
+                <TableCell>{hasValue(summary.debtToCredit) ? summary.debtToCredit : ""}</TableCell>
+                <TableCell>{hasValue(summary.payment) ? formatValue(summary.payment) : ""}</TableCell>
               </TableRow>
             ))}
           </TableBody>
