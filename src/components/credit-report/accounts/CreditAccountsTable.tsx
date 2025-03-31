@@ -30,7 +30,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
 
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (accountType: string, fieldName: string, value: any, formatter: (value: any) => string) => {
-    console.log(`Rendering cell: ${accountType} - ${fieldName} - value: ${value}`);
+    console.log(`Rendering cell: ${fieldName} - value: ${value}`);
     if (shouldDisplayValue(accountType, fieldName, value)) {
       return formatter(value);
     }
