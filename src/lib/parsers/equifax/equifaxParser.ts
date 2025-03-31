@@ -8,7 +8,7 @@ import { extractDate } from "../dateParser";
 export const parseEquifaxReport = async (text: string): Promise<Partial<CreditReport>> => {
   console.log("Parsing Equifax-specific report format");
   
-  // First extract the summary data which will use targeted AI processing
+  // First extract the summary data which will use targeted regex processing
   const summaryData = await extractEquifaxSummary(text);
   console.log("Extracted summary data:", summaryData);
   
@@ -52,8 +52,13 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
     reportDate,
     accountSummaries,
     ...otherItems,
-    ...summaryData,
+    creditFileStatus: summaryData.creditFileStatus || "No fraud indicator on file",
+    alertContacts: summaryData.alertContacts || "0 Records Found",
+    averageAccountAge: summaryData.averageAccountAge,
+    lengthOfCreditHistory: summaryData.lengthOfCreditHistory,
     accountsWithNegativeInfo,
+    oldestAccount: summaryData.oldestAccount,
+    recentAccount: summaryData.recentAccount,
     confirmationNumber,
     statementCount
   };
