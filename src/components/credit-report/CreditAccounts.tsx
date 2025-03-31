@@ -13,7 +13,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Function to handle null or empty values
   const formatValue = (value: string | number | undefined | null) => {
     if (value === undefined || value === null || value === '') {
-      return "$0";
+      return "";
     }
     if (typeof value === 'number') {
       return `$${value.toLocaleString()}`;
@@ -32,16 +32,16 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     if (!report.accountSummaries || report.accountSummaries.length === 0) {
       return requiredAccountTypes.map(accountType => ({
         accountType,
-        totalAccounts: 0,
-        open: 0,
-        closed: 0,
+        totalAccounts: null,
+        open: null,
+        closed: null,
         balance: null,
-        withBalance: 0,
-        totalBalance: "$0",
-        available: "$0",
-        creditLimit: "$0",
-        debtToCredit: "0%",
-        payment: "$0"
+        withBalance: null,
+        totalBalance: null,
+        available: null,
+        creditLimit: null,
+        debtToCredit: null,
+        payment: null
       }));
     }
 
@@ -54,16 +54,16 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
       if (!existingTypes.includes(accountType)) {
         summaries.push({
           accountType,
-          totalAccounts: 0,
-          open: 0,
-          closed: 0,
+          totalAccounts: null,
+          open: null,
+          closed: null,
           balance: null,
-          withBalance: 0,
-          totalBalance: "$0",
-          available: "$0",
-          creditLimit: "$0",
-          debtToCredit: "0%",
-          payment: "$0"
+          withBalance: null,
+          totalBalance: null,
+          available: null,
+          creditLimit: null,
+          debtToCredit: null,
+          payment: null
         });
       }
     });
@@ -76,6 +76,14 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
 
   // Get properly ordered account summaries
   const accountSummaries = ensureAccountSummaries();
+
+  // Display numeric values only when they exist
+  const displayValue = (value: any) => {
+    if (value === undefined || value === null) {
+      return "";
+    }
+    return value;
+  };
 
   return (
     <Card>
@@ -109,12 +117,12 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
                 isHighlighted={summary.accountType === 'Total'}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
-                <TableCell>{summary.open}</TableCell>
-                <TableCell>{summary.withBalance || 0}</TableCell>
+                <TableCell>{displayValue(summary.open)}</TableCell>
+                <TableCell>{displayValue(summary.withBalance)}</TableCell>
                 <TableCell>{formatValue(summary.totalBalance)}</TableCell>
                 <TableCell>{formatValue(summary.available)}</TableCell>
                 <TableCell>{formatValue(summary.creditLimit)}</TableCell>
-                <TableCell>{summary.debtToCredit || "0%"}</TableCell>
+                <TableCell>{summary.debtToCredit || ""}</TableCell>
                 <TableCell>{formatValue(summary.payment)}</TableCell>
               </TableRow>
             ))}
