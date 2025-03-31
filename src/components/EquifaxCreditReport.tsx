@@ -120,20 +120,23 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
             <TableHeader>
               <TableRow className="bg-muted">
                 <TableHead>Account Type</TableHead>
+                <TableHead>Total Accounts</TableHead>
                 <TableHead>Open</TableHead>
                 <TableHead>Closed</TableHead>
-                <TableHead>Total Balance</TableHead>
+                <TableHead>Balance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
                 <TableCell className="font-medium">Revolving</TableCell>
+                <TableCell>3</TableCell>
                 <TableCell>2</TableCell>
                 <TableCell>1</TableCell>
                 <TableCell>$12,406</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Installment</TableCell>
+                <TableCell>8</TableCell>
                 <TableCell>6</TableCell>
                 <TableCell>2</TableCell>
                 <TableCell>$47,215</TableCell>
@@ -142,16 +145,19 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
                 <TableCell className="font-medium">Mortgage</TableCell>
                 <TableCell>0</TableCell>
                 <TableCell>0</TableCell>
+                <TableCell>0</TableCell>
                 <TableCell>$0</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Other</TableCell>
                 <TableCell>0</TableCell>
                 <TableCell>0</TableCell>
+                <TableCell>0</TableCell>
                 <TableCell>$0</TableCell>
               </TableRow>
               <TableRow className="font-medium bg-muted/30">
                 <TableCell>Total</TableCell>
+                <TableCell>11</TableCell>
                 <TableCell>8</TableCell>
                 <TableCell>3</TableCell>
                 <TableCell>$59,621</TableCell>

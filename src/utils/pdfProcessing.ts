@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
 
@@ -57,8 +56,8 @@ export const processPDFDocument = async (
         console.log('Sample text:', extractedText.substring(0, 300) + '...');
         
         // Pre-process text to better identify account tables
-        // Look for Equifax specific table patterns
-        const tablePattern = /Account\s+Type\s+(?:Open|Closed|Total\s+Balance|Available|Credit\s+Limit|Debt-to-Credit|Payment)/i;
+        // Look for Equifax specific table patterns - Updated to match the format in the image
+        const tablePattern = /Account\s+Type\s+(?:Total\s+Accounts|Open|Closed|Balance)/i;
         if (tablePattern.test(extractedText)) {
           console.log("Identified potential Equifax account summary table");
         }
@@ -126,4 +125,3 @@ export const processPDFDocument = async (
     setUploadProgress(0);
   }
 };
-

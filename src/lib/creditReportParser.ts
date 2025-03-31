@@ -111,7 +111,7 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
   const accountTypes = ['Revolving', 'Installment', 'Mortgage', 'Other', 'Total'];
 
   // Look for the table header first - Equifax has a specific format
-  const tableHeaderRegex = /Account\s+Type\s+(Total\s+Accounts)?\s*(Open)?\s*(With\s+Balance)?\s*(Total\s+Balance)?\s*(Available)?\s*(Credit\s+Limit)?\s*(Debt-to-Credit)?\s*(Payment)?/i;
+  const tableHeaderRegex = /Account\s+Type\s+(Total\s+Accounts)?\s*(Open)?\s*(Closed)?\s*(Balance)?/i;
   const tableHeaderMatch = text.match(tableHeaderRegex);
   
   if (tableHeaderMatch) {
@@ -120,13 +120,11 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
     // Extract table rows
     for (const accountType of accountTypes) {
       // Look for rows that start with the account type
-      const rowRegex = new RegExp(`${accountType}\\s+(\\d+)?\\s+(\\d+)?\\s+(\\d+)?\\s*(?:\\$([\\.\\d,]+)|-)\\s*(?:(?:-)?\\$([\\.\\d,]+)|-)\\s*(?:\\$([\\.\\d,]+)|-)\\s*(?:([\\.\\d]+)%|-)\\s*(?:\\$([\\.\\d,]+)|-)`, 'i');
-
-      // Also try a simpler pattern that just looks for the account type followed by numbers
-      const simpleRowRegex = new RegExp(`${accountType}\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)?\\s*(?:\\$([\\.\\d,]+)|\\$0|-)?`, 'i');
+      // Updated to match the format: Account Type, Total Accounts, Open, Closed, Balance
+      const rowRegex = new RegExp(`${accountType}\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*(?:\\$([\\.\\d,]+)|\\$0|-)?`, 'i');
       
       // Try to find the row
-      const rowMatch = text.match(rowRegex) || text.match(simpleRowRegex);
+      const rowMatch = text.match(rowRegex);
       
       if (rowMatch) {
         console.log(`Found row for ${accountType}:`, rowMatch[0]);
@@ -134,7 +132,7 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
         // Extract the values (with fallbacks for missing data)
         const totalAccounts = rowMatch[1] ? parseInt(rowMatch[1]) : 0;
         const openAccounts = rowMatch[2] ? parseInt(rowMatch[2]) : 0;
-        const withBalance = rowMatch[3] ? parseInt(rowMatch[3]) : undefined;
+        const closedAccounts = rowMatch[3] ? parseInt(rowMatch[3]) : 0;
         
         // For balance, try to extract it from either pattern
         let balance: string | null = null;
@@ -147,22 +145,9 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
           accountType,
           totalAccounts,
           open: openAccounts, 
-          closed: totalAccounts - openAccounts,
+          closed: closedAccounts,
           balance,
         };
-        
-        // Add additional fields if they exist
-        if (withBalance !== undefined) {
-          summary.withBalance = withBalance;
-        }
-        
-        // Add more detailed financial information if available from the more complex regex
-        if (rowMatch.length > 5) {
-          if (rowMatch[5]) summary.available = `-$${rowMatch[5]}`;
-          if (rowMatch[6]) summary.creditLimit = `$${rowMatch[6]}`;
-          if (rowMatch[7]) summary.debtToCredit = `${rowMatch[7]}%`;
-          if (rowMatch[8]) summary.payment = `$${rowMatch[8]}`;
-        }
         
         summaries.push(summary);
       } else {
