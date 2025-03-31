@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, MapPin, Hash, CalendarDays, Phone, ShieldAlert } from "lucide-react";
+import { User, MapPin, Hash, CalendarDays, Briefcase, ShieldAlert } from "lucide-react";
 import { PersonalInfo } from "@/lib/creditReportParser";
 
 interface PersonalInfoCardProps {
@@ -40,14 +40,17 @@ const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => 
     .map(formatAddress);
   
   // Handle additional information that might be stored in address fields
-  const contactInfo = personalInfo.addresses.find(addr => 
-    addr.toLowerCase().includes("phone number") || 
-    addr.toLowerCase().includes("agency")
-  );
-  
   const optOutInfo = personalInfo.addresses.find(addr => 
     addr.toLowerCase().includes("opt out")
   );
+  
+  // Extract employment info from addresses or use specific field if available
+  const employmentInfo = personalInfo.employmentHistory || 
+                        personalInfo.addresses.find(addr => 
+                          addr.toLowerCase().includes("employer") || 
+                          addr.toLowerCase().includes("employment")
+                        ) || 
+                        "Employment history not available";
 
   return (
     <Card>
@@ -73,31 +76,11 @@ const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => 
             <div className="space-y-1">
               <p className="text-sm font-medium leading-none whitespace-pre-line">{address}</p>
               <p className="text-sm text-muted-foreground">
-                {formattedAddresses.length > 1 ? `Address ${index + 1}` : 'Address'}
+                {`Address ${index + 1}`}
               </p>
             </div>
           </div>
         ))}
-        
-        {contactInfo && (
-          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
-            <Phone className="h-5 w-5 text-muted-foreground" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">{contactInfo}</p>
-              <p className="text-sm text-muted-foreground">Contact Information</p>
-            </div>
-          </div>
-        )}
-        
-        {optOutInfo && (
-          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
-            <ShieldAlert className="h-5 w-5 text-muted-foreground" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">{optOutInfo}</p>
-              <p className="text-sm text-muted-foreground">Opt-Out Information</p>
-            </div>
-          </div>
-        )}
         
         {personalInfo.ssn && (
           <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
@@ -115,6 +98,24 @@ const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => 
             <div className="space-y-1">
               <p className="text-sm font-medium leading-none">{personalInfo.dob}</p>
               <p className="text-sm text-muted-foreground">Date of Birth</p>
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
+          <Briefcase className="h-5 w-5 text-muted-foreground" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium leading-none">{employmentInfo}</p>
+            <p className="text-sm text-muted-foreground">Employment History</p>
+          </div>
+        </div>
+        
+        {optOutInfo && (
+          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
+            <ShieldAlert className="h-5 w-5 text-muted-foreground" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium leading-none">{optOutInfo}</p>
+              <p className="text-sm text-muted-foreground">Opt-Out Information</p>
             </div>
           </div>
         )}

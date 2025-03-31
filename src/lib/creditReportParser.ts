@@ -17,6 +17,7 @@ export interface PersonalInfo {
   addresses: string[];
   ssn?: string;
   dob?: string;
+  employmentHistory?: string;
 }
 
 export interface CreditScore {
@@ -140,11 +141,28 @@ export const extractPersonalInfo = (text: string): PersonalInfo => {
     dob = dobMatch[1];
   }
   
+  // Extract employment history
+  let employmentHistory: string | undefined;
+  const employmentPatterns = [
+    /(?:employer|employment):?\s*([^\.]+)/i,
+    /(?:employer|employment)\s*history:?\s*([^\.]+)/i,
+    /(?:reported|current)\s*employer:?\s*([^\.]+)/i
+  ];
+  
+  for (const pattern of employmentPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      employmentHistory = match[1].trim();
+      break;
+    }
+  }
+  
   return {
     name: name || 'Not Found',
     addresses: addresses.length ? addresses : ['Not Found'],
     ssn,
-    dob
+    dob,
+    employmentHistory
   };
 };
 
