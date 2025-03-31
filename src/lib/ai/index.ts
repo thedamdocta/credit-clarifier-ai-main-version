@@ -10,3 +10,4 @@ export { extractSSNWithAI, identifyBureauWithAI } from './entityExtraction';
 export * from './personalInfoExtraction';
 export * from './creditReportParsing';
 export * from './summaryExtraction';
+export * from './tableExtraction';

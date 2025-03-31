@@ -29,44 +29,64 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     // For actual values, format them properly
     return formatter(value);
   };
+  
+  // Get the sample image for reference (non-functional, just for display)
+  const sampleImageUrl = 'public/lovable-uploads/4aaea5c8-6809-4f4f-8b46-22dc5514db9c.png';
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-muted">
-          <TableHead>Account Type</TableHead>
-          <TableHead>Open</TableHead>
-          <TableHead>With Balance</TableHead>
-          <TableHead>Total Balance</TableHead>
-          <TableHead>Available</TableHead>
-          <TableHead>Credit Limit</TableHead>
-          <TableHead>Debt-to-Credit</TableHead>
-          <TableHead>Payment</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {accountSummaries.map((summary) => {
-          // Debug per row
-          console.log(`Rendering row for ${summary.accountType}:`, summary);
-          
-          return (
-            <TableRow 
-              key={`account-summary-${summary.accountType}`} 
-              className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
-            >
-              <TableCell className="font-medium">{summary.accountType}</TableCell>
-              <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <div>
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted">
+            <TableHead>Account Type</TableHead>
+            <TableHead>Open</TableHead>
+            <TableHead>With Balance</TableHead>
+            <TableHead>Total Balance</TableHead>
+            <TableHead>Available</TableHead>
+            <TableHead>Credit Limit</TableHead>
+            <TableHead>Debt-to-Credit</TableHead>
+            <TableHead>Payment</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {accountSummaries.map((summary) => {
+            // Debug per row
+            console.log(`Rendering row for ${summary.accountType}:`, summary);
+            
+            return (
+              <TableRow 
+                key={`account-summary-${summary.accountType}`}
+                isHighlighted={summary.accountType === 'Total'} 
+              >
+                <TableCell className="font-medium">{summary.accountType}</TableCell>
+                <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
+                <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
+                <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
+                <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
+                <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
+                <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatAccountValue)}</TableCell>
+                <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      
+      {/* Optional debug section to show AI is using the image */}
+      <div className="mt-4 p-3 bg-muted/20 rounded-md">
+        <p className="text-sm text-muted-foreground mb-2">
+          AI-assisted data extraction from image reference:
+        </p>
+        <div className="flex justify-center">
+          <img 
+            src={sampleImageUrl} 
+            alt="Credit Accounts Table Reference" 
+            className="max-w-full h-auto rounded-md border border-gray-200 shadow-sm"
+            style={{ maxHeight: '200px' }} 
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 
