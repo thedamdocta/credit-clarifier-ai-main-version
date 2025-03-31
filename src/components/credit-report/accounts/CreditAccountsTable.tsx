@@ -11,29 +11,24 @@ interface CreditAccountsTableProps {
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
 
-  // Check if a value exists and should display a real value (not "x")
-  const shouldDisplayValue = (value: any): boolean => {
-    // Special handling for numeric zero - display it as "0"
-    if (value === 0 || value === "0") {
-      return true;
-    }
-    
-    // For all other cases, only show value if it actually exists
-    return value !== null && value !== undefined && value !== '';
+  // Check if a cell is truly empty and should display "x"
+  const isCellEmpty = (value: any): boolean => {
+    return value === null || value === undefined || value === '';
   };
 
-  // Function to render a cell value with proper formatting
+  // Function to render a cell value with proper formatting based on account type
   const renderCellValue = (accountType: string, fieldName: string, value: any, formatter: (value: any) => string) => {
     console.log(`Rendering cell for ${accountType} - ${fieldName}: ${value} (${typeof value})`);
     
-    if (shouldDisplayValue(value)) {
-      const formattedValue = formatter(value);
-      console.log(`Formatted value: ${formattedValue}`);
-      return formattedValue;
+    // If the value is empty (null, undefined, or empty string), show "x"
+    if (isCellEmpty(value)) {
+      return "x";
     }
     
-    console.log(`Value doesn't meet display criteria, showing "x" for ${fieldName}`);
-    return "x";
+    // For values that exist (including zero values), display them properly formatted
+    const formattedValue = formatter(value);
+    console.log(`Formatted value: ${formattedValue}`);
+    return formattedValue;
   };
 
   return (

@@ -46,7 +46,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
         ...existingSummary
       });
     } else {
-      // For missing types, all values should be explicitly null
+      // For missing types, all values should be explicitly null to ensure they render as "x"
       accountSummaries.push({
         accountType,
         totalAccounts: null,
