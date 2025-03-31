@@ -140,10 +140,12 @@ function processAccountLine(lines: string[], accountType: string, accountSummari
   
   // First two values are typically "Open" and "With Balance"
   if (valuesAfterType.length >= 1 && isNumeric(valuesAfterType[0])) {
+    // Store as string, not number
     accountSummary.open = valuesAfterType[0];
   }
   
   if (valuesAfterType.length >= 2 && isNumeric(valuesAfterType[1])) {
+    // Store as string, not number
     accountSummary.withBalance = valuesAfterType[1];
   }
   

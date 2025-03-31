@@ -35,12 +35,12 @@ export interface AccountSummary {
   open: string | null;
   closed: number | null;
   balance: string | null;
-  withBalance?: string | null;
-  totalBalance?: string | null;
-  available?: string | null;
-  creditLimit?: string | null;
-  debtToCredit?: string | null;
-  payment?: string | null;
+  withBalance: string | null;
+  totalBalance: string | null;
+  available: string | null;
+  creditLimit: string | null;
+  debtToCredit: string | null;
+  payment: string | null;
 }
 
 export interface CreditReport {

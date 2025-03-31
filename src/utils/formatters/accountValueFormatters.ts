@@ -39,22 +39,9 @@ export const formatDollarAmount = (value: any): string => {
 };
 
 /**
- * Parse account value to number or null
- * Note: This function is kept for backward compatibility
- * but should no longer be used in the equifaxAccountSummary.ts file
+ * Check if a cell value exists and should be displayed
  */
-export const parseAccountValueToNumber = (value: any): number | null => {
-  if (value === undefined || value === null || value === '') {
-    return null;
-  }
-  
-  // If it's already a number, return it
-  if (typeof value === 'number') {
-    return value;
-  }
-  
-  // Try to convert to a number
-  const stringValue = String(value);
-  const numericValue = parseInt(stringValue.replace(/[^0-9-]/g, ''), 10);
-  return isNaN(numericValue) ? null : numericValue;
+export const hasDisplayValue = (value: any): boolean => {
+  return value !== undefined && value !== null && value !== '';
 };
+

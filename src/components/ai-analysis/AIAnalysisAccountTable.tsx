@@ -2,27 +2,22 @@
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
-import { formatAccountValue, formatDollarAmount } from "@/utils/formatters/accountValueFormatters";
+import { formatAccountValue, formatDollarAmount, hasDisplayValue } from "@/utils/formatters/accountValueFormatters";
 
 interface AIAnalysisAccountTableProps {
   accountSummaries: AccountSummary[];
 }
 
 const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ accountSummaries }) => {
-  // Utility function to check if a cell value exists
-  const hasValue = (value: any): boolean => {
-    return value !== undefined && value !== null && value !== '';
-  };
-  
   // Filter out account types that have no data at all
   const hasAnyData = (summary: AccountSummary): boolean => {
-    return hasValue(summary.open) || 
-           hasValue(summary.withBalance) || 
-           hasValue(summary.totalBalance) || 
-           hasValue(summary.available) || 
-           hasValue(summary.creditLimit) || 
-           hasValue(summary.debtToCredit) || 
-           hasValue(summary.payment);
+    return hasDisplayValue(summary.open) || 
+           hasDisplayValue(summary.withBalance) || 
+           hasDisplayValue(summary.totalBalance) || 
+           hasDisplayValue(summary.available) || 
+           hasDisplayValue(summary.creditLimit) || 
+           hasDisplayValue(summary.debtToCredit) || 
+           hasDisplayValue(summary.payment);
   };
 
   const summariesWithData = accountSummaries.filter(hasAnyData);
@@ -50,13 +45,13 @@ const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ account
                 className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
-                <TableCell>{hasValue(summary.open) ? formatAccountValue(summary.open) : ""}</TableCell>
-                <TableCell>{hasValue(summary.withBalance) ? formatAccountValue(summary.withBalance) : ""}</TableCell>
-                <TableCell>{hasValue(summary.totalBalance) ? formatDollarAmount(summary.totalBalance) : ""}</TableCell>
-                <TableCell>{hasValue(summary.available) ? formatDollarAmount(summary.available) : ""}</TableCell>
-                <TableCell>{hasValue(summary.creditLimit) ? formatDollarAmount(summary.creditLimit) : ""}</TableCell>
-                <TableCell>{hasValue(summary.debtToCredit) ? formatAccountValue(summary.debtToCredit) : ""}</TableCell>
-                <TableCell>{hasValue(summary.payment) ? formatDollarAmount(summary.payment) : ""}</TableCell>
+                <TableCell>{hasDisplayValue(summary.open) ? formatAccountValue(summary.open) : ""}</TableCell>
+                <TableCell>{hasDisplayValue(summary.withBalance) ? formatAccountValue(summary.withBalance) : ""}</TableCell>
+                <TableCell>{hasDisplayValue(summary.totalBalance) ? formatDollarAmount(summary.totalBalance) : ""}</TableCell>
+                <TableCell>{hasDisplayValue(summary.available) ? formatDollarAmount(summary.available) : ""}</TableCell>
+                <TableCell>{hasDisplayValue(summary.creditLimit) ? formatDollarAmount(summary.creditLimit) : ""}</TableCell>
+                <TableCell>{hasDisplayValue(summary.debtToCredit) ? formatAccountValue(summary.debtToCredit) : ""}</TableCell>
+                <TableCell>{hasDisplayValue(summary.payment) ? formatDollarAmount(summary.payment) : ""}</TableCell>
               </TableRow>
             ))
           ) : (
