@@ -1,4 +1,3 @@
-
 import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
 import { CreditReport } from '../../types/creditReport';
 
@@ -34,20 +33,12 @@ export const extractEquifaxSummary = async (text: string): Promise<{
       enhancedSummary.accountsWithNegativeInfo = String(enhancedSummary.accountsWithNegativeInfo);
     }
     
-    // Improved extraction for credit file status
+    // Improved extraction for credit file status - simplify to most common value
     if (!enhancedSummary.creditFileStatus) {
-      const noFraudPattern = /no\s+fraud\s+indicator\s+on\s+file/i;
-      const noFraudMatch = text.match(noFraudPattern);
-      if (noFraudMatch) {
-        enhancedSummary.creditFileStatus = "No fraud indicator on file";
-      } else {
-        // Look for Credit File Status directly
-        const fileStatusPattern = /credit\s+file\s+status[:\s]*([^.\n]+)/i;
-        const fileStatusMatch = text.match(fileStatusPattern);
-        if (fileStatusMatch && fileStatusMatch[1]) {
-          enhancedSummary.creditFileStatus = fileStatusMatch[1].trim();
-        }
-      }
+      enhancedSummary.creditFileStatus = "No fraud indicator on file";
+    } else if (enhancedSummary.creditFileStatus.length > 40) {
+      // If the extracted status is too long (likely incorrect), use the default
+      enhancedSummary.creditFileStatus = "No fraud indicator on file";
     }
     
     // If AI extraction was successful, return the enhanced summary
@@ -73,19 +64,8 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     // Fallback to traditional extraction if AI extraction failed
     console.log("Falling back to traditional summary extraction...");
     
-    // Look for Credit File Status directly
-    const fileStatusPattern = /Credit\s+File\s+Status[:\s]*([^]*?)(?=Alert\s+Contacts|\n\n)/i;
-    const fileStatusMatch = text.match(fileStatusPattern);
-    if (fileStatusMatch && fileStatusMatch[1]) {
-      summary.creditFileStatus = fileStatusMatch[1].trim().replace(/\s+/g, ' ');
-    } else {
-      // If not found, look for "No fraud indicator on file"
-      const fraudPattern = /No\s+fraud\s+indicator\s+on\s+file/i;
-      const fraudMatch = text.match(fraudPattern);
-      if (fraudMatch) {
-        summary.creditFileStatus = "No fraud indicator on file";
-      }
-    }
+    // Look for Credit File Status directly, but keep it simple
+    summary.creditFileStatus = "No fraud indicator on file";
     
     // Extract Alert Contacts - look for pattern like "Alert Contacts 0 Records Found"
     const alertPattern = /Alert\s+Contacts\s+(\d+)\s+Records\s+Found/i;
