@@ -17,7 +17,7 @@ const ReportSummary: React.FC<ReportSummaryProps> = ({ report }) => {
           1. Summary
         </CardTitle>
         <CardDescription>
-          Review this summary for a quick view of key information contained in your Equifax Credit Report.
+          Review this summary for a quick view of key information contained in your {report.bureau} Credit Report.
         </CardDescription>
       </CardHeader>
       <CardContent>
