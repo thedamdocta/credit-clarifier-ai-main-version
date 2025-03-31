@@ -23,6 +23,59 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
     return value;
   };
 
+  // Ensure we have all account types for the table
+  const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+  
+  // Create default account summaries if missing
+  const ensureAccountSummaries = () => {
+    if (!report.accountSummaries || report.accountSummaries.length === 0) {
+      return requiredAccountTypes.map(accountType => ({
+        accountType,
+        totalAccounts: 0,
+        open: 0,
+        closed: 0,
+        balance: null,
+        withBalance: 0,
+        totalBalance: "$0",
+        available: "$0",
+        creditLimit: "$0",
+        debtToCredit: "0%",
+        payment: "$0"
+      }));
+    }
+
+    // Ensure all required account types exist
+    const existingTypes = report.accountSummaries.map(summary => summary.accountType);
+    const summaries = [...report.accountSummaries];
+    
+    // Add missing account types
+    requiredAccountTypes.forEach(accountType => {
+      if (!existingTypes.includes(accountType)) {
+        summaries.push({
+          accountType,
+          totalAccounts: 0,
+          open: 0,
+          closed: 0,
+          balance: null,
+          withBalance: 0,
+          totalBalance: "$0",
+          available: "$0",
+          creditLimit: "$0",
+          debtToCredit: "0%",
+          payment: "$0"
+        });
+      }
+    });
+
+    // Sort the summaries to match the required order
+    return summaries.sort((a, b) => {
+      return requiredAccountTypes.indexOf(a.accountType) - requiredAccountTypes.indexOf(b.accountType);
+    });
+  };
+
+  // Get properly ordered account summaries
+  const accountSummaries = ensureAccountSummaries();
+
   return (
     <div className="space-y-6">
       {/* Report Confirmation Section */}
@@ -120,42 +173,38 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
         </CardHeader>
         <CardContent>
           <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
-          {report.accountSummaries && report.accountSummaries.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted">
-                  <TableHead>Account Type</TableHead>
-                  <TableHead>Open</TableHead>
-                  <TableHead>With Balance</TableHead>
-                  <TableHead>Total Balance</TableHead>
-                  <TableHead>Available</TableHead>
-                  <TableHead>Credit Limit</TableHead>
-                  <TableHead>Debt-to-Credit</TableHead>
-                  <TableHead>Payment</TableHead>
+          
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted">
+                <TableHead>Account Type</TableHead>
+                <TableHead>Open</TableHead>
+                <TableHead>With Balance</TableHead>
+                <TableHead>Total Balance</TableHead>
+                <TableHead>Available</TableHead>
+                <TableHead>Credit Limit</TableHead>
+                <TableHead>Debt-to-Credit</TableHead>
+                <TableHead>Payment</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {accountSummaries.map((summary, index) => (
+                <TableRow 
+                  key={`account-summary-${summary.accountType}`} 
+                  isHighlighted={summary.accountType === 'Total'}
+                >
+                  <TableCell className="font-medium">{summary.accountType}</TableCell>
+                  <TableCell>{summary.open}</TableCell>
+                  <TableCell>{summary.withBalance || 0}</TableCell>
+                  <TableCell>{formatValue(summary.totalBalance)}</TableCell>
+                  <TableCell>{formatValue(summary.available)}</TableCell>
+                  <TableCell>{formatValue(summary.creditLimit)}</TableCell>
+                  <TableCell>{summary.debtToCredit || "0%"}</TableCell>
+                  <TableCell>{formatValue(summary.payment)}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.accountSummaries
-                  .filter(summary => 
-                    ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'].includes(summary.accountType)
-                  )
-                  .map((summary, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{summary.accountType}</TableCell>
-                      <TableCell>{summary.open}</TableCell>
-                      <TableCell>{summary.withBalance || 0}</TableCell>
-                      <TableCell>{formatValue(summary.totalBalance)}</TableCell>
-                      <TableCell>{formatValue(summary.available)}</TableCell>
-                      <TableCell>{formatValue(summary.creditLimit)}</TableCell>
-                      <TableCell>{summary.debtToCredit || "N/A"}</TableCell>
-                      <TableCell>{formatValue(summary.payment)}</TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center p-4 text-muted-foreground">No account summary data available</div>
-          )}
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
