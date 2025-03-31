@@ -43,8 +43,20 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     const existingSummary = summariesByType.get(accountType);
     
     if (existingSummary) {
-      // For existing summaries, use as is
-      accountSummaries.push(existingSummary);
+      // For existing summaries, use as is but ensure null values remain null
+      accountSummaries.push({
+        accountType,
+        totalAccounts: existingSummary.totalAccounts || null,
+        open: existingSummary.open || null,
+        closed: existingSummary.closed || null,
+        balance: existingSummary.balance || null,
+        withBalance: existingSummary.withBalance || null,
+        totalBalance: existingSummary.totalBalance || null,
+        available: existingSummary.available || null,
+        creditLimit: existingSummary.creditLimit || null,
+        debtToCredit: existingSummary.debtToCredit || null,
+        payment: existingSummary.payment || null
+      });
     } else {
       // For missing types, all values should be explicitly null
       accountSummaries.push({
