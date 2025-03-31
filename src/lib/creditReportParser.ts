@@ -7,11 +7,14 @@ export interface Account {
   accountType: string;
   openDate: string;
   status: string;
-  balance: string;
+  balance: string | null;
   paymentHistory: string[];
-  creditLimit?: string;
-  highestBalance?: string;
+  creditLimit?: string | null;
+  highestBalance?: string | null;
   paymentStatus?: string;
+  totalAccounts?: number;
+  openAccounts?: number;
+  closedAccounts?: number;
 }
 
 export interface PersonalInfo {
@@ -29,29 +32,52 @@ export interface CreditScore {
   date: string;
 }
 
+export interface AccountSummary {
+  accountType: string;
+  totalAccounts: number;
+  open: number;
+  closed: number;
+  balance: string | null;
+}
+
 export interface CreditReport {
   bureau: 'Equifax' | 'Experian' | 'TransUnion' | 'Unknown';
   reportDate: string;
   personalInfo: PersonalInfo;
   accounts: Account[];
+  accountSummaries?: AccountSummary[];
   inquiries: any[];
   publicRecords: any[];
   collections: any[];
   creditScores: CreditScore[];
   rawText: string;
+  recentInquiry?: string;
+  personalInfoItemCount?: number;
+  inquiryCount?: number;
+  publicRecordCount?: number;
+  collectionCount?: number;
 }
 
 export const identifyBureau = (text: string): CreditReport['bureau'] => {
   const lowerText = text.toLowerCase();
   
-  if (lowerText.includes('equifax')) {
+  // Check for Equifax more explicitly - look for distinctive markers
+  if (
+    lowerText.includes('equifax') || 
+    lowerText.includes('report confirmation') && lowerText.includes('confirmation number') ||
+    lowerText.includes('report date') && lowerText.includes('credit file status')
+  ) {
+    console.log("Bureau identified as Equifax");
     return 'Equifax';
   } else if (lowerText.includes('experian')) {
+    console.log("Bureau identified as Experian");
     return 'Experian';
   } else if (lowerText.includes('transunion')) {
+    console.log("Bureau identified as TransUnion");
     return 'TransUnion';
   }
   
+  console.log("Bureau couldn't be identified, marking as Unknown");
   return 'Unknown';
 };
 
@@ -71,6 +97,125 @@ export const extractDate = (text: string): string => {
   }
   
   return new Date().toLocaleDateString();
+};
+
+// Function to extract account summaries from Equifax reports
+export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] => {
+  const summaries: AccountSummary[] = [];
+  
+  // Common account types in Equifax reports
+  const accountTypes = ['Revolving', 'Installment', 'Mortgage', 'Other', 'Total'];
+  
+  // Extract account summary table - try to find patterns
+  const tableRegex = /Account Type\s+(?:Total Accounts|Open|(?:With )?Balance|Total Balance|Available|Credit Limit|Debt-to-Credit|Payment)/i;
+  const tableMatch = text.match(tableRegex);
+  
+  if (tableMatch) {
+    const tableStartIndex = tableMatch.index;
+    if (tableStartIndex !== undefined) {
+      const tableText = text.substring(tableStartIndex, tableStartIndex + 1500); // Look at a subset of text
+      
+      // Process each account type
+      accountTypes.forEach(accountType => {
+        // Look for the account type followed by numeric values
+        const rowRegex = new RegExp(`${accountType}\\s+(\\d+)?\\s+(\\d+)?\\s+(?:\\$(\\d+[,\\d]*(?:\\.\\d+)?)|-)?\s*(?:(-\\$\\d+[,\\d]*(?:\\.\\d+)?)|-)?\s*(?:\\$(\\d+[,\\d]*(?:\\.\\d+)?)|-)?\s*(?:(\\d+\\.\\d+)%|-)?\s*(?:\\$(\\d+[,\\d]*(?:\\.\\d+)?)|-)?\s*`, 'i');
+        
+        const rowMatch = tableText.match(rowRegex);
+        
+        if (rowMatch) {
+          const totalAccounts = rowMatch[1] ? parseInt(rowMatch[1]) : 0;
+          const openAccounts = rowMatch[2] ? parseInt(rowMatch[2]) : 0;
+          const balance = rowMatch[3] ? `$${rowMatch[3]}` : null;
+          
+          summaries.push({
+            accountType,
+            totalAccounts,
+            open: openAccounts,
+            closed: totalAccounts - openAccounts,
+            balance
+          });
+        } else {
+          // If we can't find values with the regex, add default values
+          summaries.push({
+            accountType,
+            totalAccounts: 0,
+            open: 0,
+            closed: 0,
+            balance: null
+          });
+        }
+      });
+    }
+  }
+  
+  // If we couldn't extract summaries, create default ones
+  if (summaries.length === 0) {
+    accountTypes.forEach(accountType => {
+      summaries.push({
+        accountType,
+        totalAccounts: 0,
+        open: 0,
+        closed: 0,
+        balance: null
+      });
+    });
+  }
+  
+  return summaries;
+};
+
+// Extract other items from Equifax report
+export const extractEquifaxOtherItems = (text: string): {
+  inquiryCount: number;
+  recentInquiry: string;
+  publicRecordCount: number;
+  collectionCount: number;
+  personalInfoItemCount: number;
+} => {
+  // Default values
+  let inquiryCount = 0;
+  let recentInquiry = '';
+  let publicRecordCount = 0;
+  let collectionCount = 0;
+  let personalInfoItemCount = 0;
+  
+  // Extract inquiry count
+  const inquiryMatch = text.match(/(?:Credit )?Inquiries[:\s]+(\d+)(?:\s*Inquiries?| Records?| Record)?\s*Found/i);
+  if (inquiryMatch && inquiryMatch[1]) {
+    inquiryCount = parseInt(inquiryMatch[1]);
+  }
+  
+  // Extract most recent inquiry
+  const recentInquiryMatch = text.match(/Most Recent Inquiry[:\s]+(.*?)(?:\n|$)/i);
+  if (recentInquiryMatch && recentInquiryMatch[1]) {
+    recentInquiry = recentInquiryMatch[1].trim();
+  }
+  
+  // Extract public records count
+  const publicRecordMatch = text.match(/Public Records[:\s]+(\d+)(?:\s*Records?)?\s*Found/i);
+  if (publicRecordMatch && publicRecordMatch[1]) {
+    publicRecordCount = parseInt(publicRecordMatch[1]);
+  }
+  
+  // Extract collections count
+  const collectionsMatch = text.match(/Collections[:\s]+(\d+)(?:\s*Collections?)?\s*Found/i);
+  if (collectionsMatch && collectionsMatch[1]) {
+    collectionCount = parseInt(collectionsMatch[1]);
+  }
+  
+  // Extract personal information item count
+  const personalInfoMatch = text.match(/Personal Information[:\s]+(\d+)(?:\s*Items?)?\s*Found/i);
+  if (personalInfoMatch && personalInfoMatch[1]) {
+    personalInfoItemCount = parseInt(personalInfoMatch[1]);
+  }
+  
+  return {
+    inquiryCount,
+    recentInquiry,
+    publicRecordCount,
+    collectionCount,
+    personalInfoItemCount
+  };
 };
 
 export const extractPersonalInfo = async (text: string): Promise<PersonalInfo> => {
@@ -225,7 +370,7 @@ export const extractAccounts = (text: string): Account[] => {
       status = statusMatch[1].trim();
     }
     
-    let balance = '';
+    let balance: string | null = null;
     const balanceMatch = section.match(/balance:?\s*\$?([\d,.]+)/i) ||
                          section.match(/(?:current|outstanding)\s*balance:?\s*\$?([\d,.]+)/i);
     if (balanceMatch && balanceMatch[1]) {
@@ -238,7 +383,7 @@ export const extractAccounts = (text: string): Account[] => {
       accountType: accountType || 'Not Specified',
       openDate: openDate || 'Not Found',
       status: status || 'Not Specified',
-      balance: balance || 'Not Found',
+      balance,
       paymentHistory: []
     });
   });
@@ -246,7 +391,29 @@ export const extractAccounts = (text: string): Account[] => {
   return accounts;
 };
 
+export const parseEquifaxReport = async (text: string): Promise<Partial<CreditReport>> => {
+  console.log("Parsing Equifax-specific report format");
+  
+  // Extract account summaries
+  const accountSummaries = extractEquifaxAccountSummaries(text);
+  console.log("Extracted account summaries:", accountSummaries);
+  
+  // Extract other items
+  const otherItems = extractEquifaxOtherItems(text);
+  console.log("Extracted other items:", otherItems);
+  
+  return {
+    bureau: 'Equifax',
+    accountSummaries,
+    ...otherItems
+  };
+};
+
 export const parseCreditReport = async (text: string, useAIFirst = true): Promise<CreditReport> => {
+  // Identify bureau first to determine parsing approach
+  const bureau = identifyBureau(text);
+  console.log(`Identified bureau: ${bureau}`);
+  
   // If AI-first approach is enabled, try that first
   if (useAIFirst) {
     try {
@@ -260,9 +427,9 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
       const accounts = extractAccounts(text);
       const creditScores = extractCreditScores(text);
       
-      // Combine AI results with traditional parsing for complete report
-      const combinedReport: CreditReport = {
-        bureau: aiResults.bureau || identifyBureau(text),
+      // Initialize a combined report
+      let combinedReport: CreditReport = {
+        bureau: aiResults.bureau || bureau,
         reportDate: aiResults.reportDate || extractDate(text),
         personalInfo: aiResults.personalInfo || await extractPersonalInfo(text),
         accounts,
@@ -273,23 +440,31 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
         rawText: text
       };
       
+      // Add bureau-specific processing
+      if (bureau === 'Equifax') {
+        const equifaxSpecific = await parseEquifaxReport(text);
+        combinedReport = {
+          ...combinedReport,
+          ...equifaxSpecific
+        };
+      }
+      
       console.log("AI-first parsing complete");
       return combinedReport;
     } catch (error) {
       console.error("Error in AI-first parsing approach:", error);
       console.log("Falling back to traditional parsing...");
-      // Fall back to traditional approach if AI fails
     }
   }
   
   // Traditional parsing approach (used as fallback or if AI-first is disabled)
-  const bureau = identifyBureau(text);
   const reportDate = extractDate(text);
   const personalInfo = await extractPersonalInfo(text);
   const accounts = extractAccounts(text);
   const creditScores = extractCreditScores(text);
   
-  const initialReport: CreditReport = {
+  // Initialize report with basic information
+  let initialReport: CreditReport = {
     bureau,
     reportDate,
     personalInfo,
@@ -300,6 +475,15 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
     creditScores,
     rawText: text
   };
+  
+  // Add bureau-specific processing
+  if (bureau === 'Equifax') {
+    const equifaxSpecific = await parseEquifaxReport(text);
+    initialReport = {
+      ...initialReport,
+      ...equifaxSpecific
+    };
+  }
   
   try {
     const enhancedReport = await enhanceCreditReportWithAI(text, initialReport);

@@ -48,7 +48,13 @@ export const processPDFDocument = async (
             .map((item: any) => item.str)
             .join(' ');
           extractedText += pageText + ' ';
+          
+          // Log progress for debugging
+          console.log(`Processed page ${i} of ${pdf.numPages}`);
         }
+        
+        console.log('Text extraction complete. Text length:', extractedText.length);
+        console.log('Sample text:', extractedText.substring(0, 300) + '...');
         
         // Show appropriate processing toast
         if (useAI) {
@@ -59,7 +65,9 @@ export const processPDFDocument = async (
         
         // Parse the report with or without AI-first approach
         try {
+          console.log("Beginning report parsing...");
           const parsedReport = await parseCreditReport(extractedText, useAI);
+          console.log("Report parsing complete:", parsedReport.bureau);
           
           clearInterval(progressInterval);
           setUploadProgress(100);
@@ -105,4 +113,3 @@ export const processPDFDocument = async (
     setUploadProgress(0);
   }
 };
-

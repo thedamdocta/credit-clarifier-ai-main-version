@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +10,20 @@ interface EquifaxCreditReportProps {
 }
 
 const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => {
+  // Function to handle null or empty values
+  const formatValue = (value: string | number | undefined | null) => {
+    if (value === undefined || value === null || value === '') {
+      return "$0";
+    }
+    if (typeof value === 'number') {
+      return `$${value.toLocaleString()}`;
+    }
+    if (typeof value === 'string' && value.match(/^\d+$/)) {
+      return `$${parseInt(value).toLocaleString()}`;
+    }
+    return value;
+  };
+
   return (
     <div className="space-y-6">
       {/* Report Confirmation Section */}
@@ -101,9 +116,10 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
           <CardDescription>Summary of your credit accounts</CardDescription>
         </CardHeader>
         <CardContent>
+          <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted">
                 <TableHead>Account Type</TableHead>
                 <TableHead>Total Accounts</TableHead>
                 <TableHead>Open</TableHead>
@@ -162,7 +178,9 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
           <CardDescription>Additional information in your credit file</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
+          <p className="mb-4">Your credit report includes your Personal Information and, if applicable, Consumer Statements, and could include other items that may affect your credit score and rating.</p>
+          
+          <div className="space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Collections</span>
               <span className="text-muted-foreground">0 Records Found</span>
@@ -176,6 +194,16 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
             <div className="flex justify-between items-center border-b pb-2">
               <span className="font-medium">Credit Inquiries</span>
               <span className="text-muted-foreground">1 Record Found</span>
+            </div>
+            
+            <div className="flex justify-between items-center border-b pb-2">
+              <span className="font-medium">Most Recent Inquiry</span>
+              <span className="text-muted-foreground">EQUIFAX INC (0100) Dec 27, 2024</span>
+            </div>
+            
+            <div className="flex justify-between items-center border-b pb-2">
+              <span className="font-medium">Personal Information</span>
+              <span className="text-muted-foreground">12 Items Found</span>
             </div>
             
             <div className="flex justify-between items-center border-b pb-2">
