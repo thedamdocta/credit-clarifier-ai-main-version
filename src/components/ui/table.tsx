@@ -52,9 +52,13 @@ const TableFooter = React.forwardRef<
 ))
 TableFooter.displayName = "TableFooter"
 
+interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+  isHighlighted?: boolean;
+}
+
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement> & { isHighlighted?: boolean }
+  TableRowProps
 >(({ className, isHighlighted, ...props }, ref) => (
   <tr
     ref={ref}

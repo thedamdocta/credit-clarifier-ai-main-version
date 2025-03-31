@@ -54,42 +54,33 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Ensure we have all account types for the table
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
-  // Create a mapping of account summaries by account type
-  const getSummaryByType = () => {
-    const summaryMap = new Map<string, AccountSummary>();
-    
-    // First initialize with default empty values for all required types
-    requiredAccountTypes.forEach(type => {
-      summaryMap.set(type, {
-        accountType: type,
-        totalAccounts: null,
-        open: null,
-        closed: null,
-        balance: null,
-        withBalance: null,
-        totalBalance: null,
-        available: null,
-        creditLimit: null,
-        debtToCredit: null,
-        payment: null
-      });
+  // Create a mapping of account summaries by account type (for lookups)
+  const accountTypeMap = new Map<string, AccountSummary>();
+  
+  if (report.accountSummaries && report.accountSummaries.length > 0) {
+    report.accountSummaries.forEach(summary => {
+      if (summary.accountType) {
+        accountTypeMap.set(summary.accountType, summary);
+      }
     });
-    
-    // Then override with any actual values we have
-    if (report.accountSummaries && report.accountSummaries.length > 0) {
-      report.accountSummaries.forEach(summary => {
-        if (summary.accountType) {
-          summaryMap.set(summary.accountType, summary);
-        }
-      });
-    }
-    
-    // Return summaries in the required order
-    return requiredAccountTypes.map(type => summaryMap.get(type)!);
-  };
-
-  // Get properly ordered account summaries
-  const accountSummaries = getSummaryByType();
+  }
+  
+  // Create properly ordered account summaries with default empty values for missing types
+  const accountSummaries: AccountSummary[] = requiredAccountTypes.map(type => {
+    return accountTypeMap.get(type) || {
+      accountType: type,
+      totalAccounts: null,
+      open: null,
+      closed: null,
+      balance: null,
+      withBalance: null,
+      totalBalance: null,
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: null
+    };
+  });
 
   // Log the account summaries for debugging
   console.log("Account summaries to be displayed:", accountSummaries);
@@ -120,7 +111,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {accountSummaries.map((summary, index) => (
+            {accountSummaries.map((summary) => (
               <TableRow 
                 key={`account-summary-${summary.accountType}`} 
                 className={summary.accountType === 'Total' ? 'bg-muted/30 font-semibold' : ''}
