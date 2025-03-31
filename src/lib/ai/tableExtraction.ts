@@ -40,6 +40,7 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
       
       try {
         // Extract row values with specific questions
+        // Fix: Properly format the arguments as an object with image and question properties
         const openResponse = await vqa({
           image: imageUrl,
           question: `What is the 'Open' value for ${accountType} accounts?`
