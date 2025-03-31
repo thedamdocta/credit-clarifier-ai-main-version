@@ -25,10 +25,14 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        // Preserve all values as they are in the report without special rules
+        // Store all summary values exactly as they come from the data
+        // This preserves numbers like "0" for zeros and special values like "2" for totals
         summariesByType.set(summary.accountType, {
           ...summary
         });
+        
+        // Additional logging for debugging
+        console.log(`Processing summary type: ${summary.accountType}`, summary);
       }
     });
   }
