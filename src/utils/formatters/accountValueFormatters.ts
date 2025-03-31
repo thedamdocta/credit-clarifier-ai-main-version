@@ -57,8 +57,8 @@ export const hasDisplayValue = (value: any): boolean => {
  * This helps identify cells that were skipped during text extraction
  */
 export const detectEmptyCells = (line: string, columnPositions: number[]): boolean[] => {
-  const emptyCells = columnPositions.map((_, index) => {
-    const start = columnPositions[index];
+  const emptyCells = columnPositions.map((position, index) => {
+    const start = position;
     const end = index < columnPositions.length - 1 ? columnPositions[index + 1] : line.length;
     
     if (start >= 0 && end > start) {
@@ -69,4 +69,78 @@ export const detectEmptyCells = (line: string, columnPositions: number[]): boole
   });
   
   return emptyCells;
+};
+
+/**
+ * Enhanced cell content extraction with improved empty space detection
+ */
+export const extractCellContent = (line: string, startPos: number, endPos: number | undefined): string | null => {
+  if (startPos === undefined || startPos < 0) return null;
+  
+  // Get the portion of the line for this cell
+  const substring = endPos !== undefined ? 
+    line.substring(startPos, endPos).trim() : 
+    line.substring(startPos).trim();
+  
+  // If the cell space is completely empty or only has whitespace
+  if (substring.length === 0) return null;
+  
+  return substring;
+};
+
+/**
+ * Extract numeric value with improved empty cell detection
+ */
+export const extractNumericValue = (cellContent: string | null): string | null => {
+  if (!cellContent) return null;
+  
+  // Look for a number pattern with word boundaries to isolate just the number
+  const match = cellContent.match(/\b(\d+)\b/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  return null;
+};
+
+/**
+ * Extract dollar value with improved empty cell detection
+ */
+export const extractDollarValue = (cellContent: string | null): string | null => {
+  if (!cellContent) return null;
+  
+  // Check if there's any dollar sign in this cell section
+  if (!cellContent.includes('$')) return null;
+  
+  // Match dollar patterns for both positive and negative values
+  // Handles both -$XXX and $-XXX formats for negative values
+  const match = cellContent.match(/(-?\$[\d,.]+|\$-[\d,.]+)/);
+  if (match && match[1]) {
+    // Normalize negative format to -$XXX
+    let value = match[1];
+    if (value.startsWith('$-')) {
+      value = `-$${value.substring(2)}`;
+    }
+    return value;
+  }
+  
+  return null;
+};
+
+/**
+ * Extract percentage value with improved empty cell detection
+ */
+export const extractPercentageValue = (cellContent: string | null): string | null => {
+  if (!cellContent) return null;
+  
+  // Check if there's any percentage sign in this cell section
+  if (!cellContent.includes('%')) return null;
+  
+  // Extract percentage value
+  const match = cellContent.match(/([\d.]+%)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  return null;
 };
