@@ -63,6 +63,12 @@ export const processPDFDocument = async (
           console.log("Identified potential Equifax account summary table");
         }
         
+        // Look for the expanded table format
+        const expandedTablePattern = /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i;
+        if (expandedTablePattern.test(extractedText)) {
+          console.log("Identified expanded Equifax account summary table");
+        }
+        
         // Extract confirmation number
         const confirmationPattern = /confirmation\s+number[:\s]*(\d+)/i;
         const confirmationMatch = extractedText.match(confirmationPattern);
@@ -115,6 +121,58 @@ export const processPDFDocument = async (
               // Only use the inquiry if it's not too long (likely not the whole report)
               if (inquiryText.length < 100) {
                 parsedReport.recentInquiry = inquiryText;
+              }
+            }
+            
+            // Extract expanded account table data if available
+            if (expandedTablePattern.test(extractedText)) {
+              console.log("Attempting to extract expanded account summaries");
+              
+              // Update the account summaries with additional data columns
+              if (parsedReport.accountSummaries) {
+                for (const summary of parsedReport.accountSummaries) {
+                  // Try to find with balance counts
+                  const withBalancePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\b(\\d+)\\s+with\\s+balance\\b`, 'i');
+                  const withBalanceMatch = extractedText.match(withBalancePattern);
+                  if (withBalanceMatch && withBalanceMatch[1]) {
+                    summary.withBalance = parseInt(withBalanceMatch[1]);
+                  }
+                  
+                  // Try to find total balance
+                  const totalBalancePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\btotal\\s+balance\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
+                  const totalBalanceMatch = extractedText.match(totalBalancePattern);
+                  if (totalBalanceMatch && totalBalanceMatch[1]) {
+                    summary.totalBalance = `$${totalBalanceMatch[1]}`;
+                  }
+                  
+                  // Try to find available credit
+                  const availablePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bavailable\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
+                  const availableMatch = extractedText.match(availablePattern);
+                  if (availableMatch && availableMatch[1]) {
+                    summary.available = `$${availableMatch[1]}`;
+                  }
+                  
+                  // Try to find credit limit
+                  const creditLimitPattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bcredit\\s+limit\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
+                  const creditLimitMatch = extractedText.match(creditLimitPattern);
+                  if (creditLimitMatch && creditLimitMatch[1]) {
+                    summary.creditLimit = `$${creditLimitMatch[1]}`;
+                  }
+                  
+                  // Try to find debt to credit ratio
+                  const debtToCreditPattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bdebt-to-credit\\s*:?\\s*(\\d+%)\\b`, 'i');
+                  const debtToCreditMatch = extractedText.match(debtToCreditPattern);
+                  if (debtToCreditMatch && debtToCreditMatch[1]) {
+                    summary.debtToCredit = debtToCreditMatch[1];
+                  }
+                  
+                  // Try to find payment amount
+                  const paymentPattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bpayment\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
+                  const paymentMatch = extractedText.match(paymentPattern);
+                  if (paymentMatch && paymentMatch[1]) {
+                    summary.payment = `$${paymentMatch[1]}`;
+                  }
+                }
               }
             }
             

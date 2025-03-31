@@ -125,39 +125,32 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
               <TableHeader>
                 <TableRow className="bg-muted">
                   <TableHead>Account Type</TableHead>
-                  <TableHead>Total Accounts</TableHead>
                   <TableHead>Open</TableHead>
-                  <TableHead>Closed</TableHead>
-                  <TableHead>Balance</TableHead>
+                  <TableHead>With Balance</TableHead>
+                  <TableHead>Total Balance</TableHead>
+                  <TableHead>Available</TableHead>
+                  <TableHead>Credit Limit</TableHead>
+                  <TableHead>Debt-to-Credit</TableHead>
+                  <TableHead>Payment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.accountSummaries.filter(summary => summary.accountType !== 'Total').map((summary, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{summary.accountType}</TableCell>
-                    <TableCell>{summary.totalAccounts}</TableCell>
-                    <TableCell>{summary.open}</TableCell>
-                    <TableCell>{summary.closed}</TableCell>
-                    <TableCell>{formatValue(summary.balance)}</TableCell>
-                  </TableRow>
-                ))}
-                {report.accountSummaries.find(summary => summary.accountType === 'Total') && (
-                  <TableRow className="font-medium bg-muted/30">
-                    <TableCell>Total</TableCell>
-                    <TableCell>
-                      {report.accountSummaries.find(summary => summary.accountType === 'Total')?.totalAccounts || 0}
-                    </TableCell>
-                    <TableCell>
-                      {report.accountSummaries.find(summary => summary.accountType === 'Total')?.open || 0}
-                    </TableCell>
-                    <TableCell>
-                      {report.accountSummaries.find(summary => summary.accountType === 'Total')?.closed || 0}
-                    </TableCell>
-                    <TableCell>
-                      {formatValue(report.accountSummaries.find(summary => summary.accountType === 'Total')?.balance)}
-                    </TableCell>
-                  </TableRow>
-                )}
+                {report.accountSummaries
+                  .filter(summary => 
+                    ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'].includes(summary.accountType)
+                  )
+                  .map((summary, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{summary.accountType}</TableCell>
+                      <TableCell>{summary.open}</TableCell>
+                      <TableCell>{summary.withBalance || 0}</TableCell>
+                      <TableCell>{formatValue(summary.totalBalance)}</TableCell>
+                      <TableCell>{formatValue(summary.available)}</TableCell>
+                      <TableCell>{formatValue(summary.creditLimit)}</TableCell>
+                      <TableCell>{summary.debtToCredit || "N/A"}</TableCell>
+                      <TableCell>{formatValue(summary.payment)}</TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           ) : (
