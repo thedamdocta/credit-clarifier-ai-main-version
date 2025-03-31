@@ -1,111 +1,65 @@
-
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CreditScore } from "@/lib/creditReportParser";
-import { Award, AlertCircle } from "lucide-react";
+import { GaugeCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+
+interface CreditScore {
+  score: number;
+  range: string;
+  provider: string;
+  date: string;
+}
 
 interface CreditScoreDisplayProps {
   scores: CreditScore[];
 }
 
 const CreditScoreDisplay: React.FC<CreditScoreDisplayProps> = ({ scores }) => {
-  if (!scores || scores.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Award className="mr-2 h-5 w-5" />
-            Credit Score
-          </CardTitle>
-          <CardDescription>
-            Credit score information not found in the report
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center py-6">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">No score data available</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const getScoreCategory = (score: number) => {
-    if (score >= 740) return { category: "Excellent", class: "credit-score-high" };
-    if (score >= 670) return { category: "Good", class: "credit-score-high" };
-    if (score >= 580) return { category: "Fair", class: "credit-score-medium" };
-    return { category: "Poor", class: "credit-score-low" };
+  // Function to determine the color based on the score
+  const getColor = (score: number) => {
+    if (score >= 700) return "text-green-500";
+    if (score >= 600) return "text-yellow-500";
+    return "text-red-500";
   };
 
-  const getScorePercentage = (score: number) => {
-    // Calculate percentage based on standard FICO range (300-850)
-    const min = 300;
-    const max = 850;
-    const range = max - min;
-    const adjusted = score - min;
-    return Math.round((adjusted / range) * 100);
-  };
-
-  const getProgressColor = (score: number) => {
-    if (score >= 740) return "bg-credit-green";
-    if (score >= 670) return "bg-credit-indigo";
-    if (score >= 580) return "bg-credit-yellow";
-    return "bg-credit-red";
+  // Function to determine the description based on the score
+  const getDescription = (score: number) => {
+    if (score >= 700) return "Excellent";
+    if (score >= 600) return "Good";
+    return "Fair";
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
-          <Award className="mr-2 h-5 w-5" />
-          Credit Score
+          <GaugeCircle className="mr-2 h-5 w-5" />
+          Credit Scores
         </CardTitle>
-        <CardDescription>
-          Your current credit score information
-        </CardDescription>
+        <CardDescription>Your credit scores from various bureaus</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-8">
-        {scores.map((scoreData, index) => {
-          const { category, class: categoryClass } = getScoreCategory(scoreData.score);
-          const percentage = getScorePercentage(scoreData.score);
-          const progressColor = getProgressColor(scoreData.score);
+      <CardContent className="space-y-4">
+        {scores.map((score, index) => {
+          const value = Math.min(100, Math.max(0, (score.score - 300) / 5.5));
+          const color = getColor(score.score);
+          const description = getDescription(score.score);
+          const className = "w-full h-2 rounded-full";
 
           return (
-            <div key={index} className="space-y-4">
-              <div className="flex justify-between items-baseline">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {scoreData.provider} Score
+            <div key={index} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium leading-none">{score.provider} Score</p>
+                  <p className="text-sm text-muted-foreground">
+                    {score.date}
                   </p>
-                  <h3 className={`text-4xl font-bold ${categoryClass}`}>
-                    {scoreData.score}
-                  </h3>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-muted-foreground">Rating</p>
-                  <p className={`font-medium ${categoryClass}`}>{category}</p>
+                <div className="flex items-baseline space-x-2">
+                  <p className={`text-2xl font-semibold leading-none ${color}`}>{score.score}</p>
+                  <p className="text-sm text-muted-foreground">({description})</p>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Progress 
-                  value={percentage} 
-                  className="h-2"
-                  indicatorClassName={progressColor}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Poor</span>
-                  <span>Fair</span>
-                  <span>Good</span>
-                  <span>Excellent</span>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                Report date: {scoreData.date}
-              </div>
+              <Progress value={value} className={className} />
             </div>
           );
         })}

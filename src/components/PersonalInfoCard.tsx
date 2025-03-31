@@ -1,14 +1,54 @@
 
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, MapPin, Hash, CalendarDays } from "lucide-react";
+import { User, MapPin, Hash, CalendarDays, Phone, ShieldAlert } from "lucide-react";
 import { PersonalInfo } from "@/lib/creditReportParser";
 
 interface PersonalInfoCardProps {
   personalInfo: PersonalInfo;
 }
 
+// Helper function to format long address strings
+const formatAddress = (address: string): string => {
+  // Clean up the address - remove any "reported to" prefixes or other non-address text
+  let cleanAddress = address;
+  
+  if (address.toLowerCase().includes("reported to")) {
+    // Extract just the address portion after context
+    const addressParts = address.split("Current ");
+    if (addressParts.length > 1) {
+      cleanAddress = "Current " + addressParts[1];
+    }
+  }
+  
+  // Format address to be more readable by adding line breaks at appropriate points
+  return cleanAddress
+    .replace(/(\d{5})(\s+Former|\s+Current)/g, "$1\n$2") // Add line break before Former/Current
+    .replace(/(\d{5})$/g, "$1"); // End with zip code
+};
+
+// Helper to determine if a string is primarily an address
+const isAddressString = (str: string): boolean => {
+  // Check if string contains common address indicators
+  return /\d+\s+[A-Za-z]+\s+(?:ST|AVE|BLVD|RD|DR|LN|CT|APT)/i.test(str);
+};
+
 const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => {
+  // Filter and clean up addresses
+  const formattedAddresses = personalInfo.addresses
+    .filter(addr => addr !== 'Not Found' && isAddressString(addr))
+    .map(formatAddress);
+  
+  // Handle additional information that might be stored in address fields
+  const contactInfo = personalInfo.addresses.find(addr => 
+    addr.toLowerCase().includes("phone number") || 
+    addr.toLowerCase().includes("agency")
+  );
+  
+  const optOutInfo = personalInfo.addresses.find(addr => 
+    addr.toLowerCase().includes("opt out")
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -27,15 +67,37 @@ const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => 
           </div>
         </div>
         
-        {personalInfo.addresses.map((address, index) => (
+        {formattedAddresses.map((address, index) => (
           <div key={index} className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
             <MapPin className="h-5 w-5 text-muted-foreground" />
             <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">{address}</p>
-              <p className="text-sm text-muted-foreground">Address {personalInfo.addresses.length > 1 ? index + 1 : ''}</p>
+              <p className="text-sm font-medium leading-none whitespace-pre-line">{address}</p>
+              <p className="text-sm text-muted-foreground">
+                {formattedAddresses.length > 1 ? `Address ${index + 1}` : 'Address'}
+              </p>
             </div>
           </div>
         ))}
+        
+        {contactInfo && (
+          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
+            <Phone className="h-5 w-5 text-muted-foreground" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium leading-none">{contactInfo}</p>
+              <p className="text-sm text-muted-foreground">Contact Information</p>
+            </div>
+          </div>
+        )}
+        
+        {optOutInfo && (
+          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
+            <ShieldAlert className="h-5 w-5 text-muted-foreground" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium leading-none">{optOutInfo}</p>
+              <p className="text-sm text-muted-foreground">Opt-Out Information</p>
+            </div>
+          </div>
+        )}
         
         {personalInfo.ssn && (
           <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">

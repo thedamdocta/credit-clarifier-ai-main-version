@@ -12,12 +12,14 @@ import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import PersonalInfoCard from "@/components/PersonalInfoCard";
 import AccountsList from "@/components/AccountsList";
 import WebhookManager from "@/components/WebhookManager";
+import { useToast } from "@/components/ui/toast";
 
 const Index = () => {
   const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("upload");
-
+  const { toast } = useToast();
+  
   const handlePDFUploaded = async (file: File, text: string) => {
     try {
       setIsProcessing(true);
@@ -28,11 +30,22 @@ const Index = () => {
       // Update the state with the parsed report
       setCreditReport(parsedReport);
       
+      // Notify user
+      toast({
+        title: "Credit Report Processed",
+        description: `Successfully processed your ${parsedReport.bureau} credit report.`,
+      });
+      
       // Switch to the report tab
       setActiveTab("report");
       
     } catch (error) {
       console.error("Error processing credit report:", error);
+      toast({
+        title: "Processing Error",
+        description: "There was an error processing your credit report.",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }

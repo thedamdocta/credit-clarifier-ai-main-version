@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   Card, 
@@ -33,7 +32,8 @@ import {
   AlertCircle,
   ChevronDown,
   Filter,
-  X
+  X,
+  Check
 } from "lucide-react";
 import { Account } from "@/lib/creditReportParser";
 

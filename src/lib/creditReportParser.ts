@@ -81,20 +81,54 @@ export const extractPersonalInfo = (text: string): PersonalInfo => {
   
   // Extract addresses
   const addresses: string[] = [];
-  const addressSections = text.match(/address(?:es)?:?(?:\s*\w+)?:?\s*([A-Za-z0-9\s\.,#\-]+)/ig);
   
-  if (addressSections) {
-    addressSections.forEach(section => {
-      const addressLine = section.replace(/address(?:es)?:?(?:\s*\w+)?:?\s*/i, '').trim();
-      if (addressLine) {
+  // Look for address sections in the text
+  // First, try to find specific address blocks
+  const addressBlocks = text.match(/(?:address|residence|location)(?:es)?:?(?:\s*\w+)?:?\s*([A-Za-z0-9\s\.,#\-]+(?:\n[A-Za-z0-9\s\.,#\-]+)*)/ig);
+  
+  if (addressBlocks) {
+    addressBlocks.forEach(block => {
+      const addressLine = block.replace(/(?:address|residence|location)(?:es)?:?(?:\s*\w+)?:?\s*/i, '').trim();
+      if (addressLine && addressLine.length > 5) { // Basic validation
         addresses.push(addressLine);
       }
     });
   }
   
+  // Also look for address patterns (street numbers, common street suffixes)
+  const addressPatterns = [
+    /(\d+\s+[A-Za-z]+\s+(?:ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|CIR|CIRCLE|WAY|TER|TERRACE|PL|PLACE)\.?\s+(?:[A-Za-z\s]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?|[A-Za-z\s]+))/ig,
+    /(?:CURRENT|FORMER)\s+(?:[A-Za-z]{3}\s+\d{1,2},\s+\d{4}\s+)?(\d+\s+[A-Za-z\s\.]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)/ig
+  ];
+  
+  for (const pattern of addressPatterns) {
+    const matches = text.matchAll(pattern);
+    for (const match of matches) {
+      if (match[1] && match[1].trim().length > 8) {
+        const addr = match[0].trim();
+        if (!addresses.some(a => a.includes(addr))) {
+          addresses.push(addr);
+        }
+      }
+    }
+  }
+  
+  // Additional information often found in address sections
+  // For opt-out information
+  const optOutMatch = text.match(/(?:opt[\s-]out|do not contact)(?:\s+[^\.]+)(?:\s+\d{1,3}[\s-]\d{3}[\s-]\d{3}[\s-]\d{4})/i);
+  if (optOutMatch && optOutMatch[0]) {
+    addresses.push(optOutMatch[0].trim());
+  }
+  
+  // For report provider information
+  const reporterMatch = text.match(/(?:reported|provided)\s+(?:by|to)\s+[^\.]+/i);
+  if (reporterMatch && reporterMatch[0]) {
+    addresses.push(reporterMatch[0].trim());
+  }
+  
   // Extract SSN (with masking for privacy)
   let ssn: string | undefined;
-  const ssnMatch = text.match(/ssn:?\s*(?:xxx-xx-|[*]{5})(\d{4})/i);
+  const ssnMatch = text.match(/ssn:?\s*(?:xxx-xx-|[*]{5}|[*]{3}-[*]{2}-)(\d{4})/i);
   if (ssnMatch && ssnMatch[1]) {
     ssn = `XXX-XX-${ssnMatch[1]}`;
   }
