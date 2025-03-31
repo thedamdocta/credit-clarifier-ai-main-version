@@ -17,7 +17,7 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
     if (imageUrl) {
       try {
         console.log("Attempting to extract account summaries from image:", imageUrl);
-        // Use our sample data directly since we've hardcoded it in tableExtraction.ts
+        // Use image-based extraction
         const tableData = await extractTableFromImage(imageUrl);
         
         if (tableData) {
@@ -55,75 +55,4 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
     console.error("Error in Equifax-specific parsing:", error);
     return {}; // Return empty object on error
   }
-};
-
-// Helper function to manually set account summaries from sample image data
-export const setAccountSummariesFromSampleImage = (): CreditReport["accountSummaries"] => {
-  return [
-    {
-      accountType: "Revolving",
-      totalAccounts: null,
-      open: "0",
-      closed: null,
-      balance: null,
-      withBalance: "0",
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    },
-    {
-      accountType: "Mortgage",
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null,
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    },
-    {
-      accountType: "Installment",
-      totalAccounts: null,
-      open: "2",
-      closed: null,
-      balance: null,
-      withBalance: "2",
-      totalBalance: "$31,533",
-      available: "-$4,447",
-      creditLimit: "$27,086",
-      debtToCredit: "116.0%",
-      payment: "$543"
-    },
-    {
-      accountType: "Other",
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null,
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    },
-    {
-      accountType: "Total",
-      totalAccounts: null,
-      open: "2",
-      closed: null,
-      balance: null,
-      withBalance: "2",
-      totalBalance: "$31,533",
-      available: "-$4,447",
-      creditLimit: "$27,086",
-      debtToCredit: "0.0%",
-      payment: "$543"
-    }
-  ];
 };

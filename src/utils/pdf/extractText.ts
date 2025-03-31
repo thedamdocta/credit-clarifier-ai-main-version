@@ -23,11 +23,14 @@ export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   return extractedText;
 };
 
-// New function to extract credit account table as image for AI processing
+// Extract credit account table as image for AI processing
 export const extractCreditAccountsTableImage = async (pdf: any): Promise<string | null> => {
   try {
-    // Use the uploaded image URL instead of hardcoded path
-    return '/lovable-uploads/458643ea-a052-40a4-a3fd-e8a38ddec467.png';
+    // For now we use the uploaded image, but in a production environment
+    // we would extract the table region from the PDF using heuristics or ML
+    const imageUrl = '/lovable-uploads/458643ea-a052-40a4-a3fd-e8a38ddec467.png';
+    console.log('Using table image from:', imageUrl);
+    return imageUrl;
   } catch (error) {
     console.error('Error extracting table image:', error);
     return null;

@@ -69,7 +69,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
         </TableBody>
       </Table>
       
-      {/* Optional debug section to show AI is using the image */}
+      {/* Image reference section with proper sizing and error handling */}
       <div className="mt-4 p-3 bg-muted/20 rounded-md">
         <p className="text-sm text-muted-foreground mb-2">
           AI-assisted data extraction from image reference:
@@ -80,6 +80,11 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
             alt="Credit Accounts Table Reference" 
             className="max-w-full h-auto rounded-md border border-gray-200 shadow-sm"
             style={{ maxHeight: '200px' }} 
+            onError={(e) => {
+              // Handle image loading errors
+              e.currentTarget.style.display = 'none';
+              console.error('Error loading table reference image');
+            }}
           />
         </div>
       </div>
