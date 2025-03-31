@@ -1,7 +1,7 @@
 
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { processPDFDocument } from "@/utils/pdfProcessing";
+import { processPDFDocument } from "@/utils/pdf";
 
 interface UsePDFUploadProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -74,3 +74,4 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
     triggerFileInput
   };
 };
+
