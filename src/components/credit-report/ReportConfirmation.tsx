@@ -9,7 +9,7 @@ interface ReportConfirmationProps {
 }
 
 const ReportConfirmation: React.FC<ReportConfirmationProps> = ({ report }) => {
-  // Use only the primary name from the Name row in Personal Information section
+  // Only use the primary name from the Name row in the Personal Information section
   const displayName = report.consumerName || 
                      (report.personalInfo?.name && report.personalInfo.name !== 'Not Found' ? 
                       report.personalInfo.name : "Not Available");

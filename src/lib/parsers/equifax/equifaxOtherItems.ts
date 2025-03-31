@@ -16,38 +16,21 @@ export const extractEquifaxOtherItems = (text: string): {
   let statementCount = 0;
   let consumerName = '';
   
-  // Extract consumer name - focus specifically on the Name row in Personal Information section
-  const nameRowPattern = /Name\s*(?:\n\s*)?([A-Z][A-Z\s]+)(?:\n|$)/;
+  // Extract ONLY the primary name from the Name row
+  // Focus on capturing just the first part before any "Formerly", "aka", or other identifiers
+  const nameRowPattern = /Name\s*(?:\n\s*)?([A-Z][A-Z\s]+?)(?:\s+[Ff]ormerly|\s+[Aa][Kk][Aa]|\s+[Ss]ocial|\s+SSN|\s+\/|\s+-|\s+\(|,|;|\n|$)/;
   const nameMatch = text.match(nameRowPattern);
   if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
     consumerName = nameMatch[1].trim();
   }
   
-  // If not found with specific pattern, try general patterns as fallback
-  if (!consumerName) {
-    const namePatterns = [
-      /Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
-      /Consumer\s*Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
-      /Report\s+for\s+([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i
-    ];
-    
-    // Try each name pattern
-    for (const pattern of namePatterns) {
-      const nameMatch = text.match(pattern);
-      if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
-        consumerName = nameMatch[1].trim();
-        // Remove any text after known separators
-        consumerName = consumerName.split(/formerly|aka|fka|dba|\/|-|\(|,|;/i)[0].trim();
-        break;
-      }
-    }
-  }
-  
-  // Keep the name simple - no more than two parts
-  if (consumerName) {
-    const nameParts = consumerName.split(/\s+/);
-    if (nameParts.length > 2) {
-      consumerName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+  // If primary pattern fails, try these more specific patterns
+  if (!consumerName || consumerName.length < 3) {
+    // Try to match just "FIRSTNAME LASTNAME" pattern at the beginning of the Name row
+    const simpleNamePattern = /Name\s*(?:\n\s*)?([A-Z]+\s+[A-Z]+)(?:\s|$|\n)/;
+    const simpleMatch = text.match(simpleNamePattern);
+    if (simpleMatch && simpleMatch[1] && simpleMatch[1].trim().length > 3) {
+      consumerName = simpleMatch[1].trim();
     }
   }
   
