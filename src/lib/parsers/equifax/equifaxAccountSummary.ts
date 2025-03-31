@@ -1,4 +1,3 @@
-
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 
@@ -17,39 +16,32 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
 
   try {
     // Extract the table section with account summaries
-    const tableText = extractTableSection(text);
-    if (!tableText) {
+    const tableSection = extractTableSection(text);
+    if (!tableSection) {
       console.log("Could not find account summary table section");
       parsingLogger.logEvent("No account summary table section found");
       return accountSummaries;
     }
     
-    // Extract rows from the table
-    const rows = extractTableRows(tableText);
-    if (rows.length === 0) {
-      console.log("No table rows found");
-      parsingLogger.logEvent("No table rows found");
-      return accountSummaries;
-    }
+    // Split into lines for processing
+    const lines = tableSection.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
     
-    // Find the header row to determine column positions
-    const headerRow = rows.find(row => 
-      row.toLowerCase().includes("account type") && 
-      row.toLowerCase().includes("open") && 
-      row.toLowerCase().includes("balance")
-    );
-    
+    // Find the header row to identify column structure
+    const headerRow = findHeaderRow(lines);
     if (!headerRow) {
       console.log("Could not find header row");
       parsingLogger.logEvent("No header row found");
       return accountSummaries;
     }
     
-    // Define column positions based on header row
-    const columnPositions = getColumnPositions(headerRow);
-    
-    // Process each account type individually with its own row
-    processAccountTypeRows(rows, accountSummaries, columnPositions);
+    // Process each account type individually with its specific row
+    processRevolving(lines, accountSummaries);
+    processMortgage(lines, accountSummaries);
+    processInstallment(lines, accountSummaries);
+    processOther(lines, accountSummaries);
+    processTotal(lines, accountSummaries);
     
     console.log("Final extracted account summaries:", accountSummaries);
     parsingLogger.logEvent("Completed account summary extraction", { count: accountSummaries.length });
@@ -65,229 +57,125 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
  * Extract the table section containing account summaries
  */
 function extractTableSection(text: string): string | null {
-  // Look for a section that contains the account summary table
-  const tableMarkers = [
-    /Your credit report includes information about activity on your credit accounts[\s\S]*?Account Type/i,
-    /Credit Accounts[\s\S]*?Account Type/i,
-    /Account Type\s+Open\s+With Balance/i
+  // Find the section with the account summary table
+  const tableSectionRegexes = [
+    /Your credit report includes information about activity on your credit accounts[\s\S]*?Account Type[\s\S]*?Total/i,
+    /Credit Accounts[\s\S]*?Account Type[\s\S]*?Total/i,
   ];
   
-  for (const marker of tableMarkers) {
-    const match = text.match(marker);
-    if (match) {
-      // Extract from the match to the end of the table section
-      const startIndex = match.index || 0;
-      // Find an ending marker for the table section
-      const endMarkers = [
-        /(?:Other Items|Consumer Statement|Public Records|End of Report)/i
-      ];
-      
-      let endIndex = text.length;
-      for (const endMarker of endMarkers) {
-        const endMatch = text.slice(startIndex).match(endMarker);
-        if (endMatch && endMatch.index) {
-          endIndex = startIndex + endMatch.index;
-          break;
-        }
-      }
-      
-      return text.slice(startIndex, endIndex);
+  for (const regex of tableSectionRegexes) {
+    const match = text.match(regex);
+    if (match && match[0]) {
+      return match[0];
     }
   }
   
-  return null;
-}
-
-/**
- * Extract rows from the table text
- */
-function extractTableRows(tableText: string): string[] {
-  // Split by newlines and clean each row
-  return tableText.split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-}
-
-/**
- * Determine the position of each column in the header row
- */
-function getColumnPositions(headerRow: string): Record<string, number> {
-  const positions: Record<string, number> = {};
-  
-  // Find positions of key headers
-  const accountTypePos = headerRow.toLowerCase().indexOf("account type");
-  const openPos = headerRow.toLowerCase().indexOf("open");
-  const withBalancePos = headerRow.toLowerCase().indexOf("with balance");
-  const totalBalancePos = headerRow.toLowerCase().indexOf("total balance");
-  const availablePos = headerRow.toLowerCase().indexOf("available");
-  const creditLimitPos = headerRow.toLowerCase().indexOf("credit limit");
-  const debtToCreditPos = headerRow.toLowerCase().indexOf("debt-to-credit");
-  const paymentPos = headerRow.toLowerCase().indexOf("payment");
-  
-  positions.accountType = accountTypePos;
-  positions.open = openPos;
-  positions.withBalance = withBalancePos;
-  positions.totalBalance = totalBalancePos;
-  positions.available = availablePos;
-  positions.creditLimit = creditLimitPos;
-  positions.debtToCredit = debtToCreditPos;
-  positions.payment = paymentPos;
-  
-  return positions;
-}
-
-/**
- * Process each account type row from the table
- */
-function processAccountTypeRows(rows: string[], accountSummaries: AccountSummary[], columnPositions: Record<string, number>): void {
-  // Define account types to look for
-  const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
-  
-  // Process each account type
-  for (const accountType of accountTypes) {
-    // Find the row for this account type specifically
-    const accountTypeRows = rows.filter(row => 
-      row.length > columnPositions.accountType + accountType.length &&
-      row.substring(columnPositions.accountType, columnPositions.accountType + accountType.length).toLowerCase() === accountType.toLowerCase() &&
-      !isHeaderRow(row)
-    );
-    
-    if (accountTypeRows.length > 0) {
-      // Get the row for this account type
-      const accountTypeRow = accountTypeRows[0];
-      console.log(`Processing row for ${accountType}:`, accountTypeRow);
-      
-      // Find the summary for this account type
-      const summary = accountSummaries.find(s => s.accountType === accountType);
-      if (summary) {
-        // Extract values for this account type
-        extractValuesForAccountType(accountTypeRow, summary, columnPositions);
-      }
+  // Try a more permissive approach
+  const tableStart = text.indexOf("Account Type");
+  if (tableStart !== -1) {
+    const endIndex = text.indexOf("Public Records", tableStart);
+    if (endIndex !== -1) {
+      return text.substring(tableStart, endIndex);
     } else {
-      console.log(`No row found for account type: ${accountType}`);
-    }
-  }
-}
-
-/**
- * Check if a row is a header row
- */
-function isHeaderRow(row: string): boolean {
-  const headerKeywords = ['account type', 'open', 'with balance', 'total balance', 'available', 'credit limit'];
-  const lowercaseRow = row.toLowerCase();
-  
-  // Count how many header keywords are in this row
-  let keywordCount = 0;
-  for (const keyword of headerKeywords) {
-    if (lowercaseRow.includes(keyword)) {
-      keywordCount++;
+      return text.substring(tableStart, tableStart + 3000); // Reasonable length limit
     }
   }
   
-  // If it has most header keywords, it's likely a header
-  return keywordCount >= 3;
+  return null;
 }
 
 /**
- * Extract values for a specific account type from its row
+ * Find the header row in the table
  */
-function extractValuesForAccountType(row: string, summary: AccountSummary, columnPositions: Record<string, number>): void {
-  // Extract open accounts
-  if (columnPositions.open >= 0) {
-    summary.open = extractNumericValue(row, columnPositions.open, columnPositions.withBalance);
+function findHeaderRow(lines: string[]): string | null {
+  for (const line of lines) {
+    if (line.includes("Account Type") && 
+        (line.includes("Open") || line.includes("With Balance") || 
+         line.includes("Total Balance"))) {
+      return line;
+    }
   }
-  
-  // Extract with balance accounts
-  if (columnPositions.withBalance >= 0) {
-    summary.withBalance = extractNumericValue(row, columnPositions.withBalance, columnPositions.totalBalance);
-  }
-  
-  // Extract total balance
-  if (columnPositions.totalBalance >= 0) {
-    summary.totalBalance = extractCurrencyValue(row, columnPositions.totalBalance, columnPositions.available);
-  }
-  
-  // Extract available credit
-  if (columnPositions.available >= 0) {
-    summary.available = extractCurrencyValue(row, columnPositions.available, columnPositions.creditLimit);
-  }
-  
-  // Extract credit limit
-  if (columnPositions.creditLimit >= 0) {
-    summary.creditLimit = extractCurrencyValue(row, columnPositions.creditLimit, columnPositions.debtToCredit);
-  }
-  
-  // Extract debt-to-credit
-  if (columnPositions.debtToCredit >= 0) {
-    summary.debtToCredit = extractPercentageValue(row, columnPositions.debtToCredit, columnPositions.payment);
-  }
-  
-  // Extract payment
-  if (columnPositions.payment >= 0) {
-    summary.payment = extractCurrencyValue(row, columnPositions.payment, row.length);
-  }
-  
-  console.log(`Extracted data for ${summary.accountType}:`, {
-    open: summary.open,
-    withBalance: summary.withBalance,
-    totalBalance: summary.totalBalance,
-    available: summary.available,
-    creditLimit: summary.creditLimit,
-    debtToCredit: summary.debtToCredit,
-    payment: summary.payment
+  return null;
+}
+
+/**
+ * Process the Revolving row specifically
+ */
+function processRevolving(lines: string[], accountSummaries: AccountSummary[]): void {
+  // Find the Revolving row - being very specific about the pattern
+  const revolvingRows = lines.filter(line => {
+    const trimmedLine = line.trim();
+    const startsWithRevolving = /^Revolving\b/.test(trimmedLine);
+    const containsRevolvingAsWord = new RegExp('\\bRevolving\\b').test(trimmedLine);
+    
+    // Exclude header rows and rows where "Revolving" appears as part of another term
+    const notHeaderRow = !(/Account Type|Header|Column/i.test(trimmedLine));
+    const notOtherRows = !(/Mortgage|Installment|Other|Total/.test(trimmedLine.split(/\s+/)[0])); 
+    
+    return (startsWithRevolving || (containsRevolvingAsWord && notOtherRows)) && notHeaderRow;
   });
+  
+  if (revolvingRows.length > 0) {
+    const revolvingRow = revolvingRows[0];
+    console.log("Found Revolving row:", revolvingRow);
+    
+    // Get the Revolving summary object
+    const revolvingSummary = accountSummaries.find(s => s.accountType === 'Revolving');
+    if (revolvingSummary) {
+      // Extract data using a word-based approach rather than position-based
+      const words = revolvingRow.split(/\s+/).filter(word => word.trim() !== '');
+      
+      // Word after "Revolving" should be "Open" count if it's a number
+      if (words.length > 1 && /^\d+$/.test(words[1])) {
+        revolvingSummary.open = parseInt(words[1], 10);
+        console.log("Extracted Revolving open:", revolvingSummary.open);
+      }
+      
+      // Next word after open count should be "With Balance" count if it's a number
+      if (words.length > 2 && /^\d+$/.test(words[2])) {
+        revolvingSummary.withBalance = parseInt(words[2], 10);
+        console.log("Extracted Revolving with balance:", revolvingSummary.withBalance);
+      }
+      
+      // For the Revolving row, we'll specifically check if there are dollar values
+      // If the row doesn't have dollar values ($), we'll leave them as null
+      const dollarValueMatch = revolvingRow.match(/\$[0-9,.]+|-\$[0-9,.]+|\$-[0-9,.]+/g);
+      
+      // Only populate dollar values if they actually exist in the row
+      if (dollarValueMatch && dollarValueMatch.length > 0) {
+        // Assign dollar values in expected order only if they exist
+        const dollarFields = ['totalBalance', 'available', 'creditLimit', 'payment'];
+        dollarValueMatch.forEach((value, index) => {
+          if (index < dollarFields.length) {
+            revolvingSummary[dollarFields[index]] = value;
+          }
+        });
+      }
+      
+      // Check for percentage (debt-to-credit) only if it exists
+      const percentMatch = revolvingRow.match(/(\d+\.?\d*)\s*%/);
+      if (percentMatch) {
+        revolvingSummary.debtToCredit = percentMatch[0];
+      }
+    }
+  } else {
+    console.log("No specific Revolving row found");
+  }
 }
 
-/**
- * Extract a numeric value from a specific column
- */
-function extractNumericValue(row: string, startPos: number, endPos: number): number | null {
-  if (startPos < 0 || startPos >= row.length) return null;
-  
-  // Get the text in this column
-  const columnText = row.substring(startPos, endPos < 0 ? row.length : endPos).trim();
-  
-  // Look for a number pattern
-  const numMatch = columnText.match(/^\d+$/);
-  if (numMatch && numMatch[0]) {
-    return parseInt(numMatch[0], 10);
-  }
-  
-  return null;
+// Placeholder for other account type processing functions
+function processMortgage(lines: string[], accountSummaries: AccountSummary[]): void {
+  // Will implement this after Revolving is working correctly
 }
 
-/**
- * Extract a currency value from a specific column
- */
-function extractCurrencyValue(row: string, startPos: number, endPos: number): string | null {
-  if (startPos < 0 || startPos >= row.length) return null;
-  
-  // Get the text in this column
-  const columnText = row.substring(startPos, endPos < 0 ? row.length : endPos).trim();
-  
-  // Look for a currency pattern
-  const currencyMatch = columnText.match(/(-?\$[0-9,.]+|\$-[0-9,.]+)/);
-  if (currencyMatch && currencyMatch[0]) {
-    return currencyMatch[0];
-  }
-  
-  return null;
+function processInstallment(lines: string[], accountSummaries: AccountSummary[]): void {
+  // Will implement this after Revolving is working correctly
 }
 
-/**
- * Extract a percentage value from a specific column
- */
-function extractPercentageValue(row: string, startPos: number, endPos: number): string | null {
-  if (startPos < 0 || startPos >= row.length) return null;
-  
-  // Get the text in this column
-  const columnText = row.substring(startPos, endPos < 0 ? row.length : endPos).trim();
-  
-  // Look for a percentage pattern
-  const percentMatch = columnText.match(/(\d+\.?\d*)\s*%/);
-  if (percentMatch && percentMatch[0]) {
-    return percentMatch[0];
-  }
-  
-  return null;
+function processOther(lines: string[], accountSummaries: AccountSummary[]): void {
+  // Will implement this after Revolving is working correctly
+}
+
+function processTotal(lines: string[], accountSummaries: AccountSummary[]): void {
+  // Will implement this after Revolving is working correctly
 }
