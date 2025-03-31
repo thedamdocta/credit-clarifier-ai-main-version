@@ -110,9 +110,10 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
     // Extract key summary data with highly targeted approaches
     extractSummaryData(parsedReport, extractedText);
     
-    // We'll replace the enhanceAccountSummariesCellByCellApproach with an improved version
-    // that properly respects each account type's data and handles negative values
-    if (parsedReport.accountSummaries) {
+    // We don't want to overwrite account summaries if they already have values
+    // (including null values that will be displayed as "x")
+    if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
+      // Only process account summaries if they don't exist yet
       improvedAccountSummaryExtraction(parsedReport, extractedText);
     }
     
@@ -192,7 +193,7 @@ function improvedAccountSummaryExtraction(parsedReport: any, extractedText: stri
     .map(line => line.trim())
     .filter(line => line.length > 0);
   
-  // Process each account type individually 
+  // Process each account type individually, but ONLY if the values aren't already set
   for (const summary of parsedReport.accountSummaries) {
     const accountType = summary.accountType;
     
@@ -205,11 +206,17 @@ function improvedAccountSummaryExtraction(parsedReport: any, extractedText: stri
       const accountLine = relevantLines[0];
       console.log(`Processing line for ${accountType}:`, accountLine);
       
+      // Only extract values if they are not already set (including null values that will display as "x")
       // Process numeric values (Open, With Balance)
-      processNumericColumnsForAccountType(accountLine, accountType, summary);
+      if (summary.open === undefined) {
+        processNumericColumnsForAccountType(accountLine, accountType, summary);
+      }
       
       // Process financial values separately (dollar amounts and percentages)
-      processFinancialColumnsForAccountType(accountLine, accountType, summary);
+      // but only if they're not already set
+      if (summary.totalBalance === undefined && summary.available === undefined) {
+        processFinancialColumnsForAccountType(accountLine, accountType, summary);
+      }
     }
   }
 }

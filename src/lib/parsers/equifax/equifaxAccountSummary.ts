@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -243,6 +244,9 @@ function processAccountLineWithColumnAwareness(
   accountSummary: AccountSummary, 
   columns: Record<string, number>
 ): void {
+  // Only extract cell content if present in the line
+  // This ensures we don't overwrite empty cells with parsed values
+  
   // Check all column positions in order to ensure proper extraction
   const columnKeys = [
     'accountType', 'open', 'withBalance', 'totalBalance', 
@@ -273,26 +277,25 @@ function processAccountLineWithColumnAwareness(
     
     // If cell is empty, make sure the value is null
     if (!cellContent) {
-      if (key === 'open' || key === 'withBalance') {
-        accountSummary[key] = null;
-      } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
-        accountSummary[key] = null;
-      } else if (key === 'debtToCredit') {
-        accountSummary[key] = null;
-      }
       continue;
     }
     
-    // Process based on column type
+    // Only process based on column type if we found actual content
     if (key === 'open' || key === 'withBalance') {
       const numericValue = extractNumericValue(cellContent);
-      accountSummary[key] = numericValue;
+      if (numericValue !== null) {
+        accountSummary[key] = numericValue;
+      }
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);
-      accountSummary[key] = dollarValue;
+      if (dollarValue !== null) {
+        accountSummary[key] = dollarValue;
+      }
     } else if (key === 'debtToCredit') {
       const percentValue = extractPercentageValue(cellContent);
-      accountSummary[key] = percentValue;
+      if (percentValue !== null) {
+        accountSummary[key] = percentValue;
+      }
     }
   }
   
@@ -306,3 +309,4 @@ function processAccountLineWithColumnAwareness(
     payment: accountSummary.payment
   });
 }
+
