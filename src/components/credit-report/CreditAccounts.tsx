@@ -26,21 +26,14 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   console.log("Incoming account summaries:", report.accountSummaries);
   
   if (report.accountSummaries && report.accountSummaries.length > 0) {
-    // First process non-Total rows
+    // Process all rows including Total
     report.accountSummaries.forEach(summary => {
-      if (summary.accountType && summary.accountType !== 'Total') {
-        // Store the summary in our map, preserving all original values (including zeros)
+      if (summary.accountType) {
+        // Store the summary in our map, preserving all original values
         summariesByType.set(summary.accountType, summary);
         console.log(`Processing ${summary.accountType} account summary:`, summary);
       }
     });
-    
-    // Handle Total row separately to ensure it's processed correctly
-    const totalRow = report.accountSummaries.find(summary => summary.accountType === 'Total');
-    if (totalRow) {
-      summariesByType.set('Total', totalRow);
-      console.log("Processing Total account summary:", totalRow);
-    }
   }
   
   // Create our final list in the required order, creating empty entries for missing types
@@ -48,9 +41,17 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     const existingSummary = summariesByType.get(accountType);
     
     if (existingSummary) {
-      // For existing summaries, preserve all original values
+      // For existing summaries, preserve all values but ensure nulls are kept as null
       accountSummaries.push({
-        ...existingSummary
+        ...existingSummary,
+        // Ensure null values are preserved as null
+        open: existingSummary.open === undefined ? null : existingSummary.open,
+        withBalance: existingSummary.withBalance === undefined ? null : existingSummary.withBalance,
+        totalBalance: existingSummary.totalBalance === undefined ? null : existingSummary.totalBalance,
+        available: existingSummary.available === undefined ? null : existingSummary.available,
+        creditLimit: existingSummary.creditLimit === undefined ? null : existingSummary.creditLimit,
+        debtToCredit: existingSummary.debtToCredit === undefined ? null : existingSummary.debtToCredit,
+        payment: existingSummary.payment === undefined ? null : existingSummary.payment
       });
     } else {
       // For missing types, all values should be explicitly null to ensure they render as "x"

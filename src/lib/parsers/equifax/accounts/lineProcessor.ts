@@ -30,33 +30,11 @@ export function processAccountType(
     return new RegExp(`(?:^|\\s)${accountType}(?:\\s|$|\\t)`, 'i').test(line);
   });
   
-  if (!accountLine) {
-    console.log(`No line found for ${accountType}, ensuring all values are null`);
-    // Make sure all account values are explicitly null
-    const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
-    if (accountSummary) {
-      // Set all fields to null explicitly
-      accountSummary.open = null;
-      accountSummary.withBalance = null;
-      accountSummary.totalBalance = null;
-      accountSummary.available = null;
-      accountSummary.creditLimit = null;
-      accountSummary.debtToCredit = null;
-      accountSummary.payment = null;
-    }
-    return;
-  }
-  
-  console.log(`Found line for ${accountType}:`, accountLine);
-  
   // Find this account type in our summary array
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Special debug for rows
-  console.log(`Processing ${accountType} row`);
-  
-  // IMPROVED: First set ALL fields to null by default
+  // IMPORTANT: ALWAYS set ALL fields to null by default for every account type
   accountSummary.open = null;
   accountSummary.withBalance = null;
   accountSummary.totalBalance = null;
@@ -65,11 +43,21 @@ export function processAccountType(
   accountSummary.debtToCredit = null;
   accountSummary.payment = null;
   
-  // Process the account line using cell by cell processing
-  processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
-  
-  // After processing log
-  console.log(`${accountType} row after processing:`, accountSummary);
+  // If we found a line for this account type, process it
+  if (accountLine) {
+    console.log(`Found line for ${accountType}:`, accountLine);
+    
+    // Special debug for rows
+    console.log(`Processing ${accountType} row`);
+    
+    // Process the account line using cell by cell processing
+    processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
+    
+    // After processing log
+    console.log(`${accountType} row after processing:`, accountSummary);
+  } else {
+    console.log(`No line found for ${accountType}, all values remain null`);
+  }
 }
 
 /**
@@ -93,9 +81,6 @@ export function processAccountLineWithColumnAwareness(
     const posB = columns[b] || 999;
     return posA - posB;
   });
-  
-  // IMPROVED: All fields start as null (set in the processAccountType function)
-  // We will only set values for fields that have actual data
   
   // Process the data for columns that have values
   for (let i = 0; i < sortedColumnKeys.length; i++) {
