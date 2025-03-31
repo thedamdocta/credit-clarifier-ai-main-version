@@ -56,6 +56,13 @@ export const processPDFDocument = async (
         console.log('Text extraction complete. Text length:', extractedText.length);
         console.log('Sample text:', extractedText.substring(0, 300) + '...');
         
+        // Pre-process text to better identify account tables
+        // Look for Equifax specific table patterns
+        const tablePattern = /Account\s+Type\s+(?:Total\s+Accounts|Open|With\s+Balance|Total\s+Balance|Available|Credit\s+Limit|Debt-to-Credit|Payment)/i;
+        if (tablePattern.test(extractedText)) {
+          console.log("Identified potential Equifax account summary table");
+        }
+        
         // Show appropriate processing toast
         if (useAI) {
           toast.info("Processing with AI analysis...");
@@ -68,6 +75,12 @@ export const processPDFDocument = async (
           console.log("Beginning report parsing...");
           const parsedReport = await parseCreditReport(extractedText, useAI);
           console.log("Report parsing complete:", parsedReport.bureau);
+          
+          // Log account summary info for debugging
+          if (parsedReport.accountSummaries) {
+            console.log("Account summaries extracted:", parsedReport.accountSummaries.length);
+            console.log("Account summaries:", parsedReport.accountSummaries);
+          }
           
           clearInterval(progressInterval);
           setUploadProgress(100);
