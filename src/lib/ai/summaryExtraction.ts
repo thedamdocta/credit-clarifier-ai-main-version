@@ -79,7 +79,8 @@ function extractNegativeAccountsAI(text: string, data: Partial<CreditReport>): v
 }
 
 function extractOldestAccountAI(text: string, data: Partial<CreditReport>): void {
-  const oldestAccountMatch = text.match(/Oldest\s*Account\s*:?\s*([\w\s\/]+?)\s*\(Opened\s+([^)]+)\)(?:\s|$|\n)/i);
+  // Improved pattern to handle accounts with commas, periods, and other special characters
+  const oldestAccountMatch = text.match(/Oldest\s*Account\s*:?\s*([^(\n]+?)\s*\(Opened\s+([^)]+)\)(?:\s|$|\n)/i);
   if (oldestAccountMatch && oldestAccountMatch[1] && oldestAccountMatch[2]) {
     data.oldestAccount = {
       accountName: oldestAccountMatch[1].trim(),
@@ -90,7 +91,8 @@ function extractOldestAccountAI(text: string, data: Partial<CreditReport>): void
 }
 
 function extractRecentAccountAI(text: string, data: Partial<CreditReport>): void {
-  const recentAccountMatch = text.match(/(?:Most\s*Recent|Newest)\s*Account\s*:?\s*([\w\s\/]+?)\s*\(Opened\s+([^)]+)\)(?:\s|$|\n)/i);
+  // Improved pattern to handle accounts with commas, periods, and other special characters
+  const recentAccountMatch = text.match(/(?:Most\s*Recent|Newest)\s*Account\s*:?\s*([^(\n]+?)\s*\(Opened\s+([^)]+)\)(?:\s|$|\n)/i);
   if (recentAccountMatch && recentAccountMatch[1] && recentAccountMatch[2]) {
     data.recentAccount = {
       accountName: recentAccountMatch[1].trim(),

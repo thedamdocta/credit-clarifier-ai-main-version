@@ -1,3 +1,4 @@
+
 import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
 import { CreditReport } from '../../types/creditReport';
 
@@ -136,7 +137,8 @@ function extractNegativeAccounts(text: string, summary: any): void {
 }
 
 function extractOldestAccount(text: string, summary: any): void {
-  const oldestAccountPattern = /Oldest\s+Account\s+([\w\s\/]+)\s+\(Opened\s+([^)]+)\)/i;
+  // Improved pattern to handle accounts with commas, periods, and other special characters
+  const oldestAccountPattern = /Oldest\s+Account\s+([^(\n]+?)\s+\(Opened\s+([^)]+)\)/i;
   const oldestAccountMatch = text.match(oldestAccountPattern);
   if (oldestAccountMatch && oldestAccountMatch[1] && oldestAccountMatch[2]) {
     summary.oldestAccount = {
@@ -147,7 +149,8 @@ function extractOldestAccount(text: string, summary: any): void {
 }
 
 function extractRecentAccount(text: string, summary: any): void {
-  const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account\s+([\w\s\/]+)\s+\(Opened\s+([^)]+)\)/i;
+  // Improved pattern to handle accounts with commas, periods, and other special characters  
+  const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account\s+([^(\n]+?)\s+\(Opened\s+([^)]+)\)/i;
   const recentAccountMatch = text.match(recentAccountPattern);
   if (recentAccountMatch && recentAccountMatch[1] && recentAccountMatch[2]) {
     summary.recentAccount = {

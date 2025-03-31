@@ -8,7 +8,8 @@ export const extractAccounts = (text: string): Account[] => {
   
   accountSections.slice(1).forEach(section => {
     let accountName = '';
-    const nameMatch = section.match(/([A-Za-z\s]+(?:BANK|CREDIT|CARD|LOAN|MORTGAGE|FINANCE|SERVICES|LLC|INC|CORP|AMERICA|EXPRESS|DISCOVER|CAPITAL|ONE))/i);
+    // Improved account name extraction to handle names with special characters
+    const nameMatch = section.match(/([A-Za-z\s\/.,]+(?:BANK|CREDIT|CARD|LOAN|MORTGAGE|FINANCE|SERVICES|LLC|INC|CORP|AMERICA|EXPRESS|DISCOVER|CAPITAL|ONE|N\.A\.))/i);
     if (nameMatch && nameMatch[1]) {
       accountName = nameMatch[1].trim();
     }
