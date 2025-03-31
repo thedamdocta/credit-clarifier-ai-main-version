@@ -18,84 +18,75 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
   if (tableHeaderMatch || hasExpandedTable) {
     console.log("Found Equifax account summary table header");
     
-    // Extract table rows
+    // First extract the table section from the text
+    // This helps limit our search to just the relevant table data
+    const tableSectionMatch = text.match(/(Account\s+Type\s+Open\s+With\s+Balance[\s\S]+?)(?:Other Items|Summary of|Statement|Public Records)/i);
+    const tableSection = tableSectionMatch ? tableSectionMatch[1] : text;
+    
+    // Process each account type individually
     for (const accountType of accountTypes) {
-      // For expanded table format
+      // Create a default summary object with null values
+      const summary: AccountSummary = {
+        accountType,
+        totalAccounts: null,
+        open: null,
+        closed: null,
+        balance: null,
+        withBalance: null,
+        totalBalance: null,
+        available: null, 
+        creditLimit: null,
+        debtToCredit: null,
+        payment: null
+      };
+      
+      // For expanded table format, extract data line by line for each account type
       if (hasExpandedTable) {
-        const summary: AccountSummary = {
-          accountType,
-          totalAccounts: null,
-          open: null,
-          closed: null,
-          balance: null,
-          withBalance: null,
-          totalBalance: null,
-          available: null, 
-          creditLimit: null,
-          debtToCredit: null,
-          payment: null
-        };
+        // Find the specific line for this account type
+        const accountTypeLineRegex = new RegExp(`\\b${accountType}\\b[^\\n]+`, 'i');
+        const accountTypeLine = tableSection.match(accountTypeLineRegex);
         
-        // Match open accounts
-        const openPattern = new RegExp(`${accountType}\\s+(\\d+)(?:\\s|$)`, 'i');
-        const openMatch = text.match(openPattern);
-        if (openMatch && openMatch[1]) {
-          summary.open = parseInt(openMatch[1]);
+        if (accountTypeLine && accountTypeLine[0]) {
+          const line = accountTypeLine[0].trim();
+          console.log(`Found line for ${accountType}: ${line}`);
+          
+          // Extract open accounts - first number after account type
+          const openMatch = line.match(new RegExp(`\\b${accountType}\\b\\s+(\\d+)`));
+          if (openMatch && openMatch[1]) {
+            summary.open = parseInt(openMatch[1]);
+          }
+          
+          // Extract "with balance" - typically the second number
+          const parts = line.split(/\s+/);
+          const accountTypeIndex = parts.findIndex(p => 
+            p.toLowerCase() === accountType.toLowerCase());
+          
+          if (accountTypeIndex >= 0 && parts.length > accountTypeIndex + 2) {
+            // First number is open, second is withBalance
+            const withBalanceIndex = accountTypeIndex + 2;
+            if (/^\d+$/.test(parts[withBalanceIndex])) {
+              summary.withBalance = parseInt(parts[withBalanceIndex]);
+            }
+          }
+          
+          // Extract dollar values - they should appear in order
+          const dollarValues = line.match(/\$[\d,.]+/g);
+          if (dollarValues) {
+            if (dollarValues.length > 0) summary.totalBalance = dollarValues[0];
+            if (dollarValues.length > 1) summary.available = dollarValues[1]; 
+            if (dollarValues.length > 2) summary.creditLimit = dollarValues[2];
+            if (dollarValues.length > 3) summary.payment = dollarValues[3];
+          }
+          
+          // Extract debt-to-credit percentage
+          const percentageMatch = line.match(/(\d+\.?\d*%)/);
+          if (percentageMatch && percentageMatch[1]) {
+            summary.debtToCredit = percentageMatch[1];
+          }
         }
-        
-        // Match with balance 
-        const withBalancePattern = new RegExp(`${accountType}(?:[^\\n]*?)(\\d+)\\s+(?:with\\s+balance|\\$[\\d,.]+)`, 'i');
-        const withBalanceMatch = text.match(withBalancePattern);
-        if (withBalanceMatch && withBalanceMatch[1] && summary.open !== null) {
-          // Only set withBalance if we have a valid open value and the match isn't just repeating the open value
-          summary.withBalance = parseInt(withBalanceMatch[1]);
-        }
-        
-        // Match total balance with more flexible pattern
-        const totalBalancePattern = new RegExp(`${accountType}[^\\n]*?(\\$[\\d,.]+)(?:\\s|$)`, 'i');
-        const totalBalanceMatch = text.match(totalBalancePattern);
-        if (totalBalanceMatch && totalBalanceMatch[1]) {
-          summary.totalBalance = totalBalanceMatch[1];
-        }
-        
-        // Match available credit
-        const availablePattern = new RegExp(`${accountType}[^\\n]*?(?:available[^\\n]*?)(\\-?\\$[\\d,.]+)`, 'i');
-        const availableMatch = text.match(availablePattern);
-        if (availableMatch && availableMatch[1]) {
-          summary.available = availableMatch[1];
-        }
-        
-        // Match credit limit
-        const creditLimitPattern = new RegExp(`${accountType}[^\\n]*?(?:credit\\s+limit[^\\n]*?)(\\$[\\d,.]+)`, 'i');
-        const creditLimitMatch = text.match(creditLimitPattern);
-        if (creditLimitMatch && creditLimitMatch[1]) {
-          summary.creditLimit = creditLimitMatch[1];
-        }
-        
-        // Match debt to credit ratio
-        const debtToCreditPattern = new RegExp(`${accountType}[^\\n]*?(?:debt-to-credit[^\\n]*?)([\\d.]+%)`, 'i');
-        const debtToCreditMatch = text.match(debtToCreditPattern);
-        if (debtToCreditMatch && debtToCreditMatch[1]) {
-          summary.debtToCredit = debtToCreditMatch[1];
-        }
-        
-        // Match payment amount
-        const paymentPattern = new RegExp(`${accountType}[^\\n]*?(?:payment[^\\n]*?)(\\$[\\d,.]+)`, 'i');
-        const paymentMatch = text.match(paymentPattern);
-        if (paymentMatch && paymentMatch[1]) {
-          summary.payment = paymentMatch[1];
-        }
-        
-        summaries.push(summary);
       } else {
         // Standard table format - using previous regex approach with some improvements
-        // Updated to match the format: Account Type, Total Accounts, Open, Closed, Balance
         const rowRegex = new RegExp(`${accountType}\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*(?:\\$([\\.\\d,]+)|\\$0|-)?`, 'i');
-        
-        // Alternative pattern for just the account type and a number (for "Open" column)
-        const simpleRowRegex = new RegExp(`${accountType}\\s+(\\d+)`, 'i');
-        
-        // Try to find the row with the detailed pattern
         const rowMatch = text.match(rowRegex);
         
         if (rowMatch) {
@@ -112,61 +103,24 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
             balance = `$${rowMatch[4]}`;
           }
           
-          // Create the summary object with available data
-          const summary: AccountSummary = {
-            accountType,
-            totalAccounts,
-            open: openAccounts, 
-            closed: closedAccounts,
-            balance,
-            withBalance: null,
-            totalBalance: null,
-            available: null,
-            creditLimit: null,
-            debtToCredit: null,
-            payment: null
-          };
-          
-          summaries.push(summary);
+          // Update the summary object with available data
+          summary.totalAccounts = totalAccounts;
+          summary.open = openAccounts; 
+          summary.closed = closedAccounts;
+          summary.balance = balance;
         } else {
           // Try the simple pattern for just finding the open account number
+          const simpleRowRegex = new RegExp(`\\b${accountType}\\b\\s+(\\d+)`, 'i');
           const simpleMatch = text.match(simpleRowRegex);
           
           if (simpleMatch && simpleMatch[1]) {
-            console.log(`Found simple row for ${accountType}:`, simpleMatch[0]);
-            
-            // Create summary with just the open account number
-            summaries.push({
-              accountType,
-              totalAccounts: null,
-              open: parseInt(simpleMatch[1]),
-              closed: null,
-              balance: null,
-              withBalance: null,
-              totalBalance: null,
-              available: null,
-              creditLimit: null,
-              debtToCredit: null,
-              payment: null
-            });
-          } else {
-            // If no match, create a default entry for this account type with nulls
-            summaries.push({
-              accountType,
-              totalAccounts: null,
-              open: null,
-              closed: null,
-              balance: null,
-              withBalance: null,
-              totalBalance: null,
-              available: null,
-              creditLimit: null,
-              debtToCredit: null,
-              payment: null
-            });
+            summary.open = parseInt(simpleMatch[1]);
           }
         }
       }
+      
+      // Add the summary to our list
+      summaries.push(summary);
     }
   } else {
     console.log("Could not find Equifax account summary table header");
