@@ -10,25 +10,52 @@ interface CreditAccountsProps {
 }
 
 const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
-  // Function to handle null or empty values
+  // Enhanced function to handle null, empty, and negative values
   const formatValue = (value: string | number | undefined | null) => {
     if (value === undefined || value === null || value === '') {
       return ""; // Return empty string for null/undefined values
     }
-    if (typeof value === 'number') {
-      return `$${value.toLocaleString()}`;
-    }
-    if (typeof value === 'string') {
-      // Check if it's already formatted with $ (don't double format)
-      if (value.startsWith('$')) {
-        return value;
+    
+    // Convert value to string for consistent processing
+    const stringValue = String(value);
+    
+    // Check if it's already formatted with $ (don't double format)
+    if (typeof stringValue === 'string' && stringValue.startsWith('$')) {
+      // Handle case where the string already has $ but might need negative sign adjustment
+      if (stringValue.includes('-$')) {
+        return stringValue; // Already properly formatted negative value
+      } else if (stringValue.startsWith('$-')) {
+        // Fix incorrect format of '$-X' to '-$X'
+        return '-$' + stringValue.substring(2);
+      } else if (stringValue.charAt(0) === '-' && stringValue.charAt(1) === '$') {
+        return stringValue; // Already properly formatted as '-$X'
       }
-      // Check if it's a number string
-      if (value.match(/^-?\d+(\.\d+)?$/)) {
-        return `$${parseInt(value).toLocaleString()}`;
+      return stringValue;
+    }
+    
+    // For numerical values or numeric strings
+    if (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value.replace(/[^0-9.-]/g, ''))))) {
+      let numericValue: number;
+      
+      if (typeof value === 'number') {
+        numericValue = value;
+      } else {
+        // Extract numeric value from string, preserving negative sign
+        const cleanedValue = value.replace(/[^0-9.-]/g, '');
+        numericValue = parseFloat(cleanedValue);
+      }
+      
+      // Check if the value is negative
+      if (numericValue < 0) {
+        // Format negative value as -$X,XXX
+        return `-$${Math.abs(numericValue).toLocaleString()}`;
+      } else {
+        // Format positive value as $X,XXX
+        return `$${numericValue.toLocaleString()}`;
       }
     }
-    return value;
+    
+    return value; // Return as is if it's not a numeric value
   };
 
   // Ensure we have all account types for the table

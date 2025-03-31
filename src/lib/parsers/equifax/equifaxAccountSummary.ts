@@ -58,72 +58,79 @@ function processAccountTypeData(lines: string[], accountType: string, summaries:
     const accountLine = accountLines[0];
     console.log(`Found line for ${accountType}:`, accountLine);
     
-    // Extract account data from this line
-    const tokens = accountLine.split(/\s+/);
+    // Extract numeric values for open and with balance columns
+    extractNumericValues(accountLine, accountType, summary);
     
-    // Find the position of the account type in the tokens
-    const accountTypeIndex = tokens.findIndex(t => 
-      new RegExp(`\\b${t}\\b`, 'i').test(accountType)
-    );
-    
-    if (accountTypeIndex >= 0) {
-      // Extract Open accounts - first number after account type
-      const openIndex = accountTypeIndex + 1;
-      if (openIndex < tokens.length && /^\d+$/.test(tokens[openIndex])) {
-        summary.open = parseInt(tokens[openIndex]);
-      }
-      
-      // Extract With Balance - second number after account type
-      const withBalanceIndex = openIndex + 1;
-      if (withBalanceIndex < tokens.length && /^\d+$/.test(tokens[withBalanceIndex])) {
-        summary.withBalance = parseInt(tokens[withBalanceIndex]);
-      }
-      
-      // Look for dollar values and percentages
-      const dollarPattern = /\$([0-9,.-]+)/g;
-      const percentPattern = /(\d+\.?\d*)%/;
-      
-      let dollarMatches = [];
-      let match;
-      
-      // Extract all dollar values from the line
-      while ((match = dollarPattern.exec(accountLine)) !== null) {
-        dollarMatches.push(match[0]);
-      }
-      
-      // Assign dollar values in expected order - skip values that are clearly not for this row
-      if (dollarMatches.length > 0) {
-        // Filter out dollar values that clearly belong to another row
-        // by checking if they appear before the account type name in the line
-        const accountTypePos = accountLine.indexOf(accountType);
-        dollarMatches = dollarMatches.filter(match => 
-          accountLine.indexOf(match) > accountTypePos
-        );
-        
-        // Now assign the values in sequence: totalBalance, available, creditLimit, payment
-        const valueMapping = [
-          { field: 'totalBalance', index: 0 },
-          { field: 'available', index: 1 },
-          { field: 'creditLimit', index: 2 },
-          { field: 'payment', index: 3 }
-        ];
-        
-        for (const mapping of valueMapping) {
-          if (mapping.index < dollarMatches.length) {
-            summary[mapping.field] = dollarMatches[mapping.index];
-          }
-        }
-      }
-      
-      // Extract debt-to-credit percentage
-      const percentMatch = accountLine.match(percentPattern);
-      if (percentMatch) {
-        summary.debtToCredit = `${percentMatch[0]}`;
-      }
-    }
+    // Extract dollar values (including negative numbers) and percentages
+    extractFinancialValues(accountLine, accountType, summary);
   }
   
   summaries.push(summary);
+}
+
+// Extract numeric values (open and withBalance) from a line
+function extractNumericValues(line: string, accountType: string, summary: AccountSummary) {
+  // Get the position of account type in the line
+  const accountTypePos = line.indexOf(accountType);
+  if (accountTypePos < 0) return;
+  
+  // Get text after account type
+  const afterAccountType = line.substring(accountTypePos + accountType.length);
+  
+  // Split by whitespace and find first numbers
+  const tokens = afterAccountType.trim().split(/\s+/);
+  let numCount = 0;
+  
+  for (let i = 0; i < tokens.length; i++) {
+    if (/^\d+$/.test(tokens[i])) {
+      if (numCount === 0) {
+        summary.open = parseInt(tokens[i]);
+      } else if (numCount === 1) {
+        summary.withBalance = parseInt(tokens[i]);
+      }
+      numCount++;
+      
+      // Stop after finding the first two numbers
+      if (numCount >= 2) break;
+    }
+  }
+}
+
+// Extract dollar values and percentages from a line
+function extractFinancialValues(line: string, accountType: string, summary: AccountSummary) {
+  const accountTypePos = line.indexOf(accountType);
+  if (accountTypePos < 0) return;
+  
+  // Extract all dollar values, including negative numbers
+  // Pattern now includes -$ format and $- format for negative numbers
+  const dollarPattern = /(-?\$[0-9,.-]+|\$-[0-9,.-]+)/g;
+  const dollars = [];
+  let match;
+  
+  // Find all dollar matches after account type position
+  const afterAccountType = line.substring(accountTypePos + accountType.length);
+  while ((match = dollarPattern.exec(afterAccountType)) !== null) {
+    dollars.push(match[0]);
+  }
+  
+  // Assign dollar values in expected order
+  const dollarFields = ['totalBalance', 'available', 'creditLimit', 'payment'];
+  dollars.forEach((value, index) => {
+    if (index < dollarFields.length) {
+      // Convert incorrectly formatted negative numbers ($-1,234) to proper format (-$1,234)
+      if (value.startsWith('$-')) {
+        value = '-$' + value.substring(2);
+      }
+      summary[dollarFields[index]] = value;
+    }
+  });
+  
+  // Extract debt-to-credit percentage
+  const percentPattern = /(\d+\.?\d*)\s*%/;
+  const percentMatch = afterAccountType.match(percentPattern);
+  if (percentMatch) {
+    summary.debtToCredit = `${percentMatch[0].trim()}`;
+  }
 }
 
 // Helper function to create a default summary object

@@ -111,9 +111,9 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
     extractSummaryData(parsedReport, extractedText);
     
     // We'll replace the enhanceAccountSummariesCellByCellApproach with an improved version
-    // that properly respects each account type's data
+    // that properly respects each account type's data and handles negative values
     if (parsedReport.accountSummaries) {
-      processAccountSummariesIndividually(parsedReport, extractedText);
+      improvedAccountSummaryExtraction(parsedReport, extractedText);
     }
     
     // Additional Equifax-specific enhancements
@@ -171,7 +171,7 @@ function extractSummaryData(parsedReport: any, extractedText: string) {
   }
 }
 
-function processAccountSummariesIndividually(parsedReport: any, extractedText: string) {
+function improvedAccountSummaryExtraction(parsedReport: any, extractedText: string) {
   console.log("Processing account summaries individually for each account type");
   
   if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
@@ -192,7 +192,7 @@ function processAccountSummariesIndividually(parsedReport: any, extractedText: s
     .map(line => line.trim())
     .filter(line => line.length > 0);
   
-  // Process each account summary individually
+  // Process each account type individually 
   for (const summary of parsedReport.accountSummaries) {
     const accountType = summary.accountType;
     
@@ -205,67 +205,79 @@ function processAccountSummariesIndividually(parsedReport: any, extractedText: s
       const accountLine = relevantLines[0];
       console.log(`Processing line for ${accountType}:`, accountLine);
       
-      // Only process data for this specific account type
-      processLineDataForAccountType(accountLine, accountType, summary);
+      // Process numeric values (Open, With Balance)
+      processNumericColumnsForAccountType(accountLine, accountType, summary);
+      
+      // Process financial values separately (dollar amounts and percentages)
+      processFinancialColumnsForAccountType(accountLine, accountType, summary);
     }
   }
 }
 
-function processLineDataForAccountType(line: string, accountType: string, summary: any) {
-  // Extract positions to ensure we're only getting data for this account type
+function processNumericColumnsForAccountType(line: string, accountType: string, summary: any) {
+  // Find position of account type in the line
   const accountTypePos = line.indexOf(accountType);
   if (accountTypePos < 0) return;
   
-  const afterAccountType = line.substring(accountTypePos);
+  // Get text after account type
+  const afterAccountType = line.substring(accountTypePos + accountType.length);
   
-  // Extract numerical values (for open and with balance)
-  const tokens = afterAccountType.split(/\s+/);
+  // Split by whitespace and find first numbers
+  const tokens = afterAccountType.trim().split(/\s+/);
+  let numCount = 0;
   
-  // First two tokens after the account type are often "open" and "with balance"
-  let currentIndex = 1; // Start after account type
-  
-  if (currentIndex < tokens.length && /^\d+$/.test(tokens[currentIndex])) {
-    summary.open = parseInt(tokens[currentIndex]);
-    currentIndex++;
-    
-    // Next token might be "with balance"
-    if (currentIndex < tokens.length && /^\d+$/.test(tokens[currentIndex])) {
-      summary.withBalance = parseInt(tokens[currentIndex]);
+  for (let i = 0; i < tokens.length; i++) {
+    if (/^\d+$/.test(tokens[i])) {
+      if (numCount === 0) {
+        summary.open = parseInt(tokens[i]);
+      } else if (numCount === 1) {
+        summary.withBalance = parseInt(tokens[i]);
+      }
+      numCount++;
+      
+      // Stop after finding the first two numbers
+      if (numCount >= 2) break;
     }
   }
+}
+
+function processFinancialColumnsForAccountType(line: string, accountType: string, summary: any) {
+  // Find position of account type in the line
+  const accountTypePos = line.indexOf(accountType);
+  if (accountTypePos < 0) return;
   
-  // Extract dollar values for this specific account type
-  const dollarPattern = /\$([0-9,.-]+)/g;
-  let dollarMatches = [];
+  // Get text after account type for processing
+  const afterAccountType = line.substring(accountTypePos + accountType.length);
+
+  // Enhanced pattern to detect dollar values including negative numbers
+  // This pattern now matches both -$X,XXX and $-X,XXX formats for negative values
+  const dollarPattern = /(-?\$[0-9,.]+|\$-[0-9,.]+)/g;
+  const dollars = [];
   let match;
   
-  // Find all dollar values in this line
+  // Find all dollar matches after account type position
   while ((match = dollarPattern.exec(afterAccountType)) !== null) {
-    dollarMatches.push(match[0]);
-  }
-  
-  // Assign dollar values in expected order
-  if (dollarMatches.length > 0) {
-    // Map dollar values to their expected fields
-    const valueMapping = [
-      { field: 'totalBalance', index: 0 },
-      { field: 'available', index: 1 },
-      { field: 'creditLimit', index: 2 },
-      { field: 'payment', index: 3 }
-    ];
-    
-    for (const mapping of valueMapping) {
-      if (mapping.index < dollarMatches.length) {
-        summary[mapping.field] = dollarMatches[mapping.index];
-      }
+    // Normalize format to -$X,XXX if it's in $-X,XXX format
+    let value = match[0];
+    if (value.startsWith('$-')) {
+      value = '-$' + value.substring(2);
     }
+    dollars.push(value);
   }
   
-  // Extract debt-to-credit percentage for this specific account
-  const percentPattern = /(\d+\.?\d*)%/;
+  // Assign dollar values in expected order: totalBalance, available, creditLimit, payment
+  const dollarFields = ['totalBalance', 'available', 'creditLimit', 'payment'];
+  dollars.forEach((value, index) => {
+    if (index < dollarFields.length) {
+      summary[dollarFields[index]] = value;
+    }
+  });
+  
+  // Extract debt-to-credit percentage
+  const percentPattern = /(\d+\.?\d*)\s*%/;
   const percentMatch = afterAccountType.match(percentPattern);
   if (percentMatch) {
-    summary.debtToCredit = `${percentMatch[0]}`;
+    summary.debtToCredit = `${percentMatch[0].trim()}`;
   }
 }
 
