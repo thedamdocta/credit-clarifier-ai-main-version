@@ -48,30 +48,36 @@ export const extractEquifaxOtherItems = (text: string): {
     }
   }
   
-  // Simplified name cleaning - take just the main name, no initials or extra info
+  // Completely revised name cleaning - extract ONLY the primary name 
   if (consumerName) {
-    // Immediately cut off at any special character or phrase
-    const simplifiedName = consumerName.split(/[,\/\(\)-]|formerly|aka|fka|ssn/i)[0].trim();
+    // First, remove all text after any of these markers
+    const markers = [
+      'formerly', 'aka', 'fka', 'dba', 'ssn', 'social', 'security', 'number', 
+      '/', '-', '(', ',', ';'
+    ];
     
-    // If name has multiple words, just take the first two words (likely first and last name)
-    const nameParts = simplifiedName.split(/\s+/);
-    if (nameParts.length > 0) {
-      // For simplicity, just take first and last name (max 2 parts)
-      // This avoids middle initials and extra titles
-      const firstPart = nameParts[0];
-      const lastPart = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
-      
-      if (nameParts.length <= 2) {
-        // If only one or two words, use as is
-        consumerName = simplifiedName;
-      } else if (firstPart && lastPart) {
-        // If more than two words, just use first and last words
-        consumerName = `${firstPart} ${lastPart}`;
-      } else {
-        // Fallback to just first word
-        consumerName = firstPart;
+    let cleanedName = consumerName;
+    for (const marker of markers) {
+      const index = cleanedName.toLowerCase().indexOf(marker);
+      if (index > 0) {
+        cleanedName = cleanedName.substring(0, index).trim();
       }
     }
+    
+    // Now extract only the first part of the name (first 1-2 words max)
+    const nameParts = cleanedName.split(/\s+/);
+    
+    // Only keep first 1-2 parts for simple name
+    if (nameParts.length > 2) {
+      // For 3+ words, take just the first and last
+      consumerName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+    } else {
+      // For 1-2 words, keep as is
+      consumerName = cleanedName;
+    }
+    
+    // Ensure any middle initials are removed
+    consumerName = consumerName.replace(/\s+[A-Z]\s+/, ' ');
   }
   
   // Extract inquiry count
