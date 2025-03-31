@@ -52,6 +52,24 @@ const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => 
                         ) || 
                         "Employment history not available";
 
+  // Check if SSN and DOB exist in the personal info
+  const hasSSN = personalInfo.ssn && personalInfo.ssn !== undefined;
+  const hasDOB = personalInfo.dob && personalInfo.dob !== undefined;
+
+  // If name includes SSN, extract it - sometimes SSN is embedded in the name field
+  let displayName = personalInfo.name;
+  let extractedSSN = personalInfo.ssn;
+  
+  if (displayName.toLowerCase().includes("social security") || 
+      displayName.toLowerCase().includes("ssn")) {
+    // Try to extract the SSN from the name string if it's there
+    const ssnMatch = displayName.match(/(.*?)(?:Social Security Number|SSN):?\s*([\dX]{3}-[\dX]{2}-[\dX]{4}|XXX-XX-\d{4})/i);
+    if (ssnMatch) {
+      displayName = ssnMatch[1].trim();
+      extractedSSN = extractedSSN || ssnMatch[2];
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -65,10 +83,30 @@ const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => 
         <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
           <User className="h-5 w-5 text-muted-foreground" />
           <div className="space-y-1">
-            <p className="text-sm font-medium leading-none">{personalInfo.name}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-sm text-muted-foreground">Full Name</p>
           </div>
         </div>
+        
+        {extractedSSN && (
+          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
+            <Hash className="h-5 w-5 text-muted-foreground" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium leading-none">{extractedSSN}</p>
+              <p className="text-sm text-muted-foreground">Social Security Number</p>
+            </div>
+          </div>
+        )}
+        
+        {hasDOB && (
+          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
+            <CalendarDays className="h-5 w-5 text-muted-foreground" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium leading-none">{personalInfo.dob}</p>
+              <p className="text-sm text-muted-foreground">Date of Birth</p>
+            </div>
+          </div>
+        )}
         
         {formattedAddresses.map((address, index) => (
           <div key={index} className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
@@ -81,26 +119,6 @@ const PersonalInfoCard: React.FC<PersonalInfoCardProps> = ({ personalInfo }) => 
             </div>
           </div>
         ))}
-        
-        {personalInfo.ssn && (
-          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
-            <Hash className="h-5 w-5 text-muted-foreground" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">{personalInfo.ssn}</p>
-              <p className="text-sm text-muted-foreground">Social Security Number</p>
-            </div>
-          </div>
-        )}
-        
-        {personalInfo.dob && (
-          <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
-            <CalendarDays className="h-5 w-5 text-muted-foreground" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium leading-none">{personalInfo.dob}</p>
-              <p className="text-sm text-muted-foreground">Date of Birth</p>
-            </div>
-          </div>
-        )}
         
         <div className="grid grid-cols-[25px_1fr] items-start pb-2 last:mb-0 last:pb-0">
           <Briefcase className="h-5 w-5 text-muted-foreground" />
