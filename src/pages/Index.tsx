@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, Settings, AlertCircle } from "lucide-react";
 import { CreditReport } from "@/lib/creditReportParser";
 import CreditReportHeader from "@/components/CreditReportHeader";
-import CreditScoreDisplay from "@/components/CreditScoreDisplay";
 import PersonalInfoCard from "@/components/PersonalInfoCard";
 import AccountsList from "@/components/AccountsList";
 import WebhookManager from "@/components/WebhookManager";
@@ -114,13 +113,8 @@ const Index = () => {
           <div className="space-y-6">
             <CreditReportHeader report={creditReport} />
             
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <CreditScoreDisplay scores={creditReport.creditScores} />
-              </div>
-              <div>
-                <PersonalInfoCard personalInfo={creditReport.personalInfo} />
-              </div>
+            <div className="grid gap-6 md:grid-cols-1">
+              <PersonalInfoCard personalInfo={creditReport.personalInfo} />
             </div>
             
             <AccountsList accounts={creditReport.accounts} />

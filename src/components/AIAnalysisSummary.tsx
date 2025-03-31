@@ -38,13 +38,6 @@ const AIAnalysisSummary: React.FC<AIAnalysisSummaryProps> = ({ report }) => {
               {JSON.stringify(report.personalInfo, null, 2)}
             </pre>
           </div>
-          
-          <div>
-            <h3 className="font-medium mb-1">Detected Credit Scores</h3>
-            <pre className="bg-slate-100 p-2 rounded text-sm whitespace-pre-wrap">
-              {JSON.stringify(report.creditScores, null, 2)}
-            </pre>
-          </div>
 
           <div>
             <h3 className="font-medium mb-1">Number of Accounts Detected</h3>

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GaugeCircle } from "lucide-react";
@@ -12,9 +13,15 @@ interface CreditScore {
 
 interface CreditScoreDisplayProps {
   scores: CreditScore[];
+  hideDisplay?: boolean;
 }
 
-const CreditScoreDisplay: React.FC<CreditScoreDisplayProps> = ({ scores }) => {
+const CreditScoreDisplay: React.FC<CreditScoreDisplayProps> = ({ scores, hideDisplay = true }) => {
+  // If hideDisplay is true or there are no scores, don't render anything
+  if (hideDisplay || scores.length === 0) {
+    return null;
+  }
+
   // Function to determine the color based on the score
   const getColor = (score: number) => {
     if (score >= 700) return "text-green-500";
