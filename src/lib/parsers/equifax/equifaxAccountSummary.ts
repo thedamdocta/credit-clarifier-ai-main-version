@@ -1,4 +1,3 @@
-
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -58,12 +57,12 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     console.log("Extracted column positions:", columns);
     
     // Process each account type individually by finding their specific lines
-    // Process Total row first to ensure it gets the highest priority
-    processAccountType('Total', lines, accountSummaries, columns);
+    // Each cell is processed independently
     processAccountType('Revolving', lines, accountSummaries, columns);
     processAccountType('Mortgage', lines, accountSummaries, columns);
     processAccountType('Installment', lines, accountSummaries, columns);
     processAccountType('Other', lines, accountSummaries, columns);
+    processAccountType('Total', lines, accountSummaries, columns);
     
     console.log("Account summaries extracted with isolated approach:", accountSummaries.length);
     console.log("Account summaries:", accountSummaries);
@@ -221,32 +220,21 @@ function processAccountType(
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Special debug for Total row
-  if (accountType === 'Total') {
-    console.log("Processing TOTAL row with extra debugging");
-  }
-  
-  // Process the account line using cell by cell processing with empty cell detection
+  // Process the account line - each cell is treated independently
   processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
   
-  // Additional debug for Total row after processing
-  if (accountType === 'Total') {
-    console.log("TOTAL row after processing:", accountSummary);
-  }
+  console.log(`${accountType} row after processing:`, accountSummary);
 }
 
 /**
- * Process an account line using column-by-column cell extraction with 
- * enhanced empty space detection
+ * Process an account line using column-by-column cell extraction
+ * Each cell is treated independently
  */
 function processAccountLineWithColumnAwareness(
   line: string, 
   accountSummary: AccountSummary, 
   columns: Record<string, number>
 ): void {
-  // Only extract cell content if present in the line
-  // This ensures we don't overwrite empty cells with parsed values
-  
   // Check all column positions in order to ensure proper extraction
   const columnKeys = [
     'accountType', 'open', 'withBalance', 'totalBalance', 
@@ -260,7 +248,7 @@ function processAccountLineWithColumnAwareness(
     return posA - posB;
   });
   
-  // Process each column in order, checking for empty cells
+  // Process each column in order, treating each cell independently
   for (let i = 0; i < sortedColumnKeys.length; i++) {
     const key = sortedColumnKeys[i];
     const nextKey = i < sortedColumnKeys.length - 1 ? sortedColumnKeys[i + 1] : null;
@@ -268,19 +256,19 @@ function processAccountLineWithColumnAwareness(
     // Skip accountType as it's already set
     if (key === 'accountType') continue;
     
-    // Get the position range for this column
+    // Get the position range for this cell
     const startPos = columns[key];
     const endPos = nextKey ? columns[nextKey] : undefined;
     
     // Extract content for this cell position
     const cellContent = extractCellContent(line, startPos, endPos);
     
-    // If cell is empty, make sure the value is null
+    // If cell is empty, leave as null (which will render as 'x')
     if (!cellContent) {
       continue;
     }
     
-    // Only process based on column type if we found actual content
+    // Process the cell content based on its column type
     if (key === 'open' || key === 'withBalance') {
       const numericValue = extractNumericValue(cellContent);
       if (numericValue !== null) {
@@ -309,4 +297,3 @@ function processAccountLineWithColumnAwareness(
     payment: accountSummary.payment
   });
 }
-

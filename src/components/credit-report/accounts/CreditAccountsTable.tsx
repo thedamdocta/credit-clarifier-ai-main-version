@@ -11,24 +11,15 @@ interface CreditAccountsTableProps {
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
 
-  // Check if a cell should display a value or "x"
-  const shouldDisplayValue = (value: any): boolean => {
-    // If the value is 0, we should display it as "0"
-    if (value === 0 || value === "0") {
-      return true;
-    }
-    
-    // For normal values, check if value exists (not null/undefined/empty string)
-    return value !== null && value !== undefined && value !== '';
-  };
-
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     console.log(`Rendering cell: ${fieldName} - value: ${value}`);
-    if (shouldDisplayValue(value)) {
-      return formatter(value);
+    // Display "x" for null, undefined, or empty strings
+    if (value === null || value === undefined || value === '') {
+      return "x";
     }
-    return "x";
+    // For actual values (including 0), format them properly
+    return formatter(value);
   };
 
   return (
