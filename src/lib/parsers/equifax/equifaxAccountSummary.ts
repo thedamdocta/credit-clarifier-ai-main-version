@@ -17,7 +17,7 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
   ];
 
   try {
-    // Extract the credit account table section from the text
+    // Extract the credit account table section specifically from the text
     const tableSection = extractCreditAccountTableSection(text);
     if (!tableSection) {
       console.log("No credit account summary table found in the text");
@@ -25,10 +25,11 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
       return accountSummaries;
     }
     
-    console.log("Found credit account table section");
+    console.log("Found credit account table section, length:", tableSection.length);
     
     // Split the table into lines and filter out empty lines
     const lines = tableSection.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    console.log("Table section lines:", lines.length);
     
     // Find the header line to understand column positions
     const headerLine = findHeaderLine(lines);
@@ -73,7 +74,7 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
  */
 function extractCreditAccountTableSection(text: string): string | null {
   // First try to find the "Credit Accounts" header section
-  const creditAccountsPattern = /\bCredit\s+Accounts\b.*?\b(?:Summary|information|activity)\b.*?(?:\n|$)/i;
+  const creditAccountsPattern = /\bCredit\s+Accounts\b.*?(?:\n|$)/i;
   const creditAccountsMatch = text.match(creditAccountsPattern);
   
   if (!creditAccountsMatch) {
@@ -183,8 +184,17 @@ function extractRevolvingAccount(lines: string[], accountSummaries: AccountSumma
   console.log("Extracting Revolving account line");
   const accountType = 'Revolving';
   
-  // Find the line that contains Revolving as a whole word
-  const accountLine = findLineByAccountType(lines, accountType);
+  // Find the line that specifically contains just Revolving as a word
+  const accountLine = lines.find(line => {
+    // Skip the header line
+    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
+      return false;
+    }
+    
+    // Match only if line begins with Revolving or has clear word boundary
+    const matches = line.match(/(?:^|\s)Revolving(?:\s|$)/i);
+    return matches !== null;
+  });
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -210,8 +220,17 @@ function extractMortgageAccount(lines: string[], accountSummaries: AccountSummar
   console.log("Extracting Mortgage account line");
   const accountType = 'Mortgage';
   
-  // Find the line that contains Mortgage as a whole word
-  const accountLine = findLineByAccountType(lines, accountType);
+  // Find the line that specifically contains just Mortgage as a word
+  const accountLine = lines.find(line => {
+    // Skip the header line
+    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
+      return false;
+    }
+    
+    // Match only if line begins with Mortgage or has clear word boundary
+    const matches = line.match(/(?:^|\s)Mortgage(?:\s|$)/i);
+    return matches !== null;
+  });
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -237,8 +256,17 @@ function extractInstallmentAccount(lines: string[], accountSummaries: AccountSum
   console.log("Extracting Installment account line");
   const accountType = 'Installment';
   
-  // Find the line that contains Installment as a whole word
-  const accountLine = findLineByAccountType(lines, accountType);
+  // Find the line that specifically contains just Installment as a word
+  const accountLine = lines.find(line => {
+    // Skip the header line
+    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
+      return false;
+    }
+    
+    // Match only if line begins with Installment or has clear word boundary
+    const matches = line.match(/(?:^|\s)Installment(?:\s|$)/i);
+    return matches !== null;
+  });
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -264,8 +292,17 @@ function extractOtherAccount(lines: string[], accountSummaries: AccountSummary[]
   console.log("Extracting Other account line");
   const accountType = 'Other';
   
-  // Find the line that contains Other as a whole word
-  const accountLine = findLineByAccountType(lines, accountType);
+  // Find the line that specifically contains just Other as a word
+  const accountLine = lines.find(line => {
+    // Skip the header line
+    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
+      return false;
+    }
+    
+    // Match only if line begins with Other or has clear word boundary
+    const matches = line.match(/(?:^|\s)Other(?:\s|$)/i);
+    return matches !== null;
+  });
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -291,8 +328,17 @@ function extractTotalAccount(lines: string[], accountSummaries: AccountSummary[]
   console.log("Extracting Total account line");
   const accountType = 'Total';
   
-  // Find the line that contains Total as a whole word
-  const accountLine = findLineByAccountType(lines, accountType);
+  // Find the line that specifically contains just Total as a word
+  const accountLine = lines.find(line => {
+    // Skip the header line
+    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
+      return false;
+    }
+    
+    // Match only if line begins with Total or has clear word boundary
+    const matches = line.match(/(?:^|\s)Total(?:\s|$)/i);
+    return matches !== null;
+  });
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -312,27 +358,6 @@ function extractTotalAccount(lines: string[], accountSummaries: AccountSummary[]
 }
 
 /**
- * Find a line by account type
- */
-function findLineByAccountType(lines: string[], accountType: string): string | undefined {
-  // First try to find an exact match with the account type as a standalone word
-  const exactPattern = new RegExp(`\\b${accountType}\\b`, 'i');
-  
-  for (const line of lines) {
-    // Skip the header line
-    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
-      continue;
-    }
-    
-    if (exactPattern.test(line)) {
-      return line;
-    }
-  }
-  
-  return undefined;
-}
-
-/**
  * Extract values from a line based on column positions
  */
 function extractValuesFromLine(line: string, accountSummary: AccountSummary, columns: Record<string, number>): void {
@@ -340,9 +365,11 @@ function extractValuesFromLine(line: string, accountSummary: AccountSummary, col
   if (!line || line.length < 10) return;
   
   try {
-    // For numeric columns (Open, With Balance)
-    accountSummary.open = extractNumericValue(line, columns.open, columns.withBalance);
-    accountSummary.withBalance = extractNumericValue(line, columns.withBalance, columns.totalBalance);
+    // Extract numeric values with better spacing recognition for Open
+    accountSummary.open = extractSingleNumericValue(line, columns.open);
+    
+    // Extract numeric values with better spacing recognition for With Balance
+    accountSummary.withBalance = extractSingleNumericValue(line, columns.withBalance);
     
     // For dollar amount columns
     accountSummary.totalBalance = extractDollarValue(line, columns.totalBalance, columns.available);
@@ -358,18 +385,19 @@ function extractValuesFromLine(line: string, accountSummary: AccountSummary, col
 }
 
 /**
- * Extract a numeric value from a line based on column positions
+ * Extract a single numeric value from a line based on column positions
+ * This function specifically looks for isolated numbers with spaces around them
  */
-function extractNumericValue(line: string, startPos: number, endPos?: number): string | null {
+function extractSingleNumericValue(line: string, startPos: number): string | null {
   if (startPos === undefined || startPos < 0) return null;
   
   try {
-    const substring = endPos !== undefined ? 
-      line.substring(startPos, endPos).trim() : 
-      line.substring(startPos).trim();
+    // Get the portion of the line starting at the column position
+    const substring = line.substring(startPos).trim();
     
-    // Extract the first numeric value
-    const match = substring.match(/^\s*(\d+)/);
+    // Extract the first standalone numeric value 
+    // This pattern looks for digits that are surrounded by word boundaries
+    const match = substring.match(/\b(\d+)\b/);
     if (match && match[1]) {
       return match[1];
     }
