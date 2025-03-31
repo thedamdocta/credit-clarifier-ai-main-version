@@ -17,13 +17,15 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
   ];
 
   try {
-    // Extract the table section from the text
-    const tableSection = extractTableSection(text);
+    // Extract the credit account table section from the text
+    const tableSection = extractCreditAccountTableSection(text);
     if (!tableSection) {
-      console.log("No account summary table found in the text");
-      parsingLogger.logEvent("No account summary table found in the text");
+      console.log("No credit account summary table found in the text");
+      parsingLogger.logEvent("No credit account summary table found in the text");
       return accountSummaries;
     }
+    
+    console.log("Found credit account table section");
     
     // Split the table into lines and filter out empty lines
     const lines = tableSection.split('\n').map(line => line.trim()).filter(line => line.length > 0);
@@ -38,13 +40,22 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     
     console.log("Found header line:", headerLine);
     
+    // Get columns positions from the header line
+    const columns = extractColumnPositions(headerLine);
+    
+    if (!columns || Object.keys(columns).length < 7) {
+      console.log("Could not extract enough columns from the header line");
+      return accountSummaries;
+    }
+    
+    console.log("Extracted column positions:", columns);
+    
     // Process each account type with completely isolated extraction functions
-    // This ensures no data leakage between different account types
-    extractRevolvingAccountLine(lines, accountSummaries);
-    extractMortgageAccountLine(lines, accountSummaries);
-    extractInstallmentAccountLine(lines, accountSummaries);
-    extractOtherAccountLine(lines, accountSummaries);
-    extractTotalAccountLine(lines, accountSummaries);
+    extractRevolvingAccount(lines, accountSummaries, columns);
+    extractMortgageAccount(lines, accountSummaries, columns);
+    extractInstallmentAccount(lines, accountSummaries, columns);
+    extractOtherAccount(lines, accountSummaries, columns);
+    extractTotalAccount(lines, accountSummaries, columns);
     
     console.log("Account summaries extracted with isolated approach:", accountSummaries.length);
     console.log("Account summaries:", accountSummaries);
@@ -58,11 +69,46 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
 };
 
 /**
- * Extract the table section from the document text
+ * Extract the credit account table section from the document text
  */
-function extractTableSection(text: string): string | null {
+function extractCreditAccountTableSection(text: string): string | null {
+  // First try to find the "Credit Accounts" header section
+  const creditAccountsPattern = /\bCredit\s+Accounts\b.*?\b(?:Summary|information|activity)\b.*?(?:\n|$)/i;
+  const creditAccountsMatch = text.match(creditAccountsPattern);
+  
+  if (!creditAccountsMatch) {
+    return extractTableSectionFallback(text);
+  }
+  
+  const headerIndex = creditAccountsMatch.index || 0;
+  
+  // Look for the account type header row after the Credit Accounts header
+  const accountTypeHeaderPattern = /\baccount\s+type\b.*?\bopen\b.*?\bwith\s+balance\b.*?\btotal\s+balance\b/i;
+  const headerMatch = text.slice(headerIndex).match(accountTypeHeaderPattern);
+  
+  if (!headerMatch) {
+    return extractTableSectionFallback(text);
+  }
+  
+  // Get the text from the header to the end of the table
+  const accountTypeHeaderIndex = headerIndex + (headerMatch.index || 0);
+  const tableEndPattern = /(?:other items|summary of|consumer statement|public records|end of report)/i;
+  const tableEndMatch = text.slice(accountTypeHeaderIndex).match(tableEndPattern);
+  
+  if (tableEndMatch) {
+    return text.slice(accountTypeHeaderIndex, accountTypeHeaderIndex + tableEndMatch.index);
+  } else {
+    // If we can't find a clear end, just take a reasonable chunk
+    return text.slice(accountTypeHeaderIndex, accountTypeHeaderIndex + 3000); 
+  }
+}
+
+/**
+ * Fallback method to extract table section
+ */
+function extractTableSectionFallback(text: string): string | null {
   // Look for the account type header row
-  const headerPattern = /account\s+type\s+open\s+with\s+balance\s+total\s+balance\s+available\s+credit\s+limit\s+debt-to-credit\s+payment/i;
+  const headerPattern = /\baccount\s+type\b.*?\bopen\b.*?\bwith\s+balance\b.*?\btotal\s+balance\b/i;
   const headerMatch = text.match(headerPattern);
   
   if (!headerMatch) {
@@ -78,7 +124,7 @@ function extractTableSection(text: string): string | null {
     return text.slice(headerIndex, headerIndex + tableEndMatch.index);
   } else {
     // If we can't find a clear end, just take a reasonable chunk
-    return text.slice(headerIndex, headerIndex + 2000); 
+    return text.slice(headerIndex, headerIndex + 3000); 
   }
 }
 
@@ -87,7 +133,7 @@ function extractTableSection(text: string): string | null {
  */
 function findHeaderLine(lines: string[]): string | null {
   // Look for the line with all column headers
-  const headerPattern = /account\s+type\s+open\s+with\s+balance\s+total\s+balance\s+available\s+credit\s+limit\s+debt-to-credit\s+payment/i;
+  const headerPattern = /account\s+type.*open.*with\s+balance.*total\s+balance.*available.*credit\s+limit.*debt-to-credit.*payment/i;
   
   for (const line of lines) {
     if (headerPattern.test(line)) {
@@ -99,20 +145,46 @@ function findHeaderLine(lines: string[]): string | null {
 }
 
 /**
+ * Extract column positions from the header line
+ */
+function extractColumnPositions(headerLine: string): Record<string, number> {
+  const columns: Record<string, number> = {};
+  
+  // Normalize header line (lowercase and clean up extra spaces)
+  const normalizedLine = headerLine.toLowerCase().replace(/\s+/g, ' ');
+  
+  // Map of column names to look for in the header
+  const columnMap = {
+    'accountType': 'account type',
+    'open': 'open',
+    'withBalance': 'with balance',
+    'totalBalance': 'total balance',
+    'available': 'available',
+    'creditLimit': 'credit limit',
+    'debtToCredit': 'debt-to-credit',
+    'payment': 'payment'
+  };
+  
+  // Find position of each column in the header
+  for (const [key, value] of Object.entries(columnMap)) {
+    const pos = normalizedLine.indexOf(value);
+    if (pos >= 0) {
+      columns[key] = pos;
+    }
+  }
+  
+  return columns;
+}
+
+/**
  * Isolated extraction function specifically for Revolving accounts
  */
-function extractRevolvingAccountLine(lines: string[], accountSummaries: AccountSummary[]): void {
-  console.log("Extracting Revolving account line with isolated approach");
+function extractRevolvingAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
+  console.log("Extracting Revolving account line");
   const accountType = 'Revolving';
   
   // Find the line that contains Revolving as a whole word
-  const accountLine = lines.find(line => {
-    const lowercaseLine = line.toLowerCase();
-    // Make sure it's a whole word match for Revolving
-    return (lowercaseLine.includes(` ${accountType.toLowerCase()} `) || 
-            lowercaseLine.startsWith(`${accountType.toLowerCase()} `) || 
-            lowercaseLine.includes(` ${accountType.toLowerCase()}$`));
-  });
+  const accountLine = findLineByAccountType(lines, accountType);
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -125,36 +197,21 @@ function extractRevolvingAccountLine(lines: string[], accountSummaries: AccountS
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Extract numeric values (Open, With Balance)
-  const revolving = extractSpecificAccountTypeData(accountLine, accountType);
+  // Extract values based on column positions
+  extractValuesFromLine(accountLine, accountSummary, columns);
   
-  // Only assign values that were actually found, leave nulls as is
-  if (revolving.open !== null) accountSummary.open = revolving.open;
-  if (revolving.withBalance !== null) accountSummary.withBalance = revolving.withBalance;
-  if (revolving.totalBalance !== null) accountSummary.totalBalance = revolving.totalBalance;
-  if (revolving.available !== null) accountSummary.available = revolving.available;
-  if (revolving.creditLimit !== null) accountSummary.creditLimit = revolving.creditLimit;
-  if (revolving.debtToCredit !== null) accountSummary.debtToCredit = revolving.debtToCredit;
-  if (revolving.payment !== null) accountSummary.payment = revolving.payment;
-  
-  console.log(`Processed ${accountType} (isolated):`, accountSummary);
+  console.log(`Processed ${accountType}:`, accountSummary);
 }
 
 /**
  * Isolated extraction function specifically for Mortgage accounts
  */
-function extractMortgageAccountLine(lines: string[], accountSummaries: AccountSummary[]): void {
-  console.log("Extracting Mortgage account line with isolated approach");
+function extractMortgageAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
+  console.log("Extracting Mortgage account line");
   const accountType = 'Mortgage';
   
   // Find the line that contains Mortgage as a whole word
-  const accountLine = lines.find(line => {
-    const lowercaseLine = line.toLowerCase();
-    // Make sure it's a whole word match for Mortgage
-    return (lowercaseLine.includes(` ${accountType.toLowerCase()} `) || 
-            lowercaseLine.startsWith(`${accountType.toLowerCase()} `) || 
-            lowercaseLine.includes(` ${accountType.toLowerCase()}$`));
-  });
+  const accountLine = findLineByAccountType(lines, accountType);
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -167,36 +224,21 @@ function extractMortgageAccountLine(lines: string[], accountSummaries: AccountSu
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Extract values for this specific account type
-  const mortgage = extractSpecificAccountTypeData(accountLine, accountType);
+  // Extract values based on column positions
+  extractValuesFromLine(accountLine, accountSummary, columns);
   
-  // Only assign values that were actually found, leave nulls as is
-  if (mortgage.open !== null) accountSummary.open = mortgage.open;
-  if (mortgage.withBalance !== null) accountSummary.withBalance = mortgage.withBalance;
-  if (mortgage.totalBalance !== null) accountSummary.totalBalance = mortgage.totalBalance;
-  if (mortgage.available !== null) accountSummary.available = mortgage.available;
-  if (mortgage.creditLimit !== null) accountSummary.creditLimit = mortgage.creditLimit;
-  if (mortgage.debtToCredit !== null) accountSummary.debtToCredit = mortgage.debtToCredit;
-  if (mortgage.payment !== null) accountSummary.payment = mortgage.payment;
-  
-  console.log(`Processed ${accountType} (isolated):`, accountSummary);
+  console.log(`Processed ${accountType}:`, accountSummary);
 }
 
 /**
  * Isolated extraction function specifically for Installment accounts
  */
-function extractInstallmentAccountLine(lines: string[], accountSummaries: AccountSummary[]): void {
-  console.log("Extracting Installment account line with isolated approach");
+function extractInstallmentAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
+  console.log("Extracting Installment account line");
   const accountType = 'Installment';
   
   // Find the line that contains Installment as a whole word
-  const accountLine = lines.find(line => {
-    const lowercaseLine = line.toLowerCase();
-    // Make sure it's a whole word match for Installment
-    return (lowercaseLine.includes(` ${accountType.toLowerCase()} `) || 
-            lowercaseLine.startsWith(`${accountType.toLowerCase()} `) || 
-            lowercaseLine.includes(` ${accountType.toLowerCase()}$`));
-  });
+  const accountLine = findLineByAccountType(lines, accountType);
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -209,36 +251,21 @@ function extractInstallmentAccountLine(lines: string[], accountSummaries: Accoun
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Extract values for this specific account type
-  const installment = extractSpecificAccountTypeData(accountLine, accountType);
+  // Extract values based on column positions
+  extractValuesFromLine(accountLine, accountSummary, columns);
   
-  // Only assign values that were actually found, leave nulls as is
-  if (installment.open !== null) accountSummary.open = installment.open;
-  if (installment.withBalance !== null) accountSummary.withBalance = installment.withBalance;
-  if (installment.totalBalance !== null) accountSummary.totalBalance = installment.totalBalance;
-  if (installment.available !== null) accountSummary.available = installment.available;
-  if (installment.creditLimit !== null) accountSummary.creditLimit = installment.creditLimit;
-  if (installment.debtToCredit !== null) accountSummary.debtToCredit = installment.debtToCredit;
-  if (installment.payment !== null) accountSummary.payment = installment.payment;
-  
-  console.log(`Processed ${accountType} (isolated):`, accountSummary);
+  console.log(`Processed ${accountType}:`, accountSummary);
 }
 
 /**
  * Isolated extraction function specifically for Other accounts
  */
-function extractOtherAccountLine(lines: string[], accountSummaries: AccountSummary[]): void {
-  console.log("Extracting Other account line with isolated approach");
+function extractOtherAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
+  console.log("Extracting Other account line");
   const accountType = 'Other';
   
   // Find the line that contains Other as a whole word
-  const accountLine = lines.find(line => {
-    const lowercaseLine = line.toLowerCase();
-    // Make sure it's a whole word match for Other
-    return (lowercaseLine.includes(` ${accountType.toLowerCase()} `) || 
-            lowercaseLine.startsWith(`${accountType.toLowerCase()} `) || 
-            lowercaseLine.includes(` ${accountType.toLowerCase()}$`));
-  });
+  const accountLine = findLineByAccountType(lines, accountType);
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -251,36 +278,21 @@ function extractOtherAccountLine(lines: string[], accountSummaries: AccountSumma
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Extract values for this specific account type
-  const other = extractSpecificAccountTypeData(accountLine, accountType);
+  // Extract values based on column positions
+  extractValuesFromLine(accountLine, accountSummary, columns);
   
-  // Only assign values that were actually found, leave nulls as is
-  if (other.open !== null) accountSummary.open = other.open;
-  if (other.withBalance !== null) accountSummary.withBalance = other.withBalance;
-  if (other.totalBalance !== null) accountSummary.totalBalance = other.totalBalance;
-  if (other.available !== null) accountSummary.available = other.available;
-  if (other.creditLimit !== null) accountSummary.creditLimit = other.creditLimit;
-  if (other.debtToCredit !== null) accountSummary.debtToCredit = other.debtToCredit;
-  if (other.payment !== null) accountSummary.payment = other.payment;
-  
-  console.log(`Processed ${accountType} (isolated):`, accountSummary);
+  console.log(`Processed ${accountType}:`, accountSummary);
 }
 
 /**
  * Isolated extraction function specifically for Total line
  */
-function extractTotalAccountLine(lines: string[], accountSummaries: AccountSummary[]): void {
-  console.log("Extracting Total account line with isolated approach");
+function extractTotalAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
+  console.log("Extracting Total account line");
   const accountType = 'Total';
   
   // Find the line that contains Total as a whole word
-  const accountLine = lines.find(line => {
-    const lowercaseLine = line.toLowerCase();
-    // Make sure it's a whole word match for Total
-    return (lowercaseLine.includes(` ${accountType.toLowerCase()} `) || 
-            lowercaseLine.startsWith(`${accountType.toLowerCase()} `) || 
-            lowercaseLine.includes(` ${accountType.toLowerCase()}$`));
-  });
+  const accountLine = findLineByAccountType(lines, accountType);
   
   if (!accountLine) {
     console.log(`No line found for ${accountType}`);
@@ -293,115 +305,128 @@ function extractTotalAccountLine(lines: string[], accountSummaries: AccountSumma
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Extract values for this specific account type
-  const total = extractSpecificAccountTypeData(accountLine, accountType);
+  // Extract values based on column positions
+  extractValuesFromLine(accountLine, accountSummary, columns);
   
-  // Only assign values that were actually found, leave nulls as is
-  if (total.open !== null) accountSummary.open = total.open;
-  if (total.withBalance !== null) accountSummary.withBalance = total.withBalance;
-  if (total.totalBalance !== null) accountSummary.totalBalance = total.totalBalance;
-  if (total.available !== null) accountSummary.available = total.available;
-  if (total.creditLimit !== null) accountSummary.creditLimit = total.creditLimit;
-  if (total.debtToCredit !== null) accountSummary.debtToCredit = total.debtToCredit;
-  if (total.payment !== null) accountSummary.payment = total.payment;
-  
-  console.log(`Processed ${accountType} (isolated):`, accountSummary);
+  console.log(`Processed ${accountType}:`, accountSummary);
 }
 
 /**
- * Extract data for a specific account type in an isolated way
+ * Find a line by account type
  */
-function extractSpecificAccountTypeData(accountLine: string, accountType: string): {
-  open: string | null;
-  withBalance: string | null;
-  totalBalance: string | null;
-  available: string | null;
-  creditLimit: string | null;
-  debtToCredit: string | null;
-  payment: string | null;
-} {
-  // Initialize all values as null
-  const result = {
-    open: null,
-    withBalance: null,
-    totalBalance: null,
-    available: null,
-    creditLimit: null,
-    debtToCredit: null,
-    payment: null
-  };
+function findLineByAccountType(lines: string[], accountType: string): string | undefined {
+  // First try to find an exact match with the account type as a standalone word
+  const exactPattern = new RegExp(`\\b${accountType}\\b`, 'i');
   
-  // Find position of account type in the line
-  const accountTypePos = accountLine.indexOf(accountType);
-  if (accountTypePos < 0) {
-    console.log(`Could not find ${accountType} in line`);
-    return result;
-  }
-  
-  // Get text after account type name
-  const afterAccountType = accountLine.substring(accountTypePos + accountType.length);
-  
-  // Create a simplified version of the line with only spaces as separators
-  const simplifiedLine = afterAccountType.replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim();
-  const tokens = simplifiedLine.split(' ');
-  
-  // For numeric values (Open, With Balance)
-  // These are typically the first two numeric tokens
-  let numericCount = 0;
-  for (let i = 0; i < tokens.length; i++) {
-    if (/^\d+$/.test(tokens[i])) {
-      if (numericCount === 0) {
-        result.open = tokens[i];
-      } else if (numericCount === 1) {
-        result.withBalance = tokens[i];
-      }
-      numericCount++;
-      if (numericCount >= 2) break;
+  for (const line of lines) {
+    // Skip the header line
+    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
+      continue;
+    }
+    
+    if (exactPattern.test(line)) {
+      return line;
     }
   }
   
-  // Extract dollar values from the line for this account type only
-  const dollarValues = extractDollarValuesFromLine(simplifiedLine);
-  if (dollarValues.length >= 1) result.totalBalance = dollarValues[0];
-  if (dollarValues.length >= 2) result.available = dollarValues[1];
-  if (dollarValues.length >= 3) result.creditLimit = dollarValues[2];
-  if (dollarValues.length >= 4) result.payment = dollarValues[3];
-  
-  // Extract percentage for debt-to-credit
-  const percentValue = extractPercentage(simplifiedLine);
-  if (percentValue) {
-    result.debtToCredit = percentValue;
-  }
-  
-  return result;
+  return undefined;
 }
 
 /**
- * Extract dollar values from a text line
+ * Extract values from a line based on column positions
  */
-function extractDollarValuesFromLine(line: string): string[] {
-  // Match both positive ($XXX) and negative (-$XXX or $-XXX) dollar amounts
-  const dollarPattern = /(-?\$[\d,.]+|\$-[\d,.]+)/g;
-  const dollarValues: string[] = [];
+function extractValuesFromLine(line: string, accountSummary: AccountSummary, columns: Record<string, number>): void {
+  // Ensure we have the full line to work with
+  if (!line || line.length < 10) return;
   
-  // Find all dollar value matches in the line
-  let match;
-  while ((match = dollarPattern.exec(line)) !== null) {
-    dollarValues.push(match[0]);
+  try {
+    // For numeric columns (Open, With Balance)
+    accountSummary.open = extractNumericValue(line, columns.open, columns.withBalance);
+    accountSummary.withBalance = extractNumericValue(line, columns.withBalance, columns.totalBalance);
+    
+    // For dollar amount columns
+    accountSummary.totalBalance = extractDollarValue(line, columns.totalBalance, columns.available);
+    accountSummary.available = extractDollarValue(line, columns.available, columns.creditLimit);
+    accountSummary.creditLimit = extractDollarValue(line, columns.creditLimit, columns.debtToCredit);
+    accountSummary.payment = extractDollarValue(line, columns.payment);
+    
+    // For percentage column
+    accountSummary.debtToCredit = extractPercentageValue(line, columns.debtToCredit, columns.payment);
+  } catch (error) {
+    console.error("Error extracting values from line:", error);
   }
-  
-  return dollarValues;
 }
 
 /**
- * Extract percentage value from a text line
+ * Extract a numeric value from a line based on column positions
  */
-function extractPercentage(line: string): string | null {
-  const percentPattern = /([\d.]+%)/;
-  const percentMatch = line.match(percentPattern);
+function extractNumericValue(line: string, startPos: number, endPos?: number): string | null {
+  if (startPos === undefined || startPos < 0) return null;
   
-  if (percentMatch && percentMatch[1]) {
-    return percentMatch[1];
+  try {
+    const substring = endPos !== undefined ? 
+      line.substring(startPos, endPos).trim() : 
+      line.substring(startPos).trim();
+    
+    // Extract the first numeric value
+    const match = substring.match(/^\s*(\d+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  } catch (error) {
+    console.error("Error extracting numeric value:", error);
+  }
+  
+  return null;
+}
+
+/**
+ * Extract a dollar value from a line based on column positions
+ */
+function extractDollarValue(line: string, startPos: number, endPos?: number): string | null {
+  if (startPos === undefined || startPos < 0) return null;
+  
+  try {
+    const substring = endPos !== undefined ? 
+      line.substring(startPos, endPos).trim() : 
+      line.substring(startPos).trim();
+    
+    // Match dollar patterns for both positive and negative values
+    // Handles both -$XXX and $-XXX formats for negative values
+    const match = substring.match(/(-?\$[\d,.]+|\$-[\d,.]+)/);
+    if (match && match[1]) {
+      // Normalize negative format to -$XXX
+      let value = match[1];
+      if (value.startsWith('$-')) {
+        value = `-$${value.substring(2)}`;
+      }
+      return value;
+    }
+  } catch (error) {
+    console.error("Error extracting dollar value:", error);
+  }
+  
+  return null;
+}
+
+/**
+ * Extract a percentage value from a line based on column positions
+ */
+function extractPercentageValue(line: string, startPos: number, endPos?: number): string | null {
+  if (startPos === undefined || startPos < 0) return null;
+  
+  try {
+    const substring = endPos !== undefined ? 
+      line.substring(startPos, endPos).trim() : 
+      line.substring(startPos).trim();
+    
+    // Extract percentage value
+    const match = substring.match(/([\d.]+%)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  } catch (error) {
+    console.error("Error extracting percentage value:", error);
   }
   
   return null;

@@ -12,7 +12,7 @@ export const formatAccountValue = (value: any): string => {
 };
 
 /**
- * Formats dollar amounts properly with $ prefix
+ * Formats dollar amounts properly with $ prefix and handles negative values consistently
  */
 export const formatDollarAmount = (value: any): string => {
   if (value === undefined || value === null || value === '') {
@@ -22,17 +22,24 @@ export const formatDollarAmount = (value: any): string => {
   const stringValue = String(value);
   
   // For values already properly formatted with $ or -$, return as is
-  if (stringValue.startsWith('$') || stringValue.startsWith('-$')) {
+  if ((stringValue.startsWith('$') && !stringValue.startsWith('$-')) || 
+      stringValue.startsWith('-$')) {
     return stringValue;
+  }
+  
+  // Handle $-XXX format (convert to -$XXX for consistency)
+  if (stringValue.startsWith('$-')) {
+    return `-$${stringValue.substring(2)}`;
   }
   
   // For numeric-looking strings that should be dollar amounts
   if (!isNaN(Number(stringValue.replace(/[^0-9.-]/g, '')))) {
-    // Do NOT convert to a number and back - preserve original format
-    // Just ensure it has the $ prefix
-    return stringValue.startsWith('-') ? 
-      `-$${stringValue.substring(1)}` : 
-      `$${stringValue}`;
+    // Normalize negative number format to -$XXX
+    if (stringValue.startsWith('-')) {
+      return `-$${stringValue.substring(1)}`;
+    } else {
+      return `$${stringValue}`;
+    }
   }
   
   return stringValue;
@@ -44,4 +51,3 @@ export const formatDollarAmount = (value: any): string => {
 export const hasDisplayValue = (value: any): boolean => {
   return value !== undefined && value !== null && value !== '';
 };
-
