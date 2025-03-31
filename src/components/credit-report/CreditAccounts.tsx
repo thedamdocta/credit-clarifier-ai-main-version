@@ -10,14 +10,14 @@ interface CreditAccountsProps {
 }
 
 const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
-  // Enhanced function to handle null, empty, and negative values
+  // Format value function - handles each cell independently
   const formatValue = (value: string | number | undefined | null) => {
-    // First check if value is empty/null/undefined
+    // Return empty string for null/undefined values
     if (value === undefined || value === null || value === '') {
-      return ""; // Return empty string for null/undefined values
+      return ""; 
     }
     
-    // Convert value to string for consistent processing
+    // Convert value to string
     const stringValue = String(value);
     
     // For values already properly formatted with $ or -$, return as is
@@ -25,7 +25,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
       return stringValue;
     }
     
-    // For numerical values or numeric strings
+    // For numerical values or numeric strings that should be dollar amounts
     if (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value.replace(/[^0-9.-]/g, ''))))) {
       let numericValue: number;
       
@@ -46,15 +46,15 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     return value; // Return as is if it's not a numeric value
   };
 
-  // Utility function to check if a cell value exists and should be displayed
+  // Utility function to check if a cell value exists
   const hasValue = (value: any): boolean => {
     return value !== undefined && value !== null && value !== '';
   };
 
-  // Ensure we have all account types for the table
+  // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
-  // Create a mapping of account summaries by account type (for lookups)
+  // Create a mapping of account summaries by account type for easier lookup
   const accountTypeMap = new Map<string, AccountSummary>();
   
   if (report.accountSummaries && report.accountSummaries.length > 0) {
@@ -114,7 +114,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             {accountSummaries.map((summary) => (
               <TableRow 
                 key={`account-summary-${summary.accountType}`} 
-                className={summary.accountType === 'Total' ? 'bg-muted/30 font-semibold' : ''}
+                isHighlighted={summary.accountType === 'Total'}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
                 <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>
