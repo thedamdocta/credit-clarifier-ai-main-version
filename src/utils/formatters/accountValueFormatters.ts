@@ -7,6 +7,7 @@ export const formatAccountValue = (value: any): string => {
     return ""; 
   }
   
+  // Always return as string, don't do numeric conversions
   return String(value);
 };
 
@@ -25,12 +26,13 @@ export const formatDollarAmount = (value: any): string => {
     return stringValue;
   }
   
-  // For numeric values or numeric strings that should be dollar amounts
+  // For numeric-looking strings that should be dollar amounts
   if (!isNaN(Number(stringValue.replace(/[^0-9.-]/g, '')))) {
-    const numericValue = parseFloat(stringValue.replace(/[^0-9.-]/g, ''));
-    return numericValue < 0 ? 
-      `-$${Math.abs(numericValue).toLocaleString()}` : 
-      `$${numericValue.toLocaleString()}`;
+    // Do NOT convert to a number and back - preserve original format
+    // Just ensure it has the $ prefix
+    return stringValue.startsWith('-') ? 
+      `-$${stringValue.substring(1)}` : 
+      `$${stringValue}`;
   }
   
   return stringValue;
