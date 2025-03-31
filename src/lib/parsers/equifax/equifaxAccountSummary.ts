@@ -2,7 +2,7 @@
 import { AccountSummary } from "../../types/creditReport";
 
 export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
-  console.log("Starting account summary extraction with improved row-by-row approach");
+  console.log("Starting account summary extraction with improved handling of empty cells");
   
   // Define the empty account summaries structure
   const accountSummaries: AccountSummary[] = [
@@ -21,8 +21,13 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
       return accountSummaries;
     }
     
+    // Find header row to determine column structure
+    const headerRow = findHeaderRow(tableSection);
+    if (headerRow) {
+      console.log("Found header row:", headerRow);
+    }
+    
     // Get individual rows by finding lines that contain the account types
-    // This ensures we're working with complete rows for each account type
     const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
     const rows: {[key: string]: string} = {};
     
@@ -35,18 +40,19 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
         .filter(line => regex.test(line));
       
       if (matches.length > 0) {
+        // Only use the first match for each account type to avoid duplicates
         rows[accountType] = matches[0];
         console.log(`Found row for ${accountType}: ${matches[0]}`);
       }
     }
     
-    // Process each account type row separately
+    // Process each account type row separately, preserving empty cells
     for (const accountType of accountTypes) {
       if (rows[accountType]) {
         const accountIndex = accountSummaries.findIndex(a => a.accountType === accountType);
         if (accountIndex !== -1) {
-          // Extract values specifically for this account type
-          extractValuesFromRow(rows[accountType], accountType, accountSummaries[accountIndex]);
+          // Extract values specifically for this account type, respecting empty cells
+          extractValuesFromRow(rows[accountType], accountType, accountSummaries[accountIndex], headerRow);
         }
       }
     }
@@ -91,7 +97,27 @@ function extractTableSection(text: string): string | null {
   return tableSection;
 }
 
-function extractValuesFromRow(row: string, accountType: string, summary: AccountSummary): void {
+function findHeaderRow(tableSection: string): string | null {
+  // Try to find the header row to understand column structure
+  const headerPatterns = [
+    /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i,
+    /Account\s+Type\s+Total\s+Accounts\s+Open\s+Closed\s+Balance/i,
+    /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available/i
+  ];
+  
+  for (const pattern of headerPatterns) {
+    const lines = tableSection.split('\n');
+    for (const line of lines) {
+      if (pattern.test(line.trim())) {
+        return line.trim();
+      }
+    }
+  }
+  
+  return null;
+}
+
+function extractValuesFromRow(row: string, accountType: string, summary: AccountSummary, headerRow: string | null): void {
   // Find the position of the account type in the row
   const accountTypePos = row.indexOf(accountType);
   if (accountTypePos === -1) return;
@@ -100,64 +126,108 @@ function extractValuesFromRow(row: string, accountType: string, summary: Account
   const dataSection = row.substring(accountTypePos + accountType.length);
   console.log(`Processing data for ${accountType}: "${dataSection}"`);
   
-  // Split into tokens and classify them
+  // Create a structured approach based on token positioning to respect empty cells
   const tokens = dataSection.split(/\s+/).filter(token => token.trim().length > 0);
-  const numericValues = [];
-  const monetaryValues = [];
-  let percentValue = null;
   
-  // First pass: classify all tokens
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i].trim();
+  // Initialize the column trackers
+  let currentColumn = 0;
+  let currentTokenIndex = 0;
+  const columnValues: (string | number | null)[] = [];
+  
+  // Process tokens into structured columns
+  while (currentTokenIndex < tokens.length) {
+    const token = tokens[currentTokenIndex];
     
-    // Skip empty tokens
-    if (!token) continue;
-    
-    // Check for percentage values (debt-to-credit)
-    if (token.includes('%')) {
-      percentValue = token;
+    // Skip tokens that are likely not data values (e.g., words that slipped through)
+    if (/^[A-Za-z]+$/.test(token) && !/^\d+%$/.test(token)) {
+      currentTokenIndex++;
       continue;
     }
     
-    // Check for monetary values (with $ sign)
-    if (token.includes('$')) {
-      // Handle potential separate negative sign
-      if (i > 0 && tokens[i-1] === '-' && !token.startsWith('-')) {
-        monetaryValues.push('-' + token);
-      } else {
-        monetaryValues.push(token);
+    // Handle percentage values (debt-to-credit)
+    if (token.includes('%')) {
+      columnValues[5] = token; // Assign to appropriate column index
+      currentTokenIndex++;
+      continue;
+    }
+    
+    // Handle monetary values
+    if (token.includes('$') || (currentTokenIndex > 0 && tokens[currentTokenIndex-1] === '-' && tokens[currentTokenIndex].match(/^\d/))) {
+      // Handle negative sign as separate token
+      let value = token;
+      if (currentTokenIndex > 0 && tokens[currentTokenIndex-1] === '-' && !token.startsWith('-') && token.includes('$')) {
+        value = '-' + token;
+      }
+      
+      // For monetary values, determine which column it belongs to
+      if (columnValues[2] === undefined && isMonetaryValue(value)) {
+        // Total Balance column
+        columnValues[2] = value;
+      } else if (columnValues[3] === undefined && isMonetaryValue(value)) {
+        // Available column
+        columnValues[3] = value;
+      } else if (columnValues[4] === undefined && isMonetaryValue(value)) {
+        // Credit Limit column
+        columnValues[4] = value;
+      } else if (columnValues[6] === undefined && isMonetaryValue(value)) {
+        // Payment column
+        columnValues[6] = value;
+      }
+      
+      currentTokenIndex++;
+      if (tokens[currentTokenIndex-1] === '-') {
+        // Skip the negative sign if we just processed it with the value
+        currentTokenIndex++;
       }
       continue;
     }
     
-    // Check for standalone negative signs (might be part of next monetary value)
-    if (token === '-' && i+1 < tokens.length && tokens[i+1].includes('$')) {
-      // Skip - we'll handle this in the monetary values check
+    // Handle numeric values (account counts)
+    if (/^\d+$/.test(token)) {
+      const numVal = parseInt(token);
+      
+      // Assign to the appropriate column based on position
+      if (columnValues[0] === undefined) {
+        // Open column
+        columnValues[0] = numVal;
+      } else if (columnValues[1] === undefined) {
+        // With Balance column
+        columnValues[1] = numVal;
+      } else {
+        // Any other numeric column
+        columnValues[currentColumn] = numVal;
+        currentColumn++;
+      }
+      
+      currentTokenIndex++;
       continue;
     }
     
-    // Check for plain numeric values (typically account counts)
-    if (/^\d+$/.test(token)) {
-      numericValues.push(parseInt(token));
-    }
+    // Skip any unrecognized token
+    currentTokenIndex++;
   }
   
-  console.log(`Extracted for ${accountType}: numbers=${numericValues.join(',')}, money=${monetaryValues.join(',')}, percent=${percentValue}`);
+  // Assign values to the appropriate fields based on position
+  if (columnValues[0] !== undefined) summary.open = columnValues[0] as number | null;
+  if (columnValues[1] !== undefined) summary.withBalance = columnValues[1] as number | null;
+  if (columnValues[2] !== undefined) summary.totalBalance = columnValues[2] as string | null;
+  if (columnValues[3] !== undefined) summary.available = columnValues[3] as string | null;
+  if (columnValues[4] !== undefined) summary.creditLimit = columnValues[4] as string | null;
+  if (columnValues[5] !== undefined) summary.debtToCredit = columnValues[5] as string | null;
+  if (columnValues[6] !== undefined) summary.payment = columnValues[6] as string | null;
   
-  // Second pass: assign values to fields in the correct order
-  
-  // Assign numeric values (typically count fields)
-  if (numericValues.length > 0) summary.open = numericValues[0];
-  if (numericValues.length > 1) summary.withBalance = numericValues[1];
-  
-  // Assign monetary values in expected order
-  if (monetaryValues.length > 0) summary.totalBalance = monetaryValues[0];
-  if (monetaryValues.length > 1) summary.available = monetaryValues[1];
-  if (monetaryValues.length > 2) summary.creditLimit = monetaryValues[2];
-  if (monetaryValues.length > 3) summary.payment = monetaryValues[3];
-  
-  // Assign percentage value to debt-to-credit
-  if (percentValue) {
-    summary.debtToCredit = percentValue;
-  }
+  console.log(`Extracted values for ${accountType}:`, {
+    open: summary.open,
+    withBalance: summary.withBalance,
+    totalBalance: summary.totalBalance,
+    available: summary.available,
+    creditLimit: summary.creditLimit,
+    debtToCredit: summary.debtToCredit,
+    payment: summary.payment
+  });
+}
+
+// Helper function to check if a value is likely a monetary value
+function isMonetaryValue(value: string): boolean {
+  return value.includes('$') || value.match(/^-?\$?\d{1,3}(,\d{3})*(\.\d{2})?$/) !== null;
 }
