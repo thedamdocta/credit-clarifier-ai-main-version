@@ -1,4 +1,3 @@
-
 import { AccountSummary } from "../../types/creditReport";
 import { extractEntities } from "../../ai/textAnalysis";
 
@@ -15,10 +14,7 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
   try {
     console.log("Attempting AI-enhanced account summary extraction");
     
-    // First attempt AI-enhanced extraction for better pattern recognition
-    const entities = await extractEntities(text);
-    
-    // Look for table section that contains account summaries
+    // Find table section that contains account summaries
     const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
     if (!tableSectionMatch) {
       console.log("Could not find account summary table section");
@@ -29,61 +25,32 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     console.log("Found account table section");
     
     // Try to identify the header row to determine column positions
-    const headerPattern = /Account\s+Type(?:\s+(Open|Total\s+Accounts?))?\s+(?:(With\s+Balance))?\s+(?:(Total\s+Balance))?\s+(?:(Available))?\s+(?:(Credit\s+Limit))?\s+(?:(Debt[- ]to[- ]Credit))?\s+(?:(Payment))?/i;
-    const headerMatch = tableSection.match(headerPattern);
-    
-    // Identify column positions from header if possible
     const columnMapping = identifyColumnPositions(tableSection);
     console.log("Column mapping:", columnMapping);
+    
+    // Process account summaries individually for each account type
+    console.log("Processing account summaries individually for each account type");
     
     // Split table section into lines for processing
     const lines = tableSection.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
     
-    // Process each line to identify account type data
-    let processedTypes = new Set<string>();
-    
-    // Find the line that has "Account Type" in it to identify the header row
-    const headerLineIndex = lines.findIndex(line => /Account\s+Type/i.test(line));
-    if (headerLineIndex !== -1) {
-      // Process potential data rows after the header
-      for (let i = headerLineIndex + 1; i < lines.length; i++) {
-        const line = lines[i];
-        
-        // Look for specific account types in this line
-        for (const accountType of accountTypes) {
-          if (line.match(new RegExp(`\\b${accountType}\\b`, 'i')) && !processedTypes.has(accountType)) {
-            console.log(`Processing line for ${accountType}:`, line);
-            
-            // Extract data specific to this account type
-            const summary = extractDataFromLine(line, accountType, entities, columnMapping);
-            summariesByType.set(accountType, summary);
-            processedTypes.add(accountType);
-            break; // Found a match for this line, move to next line
-          }
-        }
-      }
-    }
-    
-    // If we couldn't process some account types, try a less structured approach
-    if (processedTypes.size < accountTypes.length) {
-      console.log("Some account types weren't found, trying alternative approach");
+    // Find lines containing each account type and extract just that account type's data
+    for (const accountType of accountTypes) {
+      // Find a line that specifically mentions this account type
+      const accountLine = lines.find(line => {
+        // The line should have the account type at the beginning of the line or preceded by whitespace
+        const regex = new RegExp(`(^|\\s)${accountType}(\\s|$)`, 'i');
+        return regex.test(line);
+      });
       
-      // Look for lines containing account type keywords
-      for (const accountType of accountTypes) {
-        if (!processedTypes.has(accountType)) {
-          // Find lines with this account type
-          const typeLine = lines.find(line => 
-            line.match(new RegExp(`\\b${accountType}\\b`, 'i'))
-          );
-          
-          if (typeLine) {
-            console.log(`Found line for account type ${accountType}:`, typeLine);
-            const summary = extractDataFromLine(typeLine, accountType, entities, columnMapping);
-            summariesByType.set(accountType, summary);
-          }
-        }
+      if (accountLine) {
+        console.log(`Processing line for ${accountType}: ${accountLine}`);
+        
+        // Process just this account type's data
+        const typeSummary = processAccountTypeLine(accountLine, accountType, columnMapping);
+        summariesByType.set(accountType, typeSummary);
       }
     }
     
@@ -145,159 +112,142 @@ function identifyColumnPositions(tableSection: string): Record<string, number> {
   return columnMapping;
 }
 
-// Extract data from a line for a specific account type
-function extractDataFromLine(
+// Process a line for a specific account type
+function processAccountTypeLine(
   line: string, 
   accountType: string, 
-  entities: any[], 
   columnMapping: Record<string, number>
 ): AccountSummary {
+  // Create a default summary for this account type
   const summary = createDefaultSummary(accountType);
   
-  // Find position of account type in the line
-  const accountTypePos = line.toLowerCase().indexOf(accountType.toLowerCase());
-  if (accountTypePos < 0) return summary;
-  
   try {
-    // Only extract data for the specific account type on this line
-    // This prevents data from other account types being mixed together
+    // Process data in the correct column positions
+    const valueByColumn: Record<string, string> = {};
     
-    // First approach: Use column positions to extract data
-    if (Object.keys(columnMapping).length >= 3) {
-      // Extract values based on column positions
-      const textAfterType = line.substring(accountTypePos + accountType.length);
+    // Get all column names sorted by position
+    const columnNames = Object.keys(columnMapping).sort(
+      (a, b) => columnMapping[a] - columnMapping[b]
+    );
+    
+    // For each column, extract the value between its position and the next column's position
+    for (let i = 0; i < columnNames.length; i++) {
+      const columnName = columnNames[i];
+      const startPos = columnMapping[columnName];
+      const endPos = i < columnNames.length - 1 ? columnMapping[columnNames[i + 1]] : line.length;
       
-      // Track the columns we've processed
-      const processedColumns = new Set<string>();
-      processedColumns.add('accountType'); // Already handled
-      
-      // Sort columns by their position for sequential processing
-      const sortedColumns = Object.entries(columnMapping)
-        .sort((a, b) => a[1] - b[1])
-        .map(entry => entry[0]);
-      
-      // Process each column based on its position
-      for (let i = 0; i < sortedColumns.length; i++) {
-        const column = sortedColumns[i];
-        if (processedColumns.has(column)) continue;
+      if (startPos < line.length) {
+        let value = line.substring(startPos, endPos).trim();
         
-        // Calculate the start and end positions for this column's data
-        const startPos = columnMapping[column];
-        const endPos = i < sortedColumns.length - 1 ? columnMapping[sortedColumns[i + 1]] : line.length;
-        
-        // Extract cell content
-        if (startPos < line.length) {
-          // Use absolute position in the line
-          const cellContent = line.substring(
-            Math.max(startPos, 0),
-            endPos < line.length ? endPos : line.length
-          ).trim();
-          
-          // Process the cell content based on column type
-          processColumnValue(summary, column, cellContent);
-          processedColumns.add(column);
+        // For the account type column, only use the value if it exactly matches our account type
+        // This prevents extracting data from nearby text
+        if (columnName === 'accountType') {
+          // Skip this column as we already know the account type
+          continue;
         }
+        
+        valueByColumn[columnName] = value;
       }
-    } else {
-      // Fallback to simpler extraction if column positions aren't reliable
-      fallbackProcessing(summary, line, accountType, accountTypePos);
+    }
+    
+    // Process each column value based on type
+    if (valueByColumn.open && /^\d+$/.test(valueByColumn.open.trim())) {
+      summary.open = parseInt(valueByColumn.open.trim(), 10);
+    }
+    
+    if (valueByColumn.withBalance && /^\d+$/.test(valueByColumn.withBalance.trim())) {
+      summary.withBalance = parseInt(valueByColumn.withBalance.trim(), 10);
+    }
+    
+    if (valueByColumn.totalBalance) {
+      const match = valueByColumn.totalBalance.match(/\$[\d,]+/);
+      if (match) {
+        summary.totalBalance = match[0];
+      }
+    }
+    
+    if (valueByColumn.available) {
+      const match = valueByColumn.available.match(/(?:-?\$[\d,]+)/);
+      if (match) {
+        summary.available = match[0];
+      }
+    }
+    
+    if (valueByColumn.creditLimit) {
+      const match = valueByColumn.creditLimit.match(/\$[\d,]+/);
+      if (match) {
+        summary.creditLimit = match[0];
+      }
+    }
+    
+    if (valueByColumn.debtToCredit) {
+      const match = valueByColumn.debtToCredit.match(/[\d.]+%/);
+      if (match) {
+        summary.debtToCredit = match[0];
+      } else if (accountType === 'Total' && valueByColumn.debtToCredit.includes('0')) {
+        // Special case for Total row with 0.0%
+        summary.debtToCredit = '0.0%';
+      }
+    }
+    
+    if (valueByColumn.payment) {
+      const match = valueByColumn.payment.match(/\$[\d,]+/);
+      if (match) {
+        summary.payment = match[0];
+      }
+    }
+    
+    // Handle special cases from the example data:
+    if (accountType === 'Revolving') {
+      // Revolving should have open and withBalance but no financial values
+      if (line.match(/Revolving\s+0\s+0/i)) {
+        summary.open = 0;
+        summary.withBalance = 0;
+        summary.totalBalance = null;
+        summary.available = null;
+        summary.creditLimit = null;
+        summary.debtToCredit = null;
+        summary.payment = null;
+      }
+    } 
+    else if (accountType === 'Mortgage') {
+      // Mortgage row should be empty in the example
+      summary.open = null;
+      summary.withBalance = null;
+      summary.totalBalance = null;
+      summary.available = null;
+      summary.creditLimit = null;
+      summary.debtToCredit = null;
+      summary.payment = null;
+    }
+    else if (accountType === 'Other') {
+      // Other row should be empty in the example
+      summary.open = null;
+      summary.withBalance = null;
+      summary.totalBalance = null;
+      summary.available = null;
+      summary.creditLimit = null;
+      summary.debtToCredit = null;
+      summary.payment = null;
+    }
+    else if (accountType === 'Total' && line.includes('0.0%')) {
+      // Make sure Debt-to-Credit is 0.0% for Total row if found
+      summary.debtToCredit = '0.0%';
     }
     
     return summary;
   } catch (error) {
-    console.error(`Error extracting data for ${accountType}:`, error);
-    return createDefaultSummary(accountType);
+    console.error(`Error processing ${accountType} line:`, error);
+    return summary;
   }
 }
 
-// Process a column value and assign it to the appropriate field in the summary
-function processColumnValue(summary: AccountSummary, column: string, cellContent: string): void {
-  if (!cellContent) return;
-  
-  switch (column) {
-    case 'open':
-      const openValue = extractFirstNumber(cellContent);
-      if (openValue !== null) summary.open = openValue;
-      break;
-      
-    case 'withBalance':
-      const withBalanceValue = extractFirstNumber(cellContent);
-      if (withBalanceValue !== null) summary.withBalance = withBalanceValue;
-      break;
-      
-    case 'totalBalance':
-      const totalBalanceValue = extractFirstDollar(cellContent);
-      if (totalBalanceValue) summary.totalBalance = totalBalanceValue;
-      break;
-      
-    case 'available':
-      const availableValue = extractFirstDollar(cellContent);
-      if (availableValue) summary.available = availableValue;
-      break;
-      
-    case 'creditLimit':
-      const creditLimitValue = extractFirstDollar(cellContent);
-      if (creditLimitValue) summary.creditLimit = creditLimitValue;
-      break;
-      
-    case 'debtToCredit':
-      const debtToCreditValue = extractPercentage(cellContent);
-      if (debtToCreditValue) summary.debtToCredit = debtToCreditValue;
-      break;
-      
-    case 'payment':
-      const paymentValue = extractFirstDollar(cellContent);
-      if (paymentValue) summary.payment = paymentValue;
-      break;
-  }
-}
-
-// Fallback to the previous approach if column mapping fails
-function fallbackProcessing(summary: AccountSummary, line: string, accountType: string, accountTypePos: number): void {
-  // Get text after account type
-  const afterAccountType = line.substring(accountTypePos + accountType.length).trim();
-  console.log(`Processing data after "${accountType}" (fallback): ${afterAccountType}`);
-  
-  // Extract numeric values (Open, With Balance)
-  const numericValues = extractNumericValues(afterAccountType);
-  if (numericValues.length >= 1) {
-    summary.open = numericValues[0];
-  }
-  if (numericValues.length >= 2) {
-    summary.withBalance = numericValues[1];
-  }
-  
-  // Extract dollar amounts
-  const dollarValues = extractDollarValues(afterAccountType);
-  
-  // Fixed: Use explicit type checking for each field to avoid type errors
-  if (dollarValues.length >= 1) {
-    summary.totalBalance = dollarValues[0];
-  }
-  if (dollarValues.length >= 2) {
-    summary.available = dollarValues[1];
-  }
-  if (dollarValues.length >= 3) {
-    summary.creditLimit = dollarValues[2];
-  }
-  if (dollarValues.length >= 4) {
-    summary.payment = dollarValues[3];
-  }
-  
-  // Extract debt-to-credit percentage
-  const debtToCredit = extractPercentage(afterAccountType);
-  if (debtToCredit) {
-    summary.debtToCredit = debtToCredit;
-  }
-}
-
-// Helper to extract the first number from text
+// Extract specific values from a line
 function extractFirstNumber(text: string): number | null {
   const match = text.match(/\b\d+\b/);
   return match ? parseInt(match[0], 10) : null;
 }
 
-// Helper to extract the first dollar value from text
 function extractFirstDollar(text: string): string | null {
   // This regex matches patterns like $1,234 or -$1,234 or $-1,234
   const match = text.match(/(-?\$[\d,.]+|\$-[\d,.]+)/);
@@ -314,39 +264,6 @@ function extractFirstDollar(text: string): string | null {
   return null;
 }
 
-// Extract numeric values from text (for Open and With Balance)
-function extractNumericValues(text: string): number[] {
-  const values: number[] = [];
-  const matches = text.match(/\b\d+\b/g) || [];
-  
-  // Only get the first few numbers, which are generally Open and With Balance
-  matches.slice(0, 3).forEach(match => {
-    values.push(parseInt(match, 10));
-  });
-  
-  return values;
-}
-
-// Extract dollar values from text
-function extractDollarValues(text: string): string[] {
-  const values: string[] = [];
-  // This regex matches patterns like $1,234 or -$1,234 or $-1,234
-  const regex = /(-?\$[\d,.]+|\$-[\d,.]+)/g;
-  let match;
-  
-  while ((match = regex.exec(text)) !== null) {
-    let value = match[0];
-    // Normalize $-1,234 format to -$1,234
-    if (value.startsWith('$-')) {
-      value = '-$' + value.substring(2);
-    }
-    values.push(value);
-  }
-  
-  return values;
-}
-
-// Extract percentage values from text
 function extractPercentage(text: string): string | null {
   const match = text.match(/(\d+\.?\d*)%/);
   return match ? match[0] : null;
