@@ -20,9 +20,7 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
     console.log('Starting table extraction from image:', imageUrl);
     
     // Initialize the VQA model - using correct pipeline type
-    const vqa = await pipeline('document-question-answering', 'impira/layoutlm-document-qa', {
-      revision: 'main'
-    });
+    const vqa = await pipeline('document-question-answering', 'impira/layoutlm-document-qa');
     
     // Extract table headers (headers are fixed for credit account tables)
     const headers = ['Account Type', 'Open', 'With Balance', 'Total Balance', 
@@ -39,43 +37,22 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
       const row: Record<string, string> = { 'Account Type': accountType };
       
       try {
-        // Extract row values with specific questions
-        // Fix: Properly format the arguments as an object with image and question properties
-        const openResponse = await vqa({
-          image: imageUrl,
-          question: `What is the 'Open' value for ${accountType} accounts?`
-        });
+        // Extract row values with specific questions - properly formatted with image and question as separate parameters
+        // The pipeline function expects (model, image, question) or (image, question) format
+        const openResponse = await vqa(imageUrl, `What is the 'Open' value for ${accountType} accounts?`);
         
-        const withBalanceResponse = await vqa({
-          image: imageUrl,
-          question: `What is the 'With Balance' value for ${accountType} accounts?`
-        });
+        const withBalanceResponse = await vqa(imageUrl, `What is the 'With Balance' value for ${accountType} accounts?`);
         
-        const totalBalanceResponse = await vqa({
-          image: imageUrl,
-          question: `What is the 'Total Balance' value for ${accountType} accounts?`
-        });
+        const totalBalanceResponse = await vqa(imageUrl, `What is the 'Total Balance' value for ${accountType} accounts?`);
         
         // Add more questions for other columns
-        const availableResponse = await vqa({
-          image: imageUrl,
-          question: `What is the 'Available' value for ${accountType} accounts?`
-        });
+        const availableResponse = await vqa(imageUrl, `What is the 'Available' value for ${accountType} accounts?`);
         
-        const creditLimitResponse = await vqa({
-          image: imageUrl,
-          question: `What is the 'Credit Limit' value for ${accountType} accounts?`
-        });
+        const creditLimitResponse = await vqa(imageUrl, `What is the 'Credit Limit' value for ${accountType} accounts?`);
         
-        const debtToCreditResponse = await vqa({
-          image: imageUrl,
-          question: `What is the 'Debt-to-Credit' value for ${accountType} accounts?`
-        });
+        const debtToCreditResponse = await vqa(imageUrl, `What is the 'Debt-to-Credit' value for ${accountType} accounts?`);
         
-        const paymentResponse = await vqa({
-          image: imageUrl,
-          question: `What is the 'Payment' value for ${accountType} accounts?`
-        });
+        const paymentResponse = await vqa(imageUrl, `What is the 'Payment' value for ${accountType} accounts?`);
         
         // Extract values from responses
         row['Open'] = extractAnswer(openResponse);
