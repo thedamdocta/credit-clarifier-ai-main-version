@@ -8,10 +8,9 @@ import PDFProgressDisplay from "./PDFProgressDisplay";
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   isProcessing: boolean;
-  useAI: boolean;
 }
 
-const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing, useAI }) => {
+const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }) => {
   const {
     isDragging,
     uploadProgress,
@@ -22,7 +21,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing, 
     handleDrop,
     handleFileInputChange,
     triggerFileInput
-  } = usePDFUpload({ onPDFUploaded, useAI });
+  } = usePDFUpload({ onPDFUploaded, useAI: true });
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -48,13 +47,11 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing, 
           <PDFProgressDisplay 
             file={currentFile} 
             progress={uploadProgress} 
-            useAI={useAI} 
           />
         ) : (
           <PDFUploadPlaceholder 
             triggerFileInput={triggerFileInput} 
-            isProcessing={isProcessing} 
-            useAI={useAI} 
+            isProcessing={isProcessing}
           />
         )}
       </div>

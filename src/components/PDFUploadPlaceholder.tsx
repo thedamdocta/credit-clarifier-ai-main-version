@@ -6,13 +6,11 @@ import { FileUp, Upload } from "lucide-react";
 interface PDFUploadPlaceholderProps {
   triggerFileInput: () => void;
   isProcessing: boolean;
-  useAI: boolean;
 }
 
 const PDFUploadPlaceholder: React.FC<PDFUploadPlaceholderProps> = ({
   triggerFileInput,
-  isProcessing,
-  useAI
+  isProcessing
 }) => {
   return (
     <>
@@ -30,8 +28,7 @@ const PDFUploadPlaceholder: React.FC<PDFUploadPlaceholderProps> = ({
         Select PDF
       </Button>
       <div className="mt-4 text-xs text-muted-foreground">
-        Supports PDF files from Equifax, Experian, and TransUnion
-        {useAI && " with AI analysis"}
+        Supports PDF files from Equifax, Experian, and TransUnion with AI analysis
       </div>
     </>
   );

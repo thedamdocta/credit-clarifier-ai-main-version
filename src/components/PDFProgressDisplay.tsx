@@ -6,13 +6,11 @@ import { File } from "lucide-react";
 interface PDFProgressDisplayProps {
   file: File;
   progress: number;
-  useAI: boolean;
 }
 
 const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   file,
-  progress,
-  useAI
+  progress
 }) => {
   return (
     <div className="w-full space-y-4">
@@ -26,7 +24,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
       <Progress value={progress} className="h-2" />
       <p className="text-sm text-center text-muted-foreground">
         {progress < 100 ? 
-          (useAI ? "Processing PDF with AI..." : "Processing PDF...") : 
+          "Processing PDF with AI..." : 
           "PDF processed successfully!"}
       </p>
     </div>
