@@ -16,7 +16,7 @@ export const extractEquifaxOtherItems = (text: string): {
   let statementCount = 0;
   let consumerName = '';
   
-  // Extract consumer name - try different patterns
+  // Extract consumer name - try different patterns focused on first page header
   const namePatterns = [
     /Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
     /Consumer\s*Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
@@ -48,34 +48,29 @@ export const extractEquifaxOtherItems = (text: string): {
     }
   }
   
-  // Clean the consumer name to ONLY return the primary name (first name with middle initial and last name)
+  // Simplified name cleaning - take just the main name, no initials or extra info
   if (consumerName) {
-    // Take only the first part before any special phrases
-    let stopPhrases = [
-      'formerly', 'formerly known as', 'social security', 'ssn', 'aka', 'fka', 'dba',
-      'number', 'address', 'report', '/', '-'
-    ];
+    // Immediately cut off at any special character or phrase
+    const simplifiedName = consumerName.split(/[,\/\(\)-]|formerly|aka|fka|ssn/i)[0].trim();
     
-    for (const phrase of stopPhrases) {
-      const index = consumerName.toLowerCase().indexOf(phrase);
-      if (index > 0) {
-        consumerName = consumerName.substring(0, index).trim();
-      }
-    }
-    
-    // Remove any additional text in parentheses
-    consumerName = consumerName.replace(/\s*\([^)]*\)/g, '');
-    
-    // Remove any trailing punctuation
-    consumerName = consumerName.replace(/[.,;:\s]+$/g, '').trim();
-    
-    // Most importantly, extract only the first 2-3 words (first name, middle initial, last name)
-    // This ensures we get just the primary name
-    const nameParts = consumerName.split(/\s+/);
+    // If name has multiple words, just take the first two words (likely first and last name)
+    const nameParts = simplifiedName.split(/\s+/);
     if (nameParts.length > 0) {
-      // Keep maximum 3 words for the name (first, middle initial, last)
-      const maxNameParts = Math.min(3, nameParts.length);
-      consumerName = nameParts.slice(0, maxNameParts).join(' ');
+      // For simplicity, just take first and last name (max 2 parts)
+      // This avoids middle initials and extra titles
+      const firstPart = nameParts[0];
+      const lastPart = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+      
+      if (nameParts.length <= 2) {
+        // If only one or two words, use as is
+        consumerName = simplifiedName;
+      } else if (firstPart && lastPart) {
+        // If more than two words, just use first and last words
+        consumerName = `${firstPart} ${lastPart}`;
+      } else {
+        // Fallback to just first word
+        consumerName = firstPart;
+      }
     }
   }
   
