@@ -77,6 +77,13 @@ export const processPDFDocument = async (
           console.log("Found credit file status:", statusMatch[1].trim());
         }
         
+        // Extract most recent inquiry in the format "COMPANY NAME (CODE) Date"
+        const recentInquiryPattern = /Most\s+Recent\s+Inquiry[:\s]+([^\n]+?)(?:\n|$)/i;
+        const recentInquiryMatch = extractedText.match(recentInquiryPattern);
+        if (recentInquiryMatch && recentInquiryMatch[1]) {
+          console.log("Found most recent inquiry:", recentInquiryMatch[1].trim());
+        }
+        
         // Show appropriate processing toast
         if (useAI) {
           toast.info("Processing with AI analysis...");
@@ -100,6 +107,15 @@ export const processPDFDocument = async (
             // Try to extract credit file status
             if (statusMatch && statusMatch[1]) {
               parsedReport.creditFileStatus = statusMatch[1].trim();
+            }
+            
+            // Extract most recent inquiry in a cleaner format
+            if (recentInquiryMatch && recentInquiryMatch[1]) {
+              const inquiryText = recentInquiryMatch[1].trim();
+              // Only use the inquiry if it's not too long (likely not the whole report)
+              if (inquiryText.length < 100) {
+                parsedReport.recentInquiry = inquiryText;
+              }
             }
             
             // Try to find oldest and most recent accounts

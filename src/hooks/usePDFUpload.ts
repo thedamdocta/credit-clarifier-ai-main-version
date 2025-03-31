@@ -15,7 +15,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processPDF = (file: File) => {
-    processPDFDocument(file, true, {
+    processPDFDocument(file, useAI, {
       setCurrentFile,
       setUploadProgress,
       onPDFUploaded
