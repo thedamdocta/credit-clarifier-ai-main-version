@@ -5,7 +5,7 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
   const summaries: AccountSummary[] = [];
   
   // Common account types in Equifax reports
-  const accountTypes = ['Revolving', 'Installment', 'Mortgage', 'Other', 'Total'];
+  const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
 
   // Look for the table header first - Equifax has a specific format
   const tableHeaderRegex = /Account\s+Type\s+(Total\s+Accounts)?\s*(Open)?\s*(Closed)?\s*(Balance)?/i;
@@ -22,118 +22,140 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
     const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
     const tableSection = tableSectionMatch ? tableSectionMatch[1] : text;
     
-    // Split the table into lines for better processing
+    // Create default summaries for all account types
+    const summaryMap = new Map();
+    accountTypes.forEach(accountType => {
+      summaryMap.set(accountType, createDefaultSummary(accountType));
+    });
+    
+    // Split into lines for processing row by row
     const lines = tableSection.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
+      
+    // Look for each account type in the lines and extract the data
+    accountTypes.forEach(accountType => {
+      // Find lines containing this specific account type
+      const accountLine = lines.find(line => 
+        line.match(new RegExp(`^\\s*${accountType}\\b`, 'i')) || 
+        line.match(new RegExp(`\\s+${accountType}\\s+\\d+`, 'i'))
+      );
+      
+      if (accountLine) {
+        processAccountLine(accountLine, accountType, summaryMap.get(accountType));
+      }
+    });
     
-    // Process each account type individually from the table section
-    for (const accountType of accountTypes) {
-      processAccountTypeData(lines, accountType, summaries);
-    }
+    // Convert the map to an array and add to summaries
+    summaryMap.forEach(summary => {
+      summaries.push(summary);
+    });
   } else {
     console.log("Could not find Equifax account summary table header");
-    
-    // Create default entries for all account types with nulls
-    createDefaultSummaries(accountTypes, summaries);
+    // Create default summaries for all account types
+    accountTypes.forEach(accountType => {
+      summaries.push(createDefaultSummary(accountType));
+    });
   }
+  
+  // Sort the summaries to match the expected order
+  summaries.sort((a, b) => {
+    return accountTypes.indexOf(a.accountType) - accountTypes.indexOf(b.accountType);
+  });
   
   console.log("Extracted account summaries:", summaries);
   return summaries;
 };
 
-// Process data for a specific account type by searching through table lines
-function processAccountTypeData(lines: string[], accountType: string, summaries: AccountSummary[]) {
-  // Create a default summary for this account type
-  const summary: AccountSummary = createDefaultSummary(accountType);
+// Process a single line that contains account type information
+function processAccountLine(line: string, accountType: string, summary: AccountSummary) {
+  console.log(`Processing line for ${accountType}:`, line);
   
-  // Find the line that starts with this account type
-  // We need to be careful to match it at the beginning of a line or word boundary
-  const accountLines = lines.filter(line => 
-    new RegExp(`\\b${accountType}\\b`, 'i').test(line)
-  );
-  
-  if (accountLines.length > 0) {
-    // Get the first line that contains this account type
-    const accountLine = accountLines[0];
-    console.log(`Found line for ${accountType}:`, accountLine);
-    
-    // Extract numeric values for open and with balance columns
-    extractNumericValues(accountLine, accountType, summary);
-    
-    // Extract dollar values (including negative numbers) and percentages
-    extractFinancialValues(accountLine, accountType, summary);
+  // Find position of account type in the line
+  let startIndex = line.indexOf(accountType);
+  if (startIndex < 0) {
+    const match = line.match(new RegExp(`\\b${accountType}\\b`, 'i'));
+    startIndex = match ? match.index || 0 : 0;
   }
   
-  summaries.push(summary);
-}
-
-// Extract numeric values (open and withBalance) from a line
-function extractNumericValues(line: string, accountType: string, summary: AccountSummary) {
-  // Get the position of account type in the line
-  const accountTypePos = line.indexOf(accountType);
-  if (accountTypePos < 0) return;
+  // Skip the account type text itself
+  const afterType = line.substring(startIndex + accountType.length).trim();
   
-  // Get text after account type
-  const afterAccountType = line.substring(accountTypePos + accountType.length);
+  // Split by whitespace into potential columns
+  const columns = afterType.split(/\s+/);
   
-  // Split by whitespace and find first numbers
-  const tokens = afterAccountType.trim().split(/\s+/);
-  let numCount = 0;
+  // Extract numeric values (open and withBalance counts)
+  let openCountIndex = -1;
+  let withBalanceIndex = -1;
   
-  for (let i = 0; i < tokens.length; i++) {
-    if (/^\d+$/.test(tokens[i])) {
-      if (numCount === 0) {
-        summary.open = parseInt(tokens[i]);
-      } else if (numCount === 1) {
-        summary.withBalance = parseInt(tokens[i]);
+  // Find first two numeric values for open and withBalance
+  for (let i = 0; i < columns.length; i++) {
+    if (/^\d+$/.test(columns[i])) {
+      if (openCountIndex === -1) {
+        openCountIndex = i;
+        summary.open = parseInt(columns[i]);
+      } else if (withBalanceIndex === -1) {
+        withBalanceIndex = i;
+        summary.withBalance = parseInt(columns[i]);
+        break;
       }
-      numCount++;
-      
-      // Stop after finding the first two numbers
-      if (numCount >= 2) break;
     }
   }
+  
+  // Look for dollar values and percentages in specific positions after account type
+  extractFinancialValues(line, accountType, summary);
 }
 
 // Extract dollar values and percentages from a line
 function extractFinancialValues(line: string, accountType: string, summary: AccountSummary) {
-  const accountTypePos = line.indexOf(accountType);
-  if (accountTypePos < 0) return;
+  // Find position of account type in line
+  const typePos = line.indexOf(accountType);
+  if (typePos === -1) return;
   
-  // Extract all dollar values, including negative numbers
-  // Pattern now includes -$ format and $- format for negative numbers
+  const afterType = line.substring(typePos + accountType.length);
+  
+  // Extract all dollar values using improved pattern that handles negative numbers
   const dollarPattern = /(-?\$[0-9,.-]+|\$-[0-9,.-]+)/g;
   const dollars = [];
   let match;
   
-  // Find all dollar matches after account type position
-  const afterAccountType = line.substring(accountTypePos + accountType.length);
-  while ((match = dollarPattern.exec(afterAccountType)) !== null) {
+  // Find all dollar value matches after account type position
+  while ((match = dollarPattern.exec(afterType)) !== null) {
     dollars.push(match[0]);
   }
   
-  // Assign dollar values in expected order
-  const dollarFields = ['totalBalance', 'available', 'creditLimit', 'payment'];
-  dollars.forEach((value, index) => {
-    if (index < dollarFields.length) {
-      // Convert incorrectly formatted negative numbers ($-1,234) to proper format (-$1,234)
-      if (value.startsWith('$-')) {
-        value = '-$' + value.substring(2);
-      }
-      summary[dollarFields[index]] = value;
-    }
-  });
+  // Only assign dollar values if they actually appear in this row
+  if (dollars.length >= 1) {
+    summary.totalBalance = normalizeDollarFormat(dollars[0]);
+  }
+  if (dollars.length >= 2) {
+    summary.available = normalizeDollarFormat(dollars[1]);
+  }
+  if (dollars.length >= 3) {
+    summary.creditLimit = normalizeDollarFormat(dollars[2]);
+  }
+  if (dollars.length >= 4) {
+    summary.payment = normalizeDollarFormat(dollars[3]);
+  }
   
   // Extract debt-to-credit percentage
   const percentPattern = /(\d+\.?\d*)\s*%/;
-  const percentMatch = afterAccountType.match(percentPattern);
+  const percentMatch = afterType.match(percentPattern);
   if (percentMatch) {
     summary.debtToCredit = `${percentMatch[0].trim()}`;
   }
 }
 
-// Helper function to create a default summary object
+// Normalize dollar format to ensure negative values are consistently formatted
+function normalizeDollarFormat(value: string): string {
+  if (value.startsWith('$-')) {
+    // Convert $-1,234 format to -$1,234
+    return '-$' + value.substring(2);
+  }
+  return value;
+}
+
+// Helper function to create a default summary object with null values
 function createDefaultSummary(accountType: string): AccountSummary {
   return {
     accountType,
@@ -148,11 +170,4 @@ function createDefaultSummary(accountType: string): AccountSummary {
     debtToCredit: null,
     payment: null
   };
-}
-
-// Helper function to create default summaries for all account types
-function createDefaultSummaries(accountTypes: string[], summaries: AccountSummary[]) {
-  accountTypes.forEach(accountType => {
-    summaries.push(createDefaultSummary(accountType));
-  });
 }

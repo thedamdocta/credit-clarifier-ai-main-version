@@ -61,7 +61,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Ensure we have all account types for the table
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
-  // Create default account summaries if missing
+  // Create a prioritized list of account summaries in the correct order
   const ensureAccountSummaries = () => {
     if (!report.accountSummaries || report.accountSummaries.length === 0) {
       return requiredAccountTypes.map(accountType => ({
@@ -78,40 +78,40 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
         payment: null
       }));
     }
-
-    // Ensure all required account types exist
-    const existingTypes = report.accountSummaries.map(summary => summary.accountType);
-    const summaries = [...report.accountSummaries];
     
-    // Add missing account types
-    requiredAccountTypes.forEach(accountType => {
-      if (!existingTypes.includes(accountType)) {
-        summaries.push({
-          accountType,
-          totalAccounts: null,
-          open: null,
-          closed: null,
-          balance: null,
-          withBalance: null,
-          totalBalance: null,
-          available: null,
-          creditLimit: null,
-          debtToCredit: null,
-          payment: null
-        });
+    // Map existing summaries by account type for quick lookup
+    const summariesByType = new Map();
+    report.accountSummaries.forEach(summary => {
+      summariesByType.set(summary.accountType, summary);
+    });
+    
+    // Create the prioritized list with any missing types filled with empty data
+    const prioritizedSummaries = requiredAccountTypes.map(accountType => {
+      if (summariesByType.has(accountType)) {
+        return summariesByType.get(accountType);
       }
+      return {
+        accountType,
+        totalAccounts: null,
+        open: null,
+        closed: null,
+        balance: null,
+        withBalance: null,
+        totalBalance: null,
+        available: null,
+        creditLimit: null,
+        debtToCredit: null,
+        payment: null
+      };
     });
-
-    // Sort the summaries to match the required order
-    return summaries.sort((a, b) => {
-      return requiredAccountTypes.indexOf(a.accountType) - requiredAccountTypes.indexOf(b.accountType);
-    });
+    
+    return prioritizedSummaries;
   };
 
   // Get properly ordered account summaries
   const accountSummaries = ensureAccountSummaries();
 
-  // Utility function to check if a cell value exists
+  // Utility function to check if a cell value exists and should be displayed
   const hasValue = (value: any): boolean => {
     return value !== undefined && value !== null && value !== '';
   };
