@@ -51,3 +51,22 @@ export const formatDollarAmount = (value: any): string => {
 export const hasDisplayValue = (value: any): boolean => {
   return value !== undefined && value !== null && value !== '';
 };
+
+/**
+ * Detect empty cell positions based on column spacing and expectations
+ * This helps identify cells that were skipped during text extraction
+ */
+export const detectEmptyCells = (line: string, columnPositions: number[]): boolean[] => {
+  const emptyCells = columnPositions.map((_, index) => {
+    const start = columnPositions[index];
+    const end = index < columnPositions.length - 1 ? columnPositions[index + 1] : line.length;
+    
+    if (start >= 0 && end > start) {
+      const cellContent = line.substring(start, end).trim();
+      return cellContent.length === 0;
+    }
+    return true; // Assume empty if column position is invalid
+  });
+  
+  return emptyCells;
+};
