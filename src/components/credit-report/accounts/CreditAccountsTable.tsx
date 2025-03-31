@@ -11,25 +11,24 @@ interface CreditAccountsTableProps {
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
 
-  // Check if a cell is truly empty and should display "x"
-  const isCellEmpty = (value: any): boolean => {
-    return value === null || value === undefined || value === '';
-  };
-
-  // Function to render a cell value with proper formatting based on account type
-  const renderCellValue = (accountType: string, fieldName: string, value: any, formatter: (value: any) => string) => {
-    console.log(`Rendering cell for ${accountType} - ${fieldName}: ${value} (${typeof value})`);
-    
-    // If the value is empty (null, undefined, or empty string), show "x"
-    if (isCellEmpty(value)) {
-      console.log(`Empty cell detected for ${accountType} - ${fieldName}, displaying "x"`);
-      return "x";
+  // Check if a cell should display a value or "x"
+  const shouldDisplayValue = (value: any): boolean => {
+    // If the value is 0, we should display it as "0"
+    if (value === 0 || value === "0") {
+      return true;
     }
     
-    // For values that exist (including zero values), display them properly formatted
-    const formattedValue = formatter(value);
-    console.log(`Formatted value: ${formattedValue}`);
-    return formattedValue;
+    // Display value if it exists (not null/undefined/empty string)
+    return value !== null && value !== undefined && value !== '';
+  };
+
+  // Function to render a cell value with proper formatting based on data type
+  const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
+    console.log(`Rendering cell: ${fieldName} - value: ${value}`);
+    if (shouldDisplayValue(value)) {
+      return formatter(value);
+    }
+    return "x";
   };
 
   return (
@@ -47,26 +46,21 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
         </TableRow>
       </TableHeader>
       <TableBody>
-        {accountSummaries.map((summary) => {
-          console.log(`Rendering row for: ${summary.accountType}`, summary);
-          const isTotal = summary.accountType === 'Total';
-          
-          return (
-            <TableRow 
-              key={`account-summary-${summary.accountType}`} 
-              className={isTotal ? "font-medium bg-muted/30" : ""}
-            >
-              <TableCell className="font-medium">{summary.accountType}</TableCell>
-              <TableCell>{renderCellValue(summary.accountType, 'open', summary.open, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue(summary.accountType, 'withBalance', summary.withBalance, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue(summary.accountType, 'totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue(summary.accountType, 'available', summary.available, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue(summary.accountType, 'creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue(summary.accountType, 'debtToCredit', summary.debtToCredit, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue(summary.accountType, 'payment', summary.payment, formatDollarAmount)}</TableCell>
-            </TableRow>
-          );
-        })}
+        {accountSummaries.map((summary) => (
+          <TableRow 
+            key={`account-summary-${summary.accountType}`} 
+            className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
+          >
+            <TableCell className="font-medium">{summary.accountType}</TableCell>
+            <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
+            <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
+            <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
+            <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
+            <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
+            <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatAccountValue)}</TableCell>
+            <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
+          </TableRow>
+        ))}
       </TableBody>
     </Table>
   );

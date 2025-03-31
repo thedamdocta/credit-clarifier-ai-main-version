@@ -22,39 +22,24 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // First create a map of existing account summaries by type
   const summariesByType = new Map<string, AccountSummary>();
   
-  // Debug the incoming report data
-  console.log("Incoming account summaries:", report.accountSummaries);
-  
   if (report.accountSummaries && report.accountSummaries.length > 0) {
-    // Process all rows including Total
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        // Store the summary in our map, preserving all original values
-        summariesByType.set(summary.accountType, summary);
-        console.log(`Processing ${summary.accountType} account summary:`, summary);
+        // Preserve all values as they are in the report without special rules
+        summariesByType.set(summary.accountType, {
+          ...summary
+        });
       }
     });
   }
   
-  // Create our final list in the required order, creating empty entries for missing types
+  // Then create our final list in the required order, creating empty entries for missing types
   requiredAccountTypes.forEach(accountType => {
     const existingSummary = summariesByType.get(accountType);
     
     if (existingSummary) {
-      // For existing summaries, preserve all values but ensure nulls are kept as null
-      accountSummaries.push({
-        ...existingSummary,
-        // Ensure null values are preserved as null
-        open: existingSummary.open === undefined ? null : existingSummary.open,
-        withBalance: existingSummary.withBalance === undefined ? null : existingSummary.withBalance,
-        totalBalance: existingSummary.totalBalance === undefined ? null : existingSummary.totalBalance,
-        available: existingSummary.available === undefined ? null : existingSummary.available,
-        creditLimit: existingSummary.creditLimit === undefined ? null : existingSummary.creditLimit,
-        debtToCredit: existingSummary.debtToCredit === undefined ? null : existingSummary.debtToCredit,
-        payment: existingSummary.payment === undefined ? null : existingSummary.payment
-      });
+      accountSummaries.push(existingSummary);
     } else {
-      // For missing types, all values should be explicitly null to ensure they render as "x"
       accountSummaries.push({
         accountType,
         totalAccounts: null,
@@ -70,9 +55,6 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
       });
     }
   });
-  
-  // Log the final processed summaries
-  console.log("Final account summaries for display:", accountSummaries);
 
   return (
     <Card>
