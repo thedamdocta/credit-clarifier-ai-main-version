@@ -1,6 +1,7 @@
 
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
+import { parseAccountValueToNumber } from "@/utils/formatters/accountValueFormatters";
 
 export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
   console.log("Starting account summary extraction for table structure");
@@ -112,11 +113,13 @@ function extractAccountLine(lines: string[], accountType: string, accountSummari
   // Extract values that appear immediately after the account type name
   // These are typically the "Open" and "With Balance" columns
   if (tokens.length > accountTypeIndex + 1 && isNumericString(tokens[accountTypeIndex + 1])) {
-    accountSummary.open = tokens[accountTypeIndex + 1];
+    // Convert to number or null for the open property
+    accountSummary.open = parseAccountValueToNumber(tokens[accountTypeIndex + 1]);
   }
   
   if (tokens.length > accountTypeIndex + 2 && isNumericString(tokens[accountTypeIndex + 2])) {
-    accountSummary.withBalance = tokens[accountTypeIndex + 2];
+    // Convert to number or null for the withBalance property
+    accountSummary.withBalance = parseAccountValueToNumber(tokens[accountTypeIndex + 2]);
   }
   
   // Look for dollar amounts separately - they have $ prefixes

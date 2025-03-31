@@ -37,3 +37,22 @@ export const formatDollarAmount = (value: any): string => {
   
   return stringValue;
 };
+
+/**
+ * Parse account value to number or null
+ */
+export const parseAccountValueToNumber = (value: any): number | null => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  
+  // If it's already a number, return it
+  if (typeof value === 'number') {
+    return value;
+  }
+  
+  // Try to convert to a number
+  const stringValue = String(value);
+  const numericValue = parseInt(stringValue.replace(/[^0-9-]/g, ''), 10);
+  return isNaN(numericValue) ? null : numericValue;
+};
