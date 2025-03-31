@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,7 +36,7 @@ const Index = () => {
       
       toast({
         title: "Credit Report Processed",
-        description: parsedReport ? 
+        description: isAIEnabled && parsedReport ? 
           `Successfully processed your ${parsedReport.bureau} credit report with AI analysis.` :
           `Successfully processed your credit report.`,
       });
@@ -84,7 +85,7 @@ const Index = () => {
               <div className="mb-4 flex items-center justify-end">
                 <div className="flex items-center space-x-2">
                   <Brain className="h-4 w-4 text-primary" />
-                  <span className="text-sm">AI Analysis</span>
+                  <span className="text-sm">AI-First Analysis</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input 
                       type="checkbox" 
@@ -99,6 +100,7 @@ const Index = () => {
               <PDFUploader 
                 onPDFUploaded={handlePDFUploaded}
                 isProcessing={isProcessing}
+                useAI={isAIEnabled}
               />
             </CardContent>
           </Card>

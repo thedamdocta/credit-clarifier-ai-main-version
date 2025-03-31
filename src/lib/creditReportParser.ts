@@ -1,4 +1,5 @@
-import { enhanceCreditReportWithAI, extractSSNWithAI } from './aiTextAnalysis';
+
+import { enhanceCreditReportWithAI, extractSSNWithAI, parseWithAI } from './aiTextAnalysis';
 
 export interface Account {
   accountName: string;
@@ -245,7 +246,43 @@ export const extractAccounts = (text: string): Account[] => {
   return accounts;
 };
 
-export const parseCreditReport = async (text: string): Promise<CreditReport> => {
+export const parseCreditReport = async (text: string, useAIFirst = true): Promise<CreditReport> => {
+  // If AI-first approach is enabled, try that first
+  if (useAIFirst) {
+    try {
+      console.log("Using AI-first approach for parsing credit report...");
+      
+      // Get initial AI parsing results
+      const aiResults = await parseWithAI(text);
+      console.log("AI initial parsing complete");
+      
+      // Extract additional information using traditional methods
+      const accounts = extractAccounts(text);
+      const creditScores = extractCreditScores(text);
+      
+      // Combine AI results with traditional parsing for complete report
+      const combinedReport: CreditReport = {
+        bureau: aiResults.bureau || identifyBureau(text),
+        reportDate: aiResults.reportDate || extractDate(text),
+        personalInfo: aiResults.personalInfo || await extractPersonalInfo(text),
+        accounts,
+        inquiries: [],
+        publicRecords: [],
+        collections: [],
+        creditScores,
+        rawText: text
+      };
+      
+      console.log("AI-first parsing complete");
+      return combinedReport;
+    } catch (error) {
+      console.error("Error in AI-first parsing approach:", error);
+      console.log("Falling back to traditional parsing...");
+      // Fall back to traditional approach if AI fails
+    }
+  }
+  
+  // Traditional parsing approach (used as fallback or if AI-first is disabled)
   const bureau = identifyBureau(text);
   const reportDate = extractDate(text);
   const personalInfo = await extractPersonalInfo(text);

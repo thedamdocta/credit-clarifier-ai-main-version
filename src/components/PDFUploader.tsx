@@ -10,9 +10,10 @@ import { parseCreditReport } from "@/lib/creditReportParser";
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   isProcessing: boolean;
+  useAI: boolean;
 }
 
-const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }) => {
+const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing, useAI }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
@@ -56,12 +57,16 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
             extractedText += pageText + ' ';
           }
           
-          // Show AI processing toast
-          toast.info("Processing with AI analysis...");
+          // Show appropriate processing toast
+          if (useAI) {
+            toast.info("Processing with AI analysis...");
+          } else {
+            toast.info("Processing credit report...");
+          }
           
-          // Parse the report with AI enhancements
+          // Parse the report with or without AI-first approach
           try {
-            const parsedReport = await parseCreditReport(extractedText);
+            const parsedReport = await parseCreditReport(extractedText, useAI);
             
             clearInterval(progressInterval);
             setUploadProgress(100);
@@ -69,12 +74,16 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
             // Pass the extracted text, file, and parsed report to the parent component
             onPDFUploaded(file, extractedText, parsedReport);
             
-            toast.success("PDF successfully processed with AI analysis!");
+            if (useAI) {
+              toast.success("PDF successfully processed with AI analysis!");
+            } else {
+              toast.success("PDF successfully processed!");
+            }
           } catch (error) {
-            console.error("Error in AI processing:", error);
-            // Fall back to basic parsing
+            console.error("Error in processing:", error);
+            // Fall back to basic processing
             onPDFUploaded(file, extractedText);
-            toast.success("PDF processed (AI analysis unavailable)");
+            toast.success("PDF processed (analysis unavailable)");
           }
           
           // Reset progress after a delay
@@ -171,7 +180,9 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
             </div>
             <Progress value={uploadProgress} className="h-2" />
             <p className="text-sm text-center text-muted-foreground">
-              {uploadProgress < 100 ? "Processing PDF..." : "PDF processed successfully!"}
+              {uploadProgress < 100 ? 
+                (useAI ? "Processing PDF with AI..." : "Processing PDF...") : 
+                "PDF processed successfully!"}
             </p>
           </div>
         ) : (
@@ -191,12 +202,49 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
             </Button>
             <div className="mt-4 text-xs text-muted-foreground">
               Supports PDF files from Equifax, Experian, and TransUnion
+              {useAI && " with AI analysis"}
             </div>
           </>
         )}
       </div>
     </div>
   );
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type === "application/pdf") {
+        processPDF(file);
+      } else {
+        toast.error("Please upload a PDF file.");
+      }
+    }
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files.length > 0) {
+      processPDF(e.target.files[0]);
+    }
+  }
+
+  function triggerFileInput() {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }
 };
 
 export default PDFUploader;
