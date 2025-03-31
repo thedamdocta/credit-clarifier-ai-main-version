@@ -82,7 +82,7 @@ const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ account
             summariesWithData.map((summary, index) => (
               <TableRow 
                 key={index} 
-                className={summary.accountType === 'Total' ? 'bg-muted/30 font-semibold' : ''}
+                isHighlighted={summary.accountType === 'Total'}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
                 <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>

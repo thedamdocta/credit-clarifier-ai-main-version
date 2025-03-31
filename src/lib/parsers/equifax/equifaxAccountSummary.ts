@@ -24,37 +24,27 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
       return accountSummaries;
     }
     
-    // Find header row to determine column structure
-    const headerRow = findHeaderRow(tableSection);
-    if (headerRow) {
-      console.log("Found header row:", headerRow);
-      parsingLogger.logEvent("Found header row", { row: headerRow });
-    } else {
-      console.log("No header row found, using default column structure");
-      parsingLogger.logEvent("No header row found");
-    }
-    
     // Split the table into individual lines for better processing
     const tableLines = tableSection.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
     
     console.log("Processing table with", tableLines.length, "lines");
-    console.log("Processing account summaries individually for each account type");
     
-    // Get the actual table layout to determine possible formats
-    const tableFormat = determineTableFormat(tableLines);
-    
-    // Process each account type independently on different lines
+    // Process each account type with strict isolation
     for (const accountType of ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total']) {
       // Find index of this account type in our result array
       const summaryIndex = accountSummaries.findIndex(s => s.accountType === accountType);
       if (summaryIndex >= 0) {
-        // Look for a line that specifically contains this account type
-        const specificLine = findSpecificLineForAccountType(tableLines, accountType);
+        // Find a line that contains ONLY this account type
+        const specificLine = findExactLineForAccountType(tableLines, accountType);
+        
         if (specificLine) {
-          console.log(`Processing specific line for ${accountType}:`, specificLine);
-          extractDataFromLine(specificLine, accountSummaries[summaryIndex], accountType);
+          console.log(`Processing line for ${accountType}:`, specificLine);
+          // Extract data with strict null preservation
+          extractDataFromLine(specificLine, accountSummaries[summaryIndex]);
+        } else {
+          console.log(`No unique line found for ${accountType}, keeping all values null`);
         }
       }
     }
@@ -70,86 +60,89 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
 };
 
 /**
- * Find a line specifically for this account type, avoiding lines that contain multiple account types
+ * Find a line that contains EXACTLY this account type and nothing else
  */
-function findSpecificLineForAccountType(tableLines: string[], accountType: string): string | null {
-  // First priority: lines that contain this account type and don't contain other account types
+function findExactLineForAccountType(tableLines: string[], accountType: string): string | null {
   const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
-  const otherAccountTypes = accountTypes.filter(type => type !== accountType);
   
-  // Look for lines that contain just this account type
+  // First try: find lines containing ONLY this account type
   for (const line of tableLines) {
-    // Check if this line contains our target account type
-    const containsTargetType = new RegExp(`\\b${accountType}\\b`, 'i').test(line);
-    if (!containsTargetType) continue;
-    
-    // Check if line contains any other account types - if not, it's a perfect match
-    const containsOtherTypes = otherAccountTypes.some(type => 
-      new RegExp(`\\b${type}\\b`, 'i').test(line)
-    );
-    
-    if (!containsOtherTypes) {
-      return line; // Found a line with only our target account type
+    if (line.includes(accountType)) {
+      // Check if this line contains any other account types
+      const containsOtherTypes = accountTypes
+        .filter(type => type !== accountType)
+        .some(type => line.includes(type));
+      
+      if (!containsOtherTypes) {
+        return line; // Found an exact match
+      }
     }
   }
   
-  // Second priority: lines that contain this account type, even if they contain other types too
-  // This is a fallback if we can't find a clean line
+  // No exact match found, try for broader matches but only if it's clear
   for (const line of tableLines) {
-    if (new RegExp(`\\b${accountType}\\b`, 'i').test(line)) {
+    // Check if line starts with the account type (more likely to be a dedicated line)
+    if (line.trim().startsWith(accountType)) {
       return line;
     }
   }
   
+  // Still no match, so return null - we won't use fallbacks
   return null;
 }
 
 /**
- * Extract data from a line for a specific account type
+ * Extract data from a line for a specific account type, maintaining null values if not found
  */
-function extractDataFromLine(line: string, summary: AccountSummary, accountType: string): void {
+function extractDataFromLine(line: string, summary: AccountSummary): void {
+  // Get account type to find its position
+  const accountType = summary.accountType;
+  
   // Find where the account type appears in the line
-  const typeMatch = line.match(new RegExp(`\\b${accountType}\\b`, 'i'));
-  if (!typeMatch) return;
+  const typeIndex = line.indexOf(accountType);
+  if (typeIndex < 0) return; // Safety check
   
-  const startPos = typeMatch.index! + accountType.length;
-  const dataAfterType = line.substring(startPos);
+  // Get the substring after account type
+  const dataAfterType = line.substring(typeIndex + accountType.length).trim();
   
-  // Extract numeric values for Open, With Balance
-  const numericPattern = /\b(\d+)\b/g;
-  const numericMatches = [];
-  let match;
+  // Clean up the line by removing extra spaces
+  const cleanLine = dataAfterType.replace(/\s+/g, ' ');
   
-  while ((match = numericPattern.exec(dataAfterType)) !== null) {
-    numericMatches.push({
-      value: parseInt(match[1]),
-      position: match.index
-    });
+  // Split into tokens for easier processing
+  const tokens = cleanLine.split(' ');
+  
+  // Extract first two numeric values for 'open' and 'withBalance'
+  let numericCount = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (/^\d+$/.test(token)) {
+      if (numericCount === 0) {
+        summary.open = parseInt(token);
+        numericCount++;
+      } else if (numericCount === 1) {
+        summary.withBalance = parseInt(token);
+        break;
+      }
+    }
   }
   
-  // Assign the first two numeric values to open and withBalance if found
-  if (numericMatches.length >= 1) summary.open = numericMatches[0].value;
-  if (numericMatches.length >= 2) summary.withBalance = numericMatches[1].value;
-  
-  // Extract dollar amounts (both positive and negative)
+  // Extract dollar values (both positive and negative)
   const dollarPattern = /(-?\$[\d,]+|\$-[\d,]+)/g;
   const dollarMatches = [];
+  let match;
   
-  while ((match = dollarPattern.exec(dataAfterType)) !== null) {
-    dollarMatches.push({
-      value: match[0],
-      position: match.index
-    });
+  while ((match = dollarPattern.exec(line)) !== null) {
+    dollarMatches.push(match[0]);
   }
   
-  // Assign dollar values based on position in the line
-  if (dollarMatches.length >= 1) summary.totalBalance = dollarMatches[0].value;
-  if (dollarMatches.length >= 2) summary.available = dollarMatches[1].value;
-  if (dollarMatches.length >= 3) summary.creditLimit = dollarMatches[2].value;
-  if (dollarMatches.length >= 4) summary.payment = dollarMatches[3].value;
+  // Assign dollar values in the expected order (if found)
+  if (dollarMatches.length >= 1) summary.totalBalance = dollarMatches[0];
+  if (dollarMatches.length >= 2) summary.available = dollarMatches[1];
+  if (dollarMatches.length >= 3) summary.creditLimit = dollarMatches[2];
+  if (dollarMatches.length >= 4) summary.payment = dollarMatches[3];
   
   // Extract percentage (Debt-to-Credit)
-  const percentMatch = dataAfterType.match(/(\d+(?:\.\d+)?)\s*%/);
+  const percentMatch = line.match(/(\d+(?:\.\d+)?)\s*%/);
   if (percentMatch) {
     summary.debtToCredit = `${percentMatch[0].trim()}`;
   }
@@ -163,24 +156,6 @@ function extractDataFromLine(line: string, summary: AccountSummary, accountType:
     debtToCredit: summary.debtToCredit,
     payment: summary.payment
   });
-}
-
-/**
- * Determine the table format based on the lines
- */
-function determineTableFormat(tableLines: string[]): string {
-  // Look for header patterns to determine table format
-  for (const line of tableLines) {
-    if (line.includes('Account Type') && line.includes('Open') && line.includes('Balance')) {
-      if (line.includes('Available') && line.includes('Credit Limit')) {
-        return 'standard';
-      } else if (line.includes('Total Accounts')) {
-        return 'summary';
-      }
-    }
-  }
-  
-  return 'unknown';
 }
 
 // Help extract the relevant table section from the text
@@ -205,36 +180,5 @@ function extractTableSection(text: string): string | null {
     }
   }
   
-  // If we still don't have a match, try a more generic approach
-  if (!tableSection) {
-    // Look for a section containing all account types
-    const genericMatch = text.match(/((?:Revolving|Mortgage|Installment|Other|Total)[\s\S]+?(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report))/i);
-    if (genericMatch && genericMatch[1]) {
-      tableSection = genericMatch[1];
-      console.log("Found table section using generic approach");
-      parsingLogger.logEvent("Found table section using generic approach");
-    }
-  }
-  
   return tableSection;
-}
-
-function findHeaderRow(tableSection: string): string | null {
-  // Try to find the header row to understand column structure
-  const headerPatterns = [
-    /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i,
-    /Account\s+Type\s+Total\s+Accounts\s+Open\s+Closed\s+Balance/i,
-    /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available/i
-  ];
-  
-  for (const pattern of headerPatterns) {
-    const lines = tableSection.split('\n');
-    for (const line of lines) {
-      if (pattern.test(line.trim())) {
-        return line.trim();
-      }
-    }
-  }
-  
-  return null;
 }
