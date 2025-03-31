@@ -1,4 +1,3 @@
-
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -58,13 +57,12 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     console.log("Extracted column positions:", columns);
     
     // Process each account type individually by finding their specific lines
-    // Each account type is processed with its own isolated function to prevent
-    // cross-contamination of data extraction
+    // Process Total row first to ensure it gets the highest priority
+    processAccountType('Total', lines, accountSummaries, columns);
     processAccountType('Revolving', lines, accountSummaries, columns);
     processAccountType('Mortgage', lines, accountSummaries, columns);
     processAccountType('Installment', lines, accountSummaries, columns);
     processAccountType('Other', lines, accountSummaries, columns);
-    processAccountType('Total', lines, accountSummaries, columns);
     
     console.log("Account summaries extracted with isolated approach:", accountSummaries.length);
     console.log("Account summaries:", accountSummaries);
@@ -208,7 +206,7 @@ function processAccountType(
     }
     
     // Match only if line has this account type with clear word boundary
-    return new RegExp(`(?:^|\\s)${accountType}(?:\\s|$)`, 'i').test(line);
+    return new RegExp(`(?:^|\\s)${accountType}(?:\\s|$|\\t)`, 'i').test(line);
   });
   
   if (!accountLine) {
@@ -222,8 +220,18 @@ function processAccountType(
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
+  // Special debug for Total row
+  if (accountType === 'Total') {
+    console.log("Processing TOTAL row with extra debugging");
+  }
+  
   // Process the account line using cell by cell processing with empty cell detection
   processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
+  
+  // Additional debug for Total row after processing
+  if (accountType === 'Total') {
+    console.log("TOTAL row after processing:", accountSummary);
+  }
 }
 
 /**

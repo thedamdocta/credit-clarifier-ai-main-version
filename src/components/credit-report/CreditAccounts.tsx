@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
@@ -12,7 +13,7 @@ interface CreditAccountsProps {
 const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   
-  // Required account types in order - REMOVED Collection
+  // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
   // Create properly ordered account summaries with empty values for missing types
@@ -20,10 +21,11 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   
   // First create a map of existing account summaries by type
   const summariesByType = new Map<string, AccountSummary>();
+  
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        // Process account type-specific rules
+        // Only apply special rules to Mortgage and Other account types
         if (summary.accountType === 'Mortgage' || summary.accountType === 'Other') {
           // For Mortgage and Other, nullify all values except accountType to show "x"
           summariesByType.set(summary.accountType, {
@@ -40,21 +42,10 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             payment: null
           });
         } else {
-          // For all other types (Revolving, Installment, Total), preserve all existing values
-          // This ensures we keep the real values like "2" for Total
+          // For all other types (including Revolving, Installment, and Total), preserve all values
+          // This ensures we maintain values like "0" for Revolving and "2" for Total
           summariesByType.set(summary.accountType, {
-            ...summary,
-            // Only set to null if undefined/null, preserve 0 and other values
-            totalAccounts: summary.totalAccounts === undefined ? null : summary.totalAccounts,
-            open: summary.open === undefined ? null : summary.open,
-            closed: summary.closed === undefined ? null : summary.closed,
-            withBalance: summary.withBalance === undefined ? null : summary.withBalance,
-            balance: summary.balance === undefined ? null : summary.balance,
-            totalBalance: summary.totalBalance === undefined ? null : summary.totalBalance,
-            available: summary.available === undefined ? null : summary.available,
-            creditLimit: summary.creditLimit === undefined ? null : summary.creditLimit,
-            debtToCredit: summary.debtToCredit === undefined ? null : summary.debtToCredit,
-            payment: summary.payment === undefined ? null : summary.payment
+            ...summary
           });
         }
       }
