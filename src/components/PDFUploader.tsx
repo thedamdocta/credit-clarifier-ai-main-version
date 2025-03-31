@@ -209,42 +209,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing, 
       </div>
     </div>
   );
-
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setIsDragging(true);
-  }
-
-  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setIsDragging(false);
-  }
-
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setIsDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === "application/pdf") {
-        processPDF(file);
-      } else {
-        toast.error("Please upload a PDF file.");
-      }
-    }
-  }
-
-  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files && e.target.files.length > 0) {
-      processPDF(e.target.files[0]);
-    }
-  }
-
-  function triggerFileInput() {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  }
 };
 
 export default PDFUploader;
