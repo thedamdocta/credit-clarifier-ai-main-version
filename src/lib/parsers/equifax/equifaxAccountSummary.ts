@@ -57,15 +57,20 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     console.log("Extracted column positions:", columns);
     
     // Process each account type individually by finding their specific lines
-    // Process Total row first to ensure it gets the highest priority
-    processAccountType('Total', lines, accountSummaries, columns);
     processAccountType('Revolving', lines, accountSummaries, columns);
     processAccountType('Mortgage', lines, accountSummaries, columns);
     processAccountType('Installment', lines, accountSummaries, columns);
-    processAccountType('Other', lines, accountSummaries, columns);
+    processAccountType('Other', lines, accountSummaries, columns); 
+    
+    // Process Total row last so it doesn't get overridden
+    processAccountType('Total', lines, accountSummaries, columns);
+    
+    // Log all account summaries after processing
+    accountSummaries.forEach(summary => {
+      console.log(`Final ${summary.accountType} data:`, summary);
+    });
     
     console.log("Account summaries extracted with isolated approach:", accountSummaries.length);
-    console.log("Account summaries:", accountSummaries);
     parsingLogger.logEvent("Completed account summary extraction", { count: accountSummaries.length });
     return accountSummaries;
   } catch (error) {
@@ -210,7 +215,7 @@ function processAccountType(
   });
   
   if (!accountLine) {
-    console.log(`No line found for ${accountType}`);
+    console.log(`No line found for ${accountType}, keeping empty values (nulls)`);
     return;
   }
   
@@ -220,18 +225,14 @@ function processAccountType(
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Special debug for Total row
-  if (accountType === 'Total') {
-    console.log("Processing TOTAL row with extra debugging");
-  }
+  // Special debug for rows
+  console.log(`Processing ${accountType} row`);
   
   // Process the account line using cell by cell processing with empty cell detection
   processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
   
-  // Additional debug for Total row after processing
-  if (accountType === 'Total') {
-    console.log("TOTAL row after processing:", accountSummary);
-  }
+  // After processing log
+  console.log(`${accountType} row after processing:`, accountSummary);
 }
 
 /**
@@ -271,28 +272,29 @@ function processAccountLineWithColumnAwareness(
     // Extract content for this cell position
     const cellContent = extractCellContent(line, startPos, endPos);
     
-    // If cell is empty, make sure the value is null
-    if (!cellContent) {
-      if (key === 'open' || key === 'withBalance') {
-        accountSummary[key] = null;
-      } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
-        accountSummary[key] = null;
-      } else if (key === 'debtToCredit') {
-        accountSummary[key] = null;
-      }
+    // If cell is empty or can't be extracted, make sure the value is null
+    if (!cellContent || cellContent.trim() === '') {
+      accountSummary[key] = null;
+      console.log(`${accountSummary.accountType} - ${key}: Empty cell detected, setting to null`);
       continue;
     }
+    
+    // Log extracted content
+    console.log(`${accountSummary.accountType} - ${key}: Extracted content: "${cellContent}"`);
     
     // Process based on column type
     if (key === 'open' || key === 'withBalance') {
       const numericValue = extractNumericValue(cellContent);
       accountSummary[key] = numericValue;
+      console.log(`${accountSummary.accountType} - ${key}: Numeric value: ${numericValue}`);
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);
       accountSummary[key] = dollarValue;
+      console.log(`${accountSummary.accountType} - ${key}: Dollar value: ${dollarValue}`);
     } else if (key === 'debtToCredit') {
       const percentValue = extractPercentageValue(cellContent);
       accountSummary[key] = percentValue;
+      console.log(`${accountSummary.accountType} - ${key}: Percentage value: ${percentValue}`);
     }
   }
   

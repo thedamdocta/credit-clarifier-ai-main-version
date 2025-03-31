@@ -22,17 +22,18 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // First create a map of existing account summaries by type
   const summariesByType = new Map<string, AccountSummary>();
   
+  // Debug the incoming report data
+  console.log("Incoming account summaries:", report.accountSummaries);
+  
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        // Store all summary values exactly as they come from the data
-        // This preserves numbers like "0" for zeros and special values like "2" for totals
+        // Store the summary in our map, preserving null values
         summariesByType.set(summary.accountType, {
           ...summary
         });
         
-        // Additional logging for debugging
-        console.log(`Processing summary type: ${summary.accountType}`, summary);
+        console.log(`Processing ${summary.accountType} account summary:`, summary);
       }
     });
   }
@@ -42,8 +43,10 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     const existingSummary = summariesByType.get(accountType);
     
     if (existingSummary) {
+      // For existing summaries, use as is
       accountSummaries.push(existingSummary);
     } else {
+      // For missing types, all values should be explicitly null
       accountSummaries.push({
         accountType,
         totalAccounts: null,
@@ -59,6 +62,9 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
       });
     }
   });
+  
+  // Log the final processed summaries
+  console.log("Final account summaries for display:", accountSummaries);
 
   return (
     <Card>

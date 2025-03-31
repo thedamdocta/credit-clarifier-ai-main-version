@@ -11,19 +11,21 @@ interface CreditAccountsTableProps {
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
 
-  // Enhanced check to display value or "x"
+  // Check if a value exists and should display a real value (not "x")
   const shouldDisplayValue = (value: any): boolean => {
-    // Special handling for numeric zero - always display it
+    // Special handling for numeric zero - display it as "0"
     if (value === 0 || value === "0") {
       console.log("Found zero value, displaying as 0");
       return true;
     }
     
-    // Display value if it exists (not null/undefined/empty string)
-    return value !== null && value !== undefined && value !== '';
+    // For all other cases, only show value if it actually exists
+    const hasValue = value !== null && value !== undefined && value !== '';
+    console.log(`Value check: ${value} - has value: ${hasValue}`);
+    return hasValue;
   };
 
-  // Function to render a cell value with proper formatting based on data type
+  // Function to render a cell value with proper formatting
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     console.log(`Rendering cell: ${fieldName} - value: ${value} - type: ${typeof value}`);
     
@@ -33,7 +35,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
       return formattedValue;
     }
     
-    console.log(`Value doesn't meet display criteria, showing "x"`);
+    console.log(`Value doesn't meet display criteria, showing "x" for ${fieldName}`);
     return "x";
   };
 
