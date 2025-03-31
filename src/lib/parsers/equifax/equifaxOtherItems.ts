@@ -18,10 +18,10 @@ export const extractEquifaxOtherItems = (text: string): {
   
   // Extract consumer name - try different patterns
   const namePatterns = [
-    /Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
-    /Consumer\s*Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
-    /Report\s+for\s+([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
-    /CONSUMER\s*NAME:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i
+    /Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
+    /Consumer\s*Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
+    /Report\s+for\s+([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
+    /CONSUMER\s*NAME:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i
   ];
   
   // Try each name pattern
@@ -48,25 +48,38 @@ export const extractEquifaxOtherItems = (text: string): {
     }
   }
   
-  // Clean the consumer name - extract just the primary name without extras
+  // Clean the consumer name - extract ONLY the primary name
   if (consumerName) {
-    // Remove "Formerly known as" and anything after it
-    consumerName = consumerName.replace(/\s+formerly\s+known\s+as\s+.*$/i, '');
+    // Remove everything after any of these phrases/characters
+    const cutoffPhrases = [
+      'formerly known as',
+      'social security',
+      'ssn',
+      'aka',
+      'fka',
+      'dba',
+      ' - ',
+      ' / ',
+      'report'
+    ];
     
-    // Remove SSN information if present
-    consumerName = consumerName.replace(/\s+social\s+security\s+number.*$/i, '');
-    
-    // Extract just first part of name if it contains multiple names separated by special markers
-    const namePartSeparators = [' AKA ', ' FKA ', ' DBA ', ' - '];
-    for (const separator of namePartSeparators) {
-      if (consumerName.includes(separator)) {
-        consumerName = consumerName.split(separator)[0].trim();
+    for (const phrase of cutoffPhrases) {
+      const index = consumerName.toLowerCase().indexOf(phrase);
+      if (index > 0) {
+        consumerName = consumerName.substring(0, index).trim();
       }
     }
     
-    // Keep only first 30 characters if it's very long
-    if (consumerName.length > 30) {
-      consumerName = consumerName.substring(0, 30);
+    // Remove any additional text in parentheses
+    consumerName = consumerName.replace(/\s*\([^)]*\)/g, '');
+    
+    // Remove any trailing punctuation
+    consumerName = consumerName.replace(/[.,;:\s]+$/g, '').trim();
+    
+    // Extract only the first 2-3 words (likely first, middle initial, last name)
+    const nameParts = consumerName.split(/\s+/);
+    if (nameParts.length > 3) {
+      consumerName = nameParts.slice(0, 3).join(' ');
     }
   }
   
