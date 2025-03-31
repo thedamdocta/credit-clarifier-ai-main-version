@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
@@ -25,13 +24,21 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
         // Clean up the data based on the account type
-        if (summary.accountType === 'Revolving' || summary.accountType === 'Total') {
-          // For Revolving and Total, make open and withBalance null to show "x"
-          summariesByType.set(summary.accountType, {
+        if (summary.accountType === 'Revolving') {
+          // For Revolving, preserve actual values but some fields will be marked "x" in the table
+          const revolving = {
             ...summary,
-            open: null,
-            withBalance: null
-          });
+            // Preserve actual values, including zeros
+            totalAccounts: summary.totalAccounts,
+            open: summary.open,
+            withBalance: summary.withBalance,
+            totalBalance: summary.totalBalance,
+            available: summary.available,
+            creditLimit: summary.creditLimit,
+            debtToCredit: summary.debtToCredit,
+            payment: summary.payment,
+          };
+          summariesByType.set(summary.accountType, revolving);
         } else if (summary.accountType === 'Mortgage' || summary.accountType === 'Other') {
           // For Mortgage and Other, nullify all values except accountType to show "x"
           summariesByType.set(summary.accountType, {
@@ -47,7 +54,24 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             debtToCredit: null,
             payment: null
           });
+        } else if (summary.accountType === 'Total') {
+          // For Total, keep certain values and x-out others
+          const total = {
+            ...summary,
+            // These will show as "x" in the table but we keep real values
+            totalAccounts: summary.totalAccounts,
+            open: summary.open,
+            withBalance: summary.withBalance,
+            // These show the actual values
+            totalBalance: summary.totalBalance,
+            available: summary.available,
+            creditLimit: summary.creditLimit,
+            debtToCredit: summary.debtToCredit,
+            payment: summary.payment,
+          };
+          summariesByType.set(summary.accountType, total);
         } else {
+          // For other types like Installment, keep all values as is
           summariesByType.set(summary.accountType, summary);
         }
       }

@@ -10,30 +10,37 @@ interface CreditAccountsTableProps {
 
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   // Check if a cell should display a value or "x"
+  // This is now account-type and field-specific based on examples
   const shouldDisplayValue = (accountType: string, fieldName: string, value: any): boolean => {
-    // From logs we can see Revolving and Total rows should have "x" for most fields
-    if ((accountType === 'Revolving' || accountType === 'Total') && 
-        fieldName !== 'accountType' && 
-        fieldName !== 'totalBalance' && 
-        fieldName !== 'available' && 
-        fieldName !== 'creditLimit' && 
-        fieldName !== 'debtToCredit' && 
-        fieldName !== 'payment') {
-      return false;
-    }
-    
-    // Also for mortgage row, check if it should be "x"
-    if (accountType === 'Mortgage' && 
+    // Mortgage and Other rows always show "x" for all fields except the account type
+    if ((accountType === 'Mortgage' || accountType === 'Other') && 
         fieldName !== 'accountType') {
       return false;
     }
     
-    // For other rows, check if value exists
-    if (accountType === 'Other' && 
-        fieldName !== 'accountType') {
-      return false;
+    // Revolving row displays "x" for open and withBalance (based on first example)
+    // But shows values for financial amounts
+    if (accountType === 'Revolving') {
+      if (fieldName === 'open' || fieldName === 'withBalance') {
+        // Example 1 shows "x", Example 2 shows "0"
+        // Since we can't determine which to use without context, we'll:
+        // Display the actual value if it exists and isn't null/undefined
+        return value !== null && value !== undefined && value !== '';
+      }
     }
     
+    // Total row displays "x" for open and withBalance columns
+    if (accountType === 'Total') {
+      if (fieldName === 'open' || fieldName === 'withBalance') {
+        // For these fields, check if we should display x
+        // Example 1 shows "x", Example 2 shows "2"
+        // Since we can't determine which to use without context, we'll:
+        // Display the actual value if it exists and isn't null/undefined
+        return value !== null && value !== undefined && value !== '';
+      }
+    }
+    
+    // Default behavior: show value if it exists (including 0)
     return value !== null && value !== undefined && value !== '';
   };
 
