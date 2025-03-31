@@ -9,6 +9,14 @@ interface CreditAccountsTableProps {
 }
 
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
+  // Function to render a cell value with proper formatting based on data type
+  const renderCellValue = (value: any, formatter: (value: any) => string) => {
+    if (!hasDisplayValue(value)) {
+      return "";
+    }
+    return formatter(value);
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -30,13 +38,13 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
             className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
           >
             <TableCell className="font-medium">{summary.accountType}</TableCell>
-            <TableCell>{hasDisplayValue(summary.open) ? formatAccountValue(summary.open) : ""}</TableCell>
-            <TableCell>{hasDisplayValue(summary.withBalance) ? formatAccountValue(summary.withBalance) : ""}</TableCell>
-            <TableCell>{hasDisplayValue(summary.totalBalance) ? formatDollarAmount(summary.totalBalance) : ""}</TableCell>
-            <TableCell>{hasDisplayValue(summary.available) ? formatDollarAmount(summary.available) : ""}</TableCell>
-            <TableCell>{hasDisplayValue(summary.creditLimit) ? formatDollarAmount(summary.creditLimit) : ""}</TableCell>
-            <TableCell>{hasDisplayValue(summary.debtToCredit) ? formatAccountValue(summary.debtToCredit) : ""}</TableCell>
-            <TableCell>{hasDisplayValue(summary.payment) ? formatDollarAmount(summary.payment) : ""}</TableCell>
+            <TableCell>{renderCellValue(summary.open, formatAccountValue)}</TableCell>
+            <TableCell>{renderCellValue(summary.withBalance, formatAccountValue)}</TableCell>
+            <TableCell>{renderCellValue(summary.totalBalance, formatDollarAmount)}</TableCell>
+            <TableCell>{renderCellValue(summary.available, formatDollarAmount)}</TableCell>
+            <TableCell>{renderCellValue(summary.creditLimit, formatDollarAmount)}</TableCell>
+            <TableCell>{renderCellValue(summary.debtToCredit, formatAccountValue)}</TableCell>
+            <TableCell>{renderCellValue(summary.payment, formatDollarAmount)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

@@ -1,7 +1,13 @@
 
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
-import { formatAccountValue } from "@/utils/formatters/accountValueFormatters";
+import { 
+  formatAccountValue, 
+  extractCellContent, 
+  extractNumericValue, 
+  extractDollarValue, 
+  extractPercentageValue 
+} from "@/utils/formatters/accountValueFormatters";
 
 export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
   console.log("Starting account summary extraction with isolated row processing");
@@ -51,12 +57,14 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     
     console.log("Extracted column positions:", columns);
     
-    // Process each account type with completely isolated extraction functions
-    extractRevolvingAccount(lines, accountSummaries, columns);
-    extractMortgageAccount(lines, accountSummaries, columns);
-    extractInstallmentAccount(lines, accountSummaries, columns);
-    extractOtherAccount(lines, accountSummaries, columns);
-    extractTotalAccount(lines, accountSummaries, columns);
+    // Process each account type individually by finding their specific lines
+    // Each account type is processed with its own isolated function to prevent
+    // cross-contamination of data extraction
+    processAccountType('Revolving', lines, accountSummaries, columns);
+    processAccountType('Mortgage', lines, accountSummaries, columns);
+    processAccountType('Installment', lines, accountSummaries, columns);
+    processAccountType('Other', lines, accountSummaries, columns);
+    processAccountType('Total', lines, accountSummaries, columns);
     
     console.log("Account summaries extracted with isolated approach:", accountSummaries.length);
     console.log("Account summaries:", accountSummaries);
@@ -178,28 +186,29 @@ function extractColumnPositions(headerLine: string): Record<string, number> {
     }
   }
   
-  // Convert to ordered positions array to help with empty cell detection
-  const positions = Object.values(columns).sort((a, b) => a - b);
-  
   return columns;
 }
 
 /**
- * Isolated extraction function specifically for Revolving accounts
+ * Process a specific account type by searching for its line in the data
  */
-function extractRevolvingAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
-  console.log("Extracting Revolving account line");
-  const accountType = 'Revolving';
+function processAccountType(
+  accountType: string,
+  lines: string[],
+  accountSummaries: AccountSummary[],
+  columns: Record<string, number>
+): void {
+  console.log(`Processing ${accountType} account line`);
   
-  // Find the line that specifically contains just Revolving as a word
+  // Find the line that specifically contains this account type as a word
   const accountLine = lines.find(line => {
     // Skip the header line
     if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
       return false;
     }
     
-    // Match only if line has Revolving with clear word boundary
-    return /(?:^|\s)Revolving(?:\s|$)/i.test(line);
+    // Match only if line has this account type with clear word boundary
+    return new RegExp(`(?:^|\\s)${accountType}(?:\\s|$)`, 'i').test(line);
   });
   
   if (!accountLine) {
@@ -213,326 +222,79 @@ function extractRevolvingAccount(lines: string[], accountSummaries: AccountSumma
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
   if (!accountSummary) return;
   
-  // Extract all cell values from the row
-  extractCellValuesFromRow(accountLine, accountSummary, columns);
-  
-  console.log(`Processed ${accountType}:`, accountSummary);
+  // Process the account line using cell by cell processing with empty cell detection
+  processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
 }
 
 /**
- * Isolated extraction function specifically for Mortgage accounts
+ * Process an account line using column-by-column cell extraction with 
+ * enhanced empty space detection
  */
-function extractMortgageAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
-  console.log("Extracting Mortgage account line");
-  const accountType = 'Mortgage';
-  
-  // Find the line that specifically contains just Mortgage as a word
-  const accountLine = lines.find(line => {
-    // Skip the header line
-    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
-      return false;
-    }
-    
-    // Match only if line has Mortgage with clear word boundary
-    return /(?:^|\s)Mortgage(?:\s|$)/i.test(line);
-  });
-  
-  if (!accountLine) {
-    console.log(`No line found for ${accountType}`);
-    return;
-  }
-  
-  console.log(`Found line for ${accountType}:`, accountLine);
-  
-  // Find this account type in our summary array
-  const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
-  if (!accountSummary) return;
-  
-  // Extract all cell values from the row
-  extractCellValuesFromRow(accountLine, accountSummary, columns);
-  
-  console.log(`Processed ${accountType}:`, accountSummary);
-}
-
-/**
- * Isolated extraction function specifically for Installment accounts
- */
-function extractInstallmentAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
-  console.log("Extracting Installment account line");
-  const accountType = 'Installment';
-  
-  // Find the line that specifically contains just Installment as a word
-  const accountLine = lines.find(line => {
-    // Skip the header line
-    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
-      return false;
-    }
-    
-    // Match only if line has Installment with clear word boundary
-    return /(?:^|\s)Installment(?:\s|$)/i.test(line);
-  });
-  
-  if (!accountLine) {
-    console.log(`No line found for ${accountType}`);
-    return;
-  }
-  
-  console.log(`Found line for ${accountType}:`, accountLine);
-  
-  // Find this account type in our summary array
-  const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
-  if (!accountSummary) return;
-  
-  // Extract all cell values from the row
-  extractCellValuesFromRow(accountLine, accountSummary, columns);
-  
-  console.log(`Processed ${accountType}:`, accountSummary);
-}
-
-/**
- * Isolated extraction function specifically for Other accounts
- */
-function extractOtherAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
-  console.log("Extracting Other account line");
-  const accountType = 'Other';
-  
-  // Find the line that specifically contains just Other as a word
-  const accountLine = lines.find(line => {
-    // Skip the header line
-    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
-      return false;
-    }
-    
-    // Match only if line has Other with clear word boundary
-    return /(?:^|\s)Other(?:\s|$)/i.test(line);
-  });
-  
-  if (!accountLine) {
-    console.log(`No line found for ${accountType}`);
-    return;
-  }
-  
-  console.log(`Found line for ${accountType}:`, accountLine);
-  
-  // Find this account type in our summary array
-  const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
-  if (!accountSummary) return;
-  
-  // Extract all cell values from the row
-  extractCellValuesFromRow(accountLine, accountSummary, columns);
-  
-  console.log(`Processed ${accountType}:`, accountSummary);
-}
-
-/**
- * Isolated extraction function specifically for Total line
- */
-function extractTotalAccount(lines: string[], accountSummaries: AccountSummary[], columns: Record<string, number>): void {
-  console.log("Extracting Total account line");
-  const accountType = 'Total';
-  
-  // Find the line that specifically contains just Total as a word
-  const accountLine = lines.find(line => {
-    // Skip the header line
-    if (line.toLowerCase().includes('account type') && line.toLowerCase().includes('with balance')) {
-      return false;
-    }
-    
-    // Match only if line has Total with clear word boundary
-    return /(?:^|\s)Total(?:\s|$)/i.test(line);
-  });
-  
-  if (!accountLine) {
-    console.log(`No line found for ${accountType}`);
-    return;
-  }
-  
-  console.log(`Found line for ${accountType}:`, accountLine);
-  
-  // Find this account type in our summary array
-  const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
-  if (!accountSummary) return;
-  
-  // Extract all cell values from the row
-  extractCellValuesFromRow(accountLine, accountSummary, columns);
-  
-  console.log(`Processed ${accountType}:`, accountSummary);
-}
-
-/**
- * Extract all cell values from a row based on column positions
- * This new approach analyzes the spaces between values to detect empty cells
- */
-function extractCellValuesFromRow(line: string, accountSummary: AccountSummary, columns: Record<string, number>): void {
-  // Ensure we have the full line to work with
-  if (!line || line.length < 10) return;
-  
-  try {
-    // Get sorted column positions
-    const sortedColumnKeys = Object.keys(columns).sort(
-      (a, b) => columns[a] - columns[b]
-    );
-    const columnPositions = sortedColumnKeys.map(key => columns[key]);
-    
-    console.log("Processing row with column positions:", columnPositions);
-    
-    // First, extract account type (already done during row selection)
-    // Then extract numeric values column by column
-    
-    // Extract Open value (check for spacing before the next value)
-    accountSummary.open = extractNumericValueFromPositionWithSpacing(
-      line, columns.open, columns.withBalance
-    );
-    
-    // Extract With Balance value
-    accountSummary.withBalance = extractNumericValueFromPositionWithSpacing(
-      line, columns.withBalance, columns.totalBalance
-    );
-    
-    // For dollar amount columns with awareness of empty cells
-    accountSummary.totalBalance = extractDollarValueWithEmptyDetection(
-      line, columns.totalBalance, columns.available
-    );
-    
-    accountSummary.available = extractDollarValueWithEmptyDetection(
-      line, columns.available, columns.creditLimit
-    );
-    
-    accountSummary.creditLimit = extractDollarValueWithEmptyDetection(
-      line, columns.creditLimit, columns.debtToCredit
-    );
-    
-    accountSummary.payment = extractDollarValueWithEmptyDetection(
-      line, columns.payment, undefined
-    );
-    
-    // For percentage column with empty detection
-    accountSummary.debtToCredit = extractPercentageValueWithEmptyDetection(
-      line, columns.debtToCredit, columns.payment
-    );
-    
-    console.log("Extracted values for row:", {
-      open: accountSummary.open,
-      withBalance: accountSummary.withBalance,
-      totalBalance: accountSummary.totalBalance,
-      available: accountSummary.available,
-      creditLimit: accountSummary.creditLimit,
-      debtToCredit: accountSummary.debtToCredit,
-      payment: accountSummary.payment
-    });
-  } catch (error) {
-    console.error("Error extracting values from row:", error);
-  }
-}
-
-/**
- * Extract a numeric value from a position with awareness of spacing
- * This helps detect if a cell might be empty based on spacing
- */
-function extractNumericValueFromPositionWithSpacing(
+function processAccountLineWithColumnAwareness(
   line: string, 
-  startPos: number, 
-  endPos?: number
-): string | null {
-  if (startPos === undefined || startPos < 0) return null;
+  accountSummary: AccountSummary, 
+  columns: Record<string, number>
+): void {
+  // Check all column positions in order to ensure proper extraction
+  const columnKeys = [
+    'accountType', 'open', 'withBalance', 'totalBalance', 
+    'available', 'creditLimit', 'debtToCredit', 'payment'
+  ];
   
-  try {
-    // Get the portion of the line for this cell
-    const substring = endPos !== undefined ? 
-      line.substring(startPos, endPos).trim() : 
-      line.substring(startPos).trim();
-    
-    // If the cell space is completely empty or only has whitespace
-    if (substring.length === 0) return null;
-    
-    // Look for a number pattern with word boundaries to isolate just the number
-    const match = substring.match(/\b(\d+)\b/);
-    if (match && match[1]) {
-      return match[1];
-    }
-    
-    // If no clear number with boundaries, try a more lenient approach
-    const lenientMatch = substring.match(/(\d+)/);
-    if (lenientMatch && lenientMatch[1]) {
-      return lenientMatch[1];
-    }
-  } catch (error) {
-    console.error("Error extracting numeric value with spacing awareness:", error);
-  }
+  // Get column positions in the order they appear in the text
+  const sortedColumnKeys = columnKeys.sort((a, b) => {
+    const posA = columns[a] || 999;
+    const posB = columns[b] || 999;
+    return posA - posB;
+  });
   
-  return null;
-}
-
-/**
- * Extract a dollar value with enhanced empty cell detection
- */
-function extractDollarValueWithEmptyDetection(
-  line: string, 
-  startPos: number, 
-  endPos?: number
-): string | null {
-  if (startPos === undefined || startPos < 0) return null;
-  
-  try {
-    // Get the portion of the line for this cell
-    const substring = endPos !== undefined ? 
-      line.substring(startPos, endPos).trim() : 
-      line.substring(startPos).trim();
+  // Process each column in order, checking for empty cells
+  for (let i = 0; i < sortedColumnKeys.length; i++) {
+    const key = sortedColumnKeys[i];
+    const nextKey = i < sortedColumnKeys.length - 1 ? sortedColumnKeys[i + 1] : null;
     
-    // If the cell space is completely empty or only has whitespace
-    if (substring.length === 0) return null;
+    // Skip accountType as it's already set
+    if (key === 'accountType') continue;
     
-    // Check if there's any dollar sign in this cell section
-    if (!substring.includes('$')) return null;
+    // Get the position range for this column
+    const startPos = columns[key];
+    const endPos = nextKey ? columns[nextKey] : undefined;
     
-    // Match dollar patterns for both positive and negative values
-    // Handles both -$XXX and $-XXX formats for negative values
-    const match = substring.match(/(-?\$[\d,.]+|\$-[\d,.]+)/);
-    if (match && match[1]) {
-      // Normalize negative format to -$XXX
-      let value = match[1];
-      if (value.startsWith('$-')) {
-        value = `-$${value.substring(2)}`;
+    // Extract content for this cell position
+    const cellContent = extractCellContent(line, startPos, endPos);
+    
+    // If cell is empty, make sure the value is null
+    if (!cellContent) {
+      if (key === 'open' || key === 'withBalance') {
+        accountSummary[key] = null;
+      } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
+        accountSummary[key] = null;
+      } else if (key === 'debtToCredit') {
+        accountSummary[key] = null;
       }
-      return value;
+      continue;
     }
-  } catch (error) {
-    console.error("Error extracting dollar value with empty detection:", error);
+    
+    // Process based on column type
+    if (key === 'open' || key === 'withBalance') {
+      const numericValue = extractNumericValue(cellContent);
+      accountSummary[key] = numericValue;
+    } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
+      const dollarValue = extractDollarValue(cellContent);
+      accountSummary[key] = dollarValue;
+    } else if (key === 'debtToCredit') {
+      const percentValue = extractPercentageValue(cellContent);
+      accountSummary[key] = percentValue;
+    }
   }
   
-  return null;
-}
-
-/**
- * Extract a percentage value with enhanced empty cell detection
- */
-function extractPercentageValueWithEmptyDetection(
-  line: string, 
-  startPos: number, 
-  endPos?: number
-): string | null {
-  if (startPos === undefined || startPos < 0) return null;
-  
-  try {
-    // Get the portion of the line for this cell
-    const substring = endPos !== undefined ? 
-      line.substring(startPos, endPos).trim() : 
-      line.substring(startPos).trim();
-    
-    // If the cell space is completely empty or only has whitespace
-    if (substring.length === 0) return null;
-    
-    // Check if there's any percentage sign in this cell section
-    if (!substring.includes('%')) return null;
-    
-    // Extract percentage value
-    const match = substring.match(/([\d.]+%)/);
-    if (match && match[1]) {
-      return match[1];
-    }
-  } catch (error) {
-    console.error("Error extracting percentage value with empty detection:", error);
-  }
-  
-  return null;
+  console.log(`Processed values for ${accountSummary.accountType}:`, {
+    open: accountSummary.open,
+    withBalance: accountSummary.withBalance,
+    totalBalance: accountSummary.totalBalance,
+    available: accountSummary.available,
+    creditLimit: accountSummary.creditLimit,
+    debtToCredit: accountSummary.debtToCredit,
+    payment: accountSummary.payment
+  });
 }
