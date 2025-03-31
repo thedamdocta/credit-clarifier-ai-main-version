@@ -34,6 +34,22 @@ export const extractEquifaxSummary = async (text: string): Promise<{
       enhancedSummary.accountsWithNegativeInfo = String(enhancedSummary.accountsWithNegativeInfo);
     }
     
+    // Improved extraction for credit file status
+    if (!enhancedSummary.creditFileStatus) {
+      const noFraudPattern = /no\s+fraud\s+indicator\s+on\s+file/i;
+      const noFraudMatch = text.match(noFraudPattern);
+      if (noFraudMatch) {
+        enhancedSummary.creditFileStatus = "No fraud indicator on file";
+      } else {
+        // Look for Credit File Status directly
+        const fileStatusPattern = /credit\s+file\s+status[:\s]*([^.\n]+)/i;
+        const fileStatusMatch = text.match(fileStatusPattern);
+        if (fileStatusMatch && fileStatusMatch[1]) {
+          enhancedSummary.creditFileStatus = fileStatusMatch[1].trim();
+        }
+      }
+    }
+    
     // If AI extraction was successful, return the enhanced summary
     if (Object.keys(enhancedSummary).length > 0) {
       console.log("AI summary extraction successful");
@@ -100,7 +116,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     }
     
     // Extract Oldest Account - pattern: Oldest Account DEPT OF ED/AIDVANTAGE (Opened Dec 15, 2011)
-    const oldestAccountPattern = /Oldest\s+Account\s+([\w\s/]+)\s+\(Opened\s+([^)]+)\)/i;
+    const oldestAccountPattern = /Oldest\s+Account\s+([\w\s\/]+)\s+\(Opened\s+([^)]+)\)/i;
     const oldestAccountMatch = text.match(oldestAccountPattern);
     if (oldestAccountMatch && oldestAccountMatch[1] && oldestAccountMatch[2]) {
       summary.oldestAccount = {
@@ -110,7 +126,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     }
     
     // Extract Most Recent Account - pattern: Most Recent Account AMERICAN CREDIT ACCEPTANCE (Opened Jul 12, 2023)
-    const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account\s+([\w\s/]+)\s+\(Opened\s+([^)]+)\)/i;
+    const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account\s+([\w\s\/]+)\s+\(Opened\s+([^)]+)\)/i;
     const recentAccountMatch = text.match(recentAccountPattern);
     if (recentAccountMatch && recentAccountMatch[1] && recentAccountMatch[2]) {
       summary.recentAccount = {

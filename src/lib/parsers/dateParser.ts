@@ -2,26 +2,32 @@
 export const extractDate = (text: string): string => {
   // Define an array of patterns to try, in order of preference
   const datePatterns = [
-    // Look for explicit report dates first
-    /report date:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
-    /report date:?\s*(\w+\s+\d{1,2},\s+\d{4})/i,
+    // Look for explicit report dates first with month names (Dec 27, 2024)
+    /report\s+date\s*:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i,
+    
+    // Look for numeric formats (MM/DD/YYYY)
+    /report\s+date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+    
+    // More general date formats near "Report Date" text
+    /Report\s+Date.*?((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i,
     
     // Then try date issued patterns
-    /date issued:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
-    /date issued:?\s*(\w+\s+\d{1,2},\s+\d{4})/i,
+    /date\s+issued\s*:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i,
+    /date\s+issued\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
     
     // Then try as of dates
-    /as of:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
-    /as of:?\s*(\w+\s+\d{1,2},\s+\d{4})/i,
+    /as\s+of\s*:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i,
+    /as\s+of\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
     
-    // Then look for dates near "report" or "credit report"
-    /(?:report|credit report).*?(\d{1,2}\/\d{1,2}\/\d{4})/i,
-    /(?:report|credit report).*?(\w+\s+\d{1,2},\s+\d{4})/i,
+    // Look for REF-D | Dec 27, 2024 pattern (common in Equifax reports)
+    /(?:REF-D|REF-D)\s+REF-D\s+\|\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i,
+    
+    // Newly added: look for date near the top of the document with "Page X of Y" pattern
+    /Page\s+\d+\s+of\s+\d+\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i,
     
     // Finally, try any dates in specific formats as a fallback
     /(\d{1,2}\/\d{1,2}\/\d{4})/,
-    /(\d{1,2}\/\d{1,2}\/\d{2})/,
-    /(\w+\s+\d{1,2},\s+\d{4})/i
+    /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i
   ];
   
   // Try to isolate the header section for more accurate date extraction
@@ -49,14 +55,7 @@ export const extractDate = (text: string): string => {
   for (const pattern of datePatterns) {
     const match = headerSection.match(pattern);
     if (match && match[1]) {
-      // Format the date if it's in MM/DD/YY format to MM/DD/YYYY
-      if (match[1].match(/^\d{1,2}\/\d{1,2}\/\d{2}$/)) {
-        const parts = match[1].split('/');
-        const year = parseInt(parts[2]);
-        const fullYear = year < 50 ? 2000 + year : 1900 + year;
-        return `${parts[0]}/${parts[1]}/${fullYear}`;
-      }
-      return match[1];
+      return match[1].trim();
     }
   }
   
@@ -64,17 +63,17 @@ export const extractDate = (text: string): string => {
   for (const pattern of datePatterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
-      // Format the date if it's in MM/DD/YY format to MM/DD/YYYY
-      if (match[1].match(/^\d{1,2}\/\d{1,2}\/\d{2}$/)) {
-        const parts = match[1].split('/');
-        const year = parseInt(parts[2]);
-        const fullYear = year < 50 ? 2000 + year : 1900 + year;
-        return `${parts[0]}/${parts[1]}/${fullYear}`;
-      }
-      return match[1];
+      return match[1].trim();
     }
   }
   
-  // If all else fails, return today's date
+  // If all else fails, look for any date with common Equifax report format
+  const equifaxDatePattern = /EQUIFAX\s+INC\s+\(\d+\)\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+  const equifaxMatch = text.match(equifaxDatePattern);
+  if (equifaxMatch && equifaxMatch[1]) {
+    return equifaxMatch[1].trim();
+  }
+  
+  // Last resort: return today's date
   return new Date().toLocaleDateString();
 };

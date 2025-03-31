@@ -38,14 +38,37 @@ export const extractReportSummaryWithAI = async (text: string): Promise<Partial<
       const fraudMatch = summarySection.match(fraudPattern) || text.match(fraudPattern);
       if (fraudMatch) {
         summaryData.creditFileStatus = "No fraud indicator on file";
+        console.log("Found 'No fraud indicator on file'");
       }
     }
     
-    // Report Date - look for a date format following "Report Date" label
-    const reportDateMatch = summarySection.match(/Report\s*Date\s*:?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
-    if (reportDateMatch && reportDateMatch[1]) {
-      summaryData.reportDate = reportDateMatch[1].trim();
-      console.log("Extracted report date:", summaryData.reportDate);
+    // Report Date - look for different date format patterns
+    const reportDatePatterns = [
+      // Look for Dec 27, 2024 format
+      /Report\s*Date\s*:?\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i,
+      // Look for MM/DD/YYYY format
+      /Report\s*Date\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i,
+    ];
+    
+    // Try each pattern
+    for (const pattern of reportDatePatterns) {
+      const reportDateMatch = summarySection.match(pattern) || text.match(pattern);
+      if (reportDateMatch && reportDateMatch[1]) {
+        summaryData.reportDate = reportDateMatch[1].trim();
+        console.log("Extracted report date:", summaryData.reportDate);
+        break;
+      }
+    }
+    
+    // If no explicit Report Date found, look for date in header or near name
+    if (!summaryData.reportDate) {
+      // Date often appears near the person's name or at the top of the document
+      const headerDatePattern = /(?:REF-D|REF-D)\s+REF-D\s+\|\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+      const headerDateMatch = text.match(headerDatePattern);
+      if (headerDateMatch && headerDateMatch[1]) {
+        summaryData.reportDate = headerDateMatch[1].trim();
+        console.log("Extracted report date from header:", summaryData.reportDate);
+      }
     }
     
     // Alert Contacts - pattern: "Alert Contacts X Records Found"
