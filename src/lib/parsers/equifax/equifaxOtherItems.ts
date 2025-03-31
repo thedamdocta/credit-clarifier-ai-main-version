@@ -21,7 +21,8 @@ export const extractEquifaxOtherItems = (text: string): {
     inquiryCount = parseInt(inquiryMatch[1]);
   }
   
-  // Extract most recent inquiry - look for a pattern like "Most Recent Inquiry: COMPANY NAME (CODE) Date"
+  // Extract most recent inquiry - search with multiple patterns
+  // Pattern 1: Look for a pattern like "Most Recent Inquiry: COMPANY NAME (CODE) Date"
   const recentInquiryMatch = text.match(/Most\s+Recent\s+Inquiry[:\s]+([^\n]+?)(?:\n|$)/i);
   if (recentInquiryMatch && recentInquiryMatch[1]) {
     const inquiryText = recentInquiryMatch[1].trim();
@@ -31,11 +32,31 @@ export const extractEquifaxOtherItems = (text: string): {
     }
   }
   
+  // Pattern 2: Look for the inquiry directly after the "Most Recent Inquiry" text
+  if (!recentInquiry) {
+    const mostRecentInquiryLinePattern = /Most\s+Recent\s+Inquiry.*?(?:\n|\r\n?)([A-Z][A-Z0-9/\s]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+    const lineMatch = text.match(mostRecentInquiryLinePattern);
+    if (lineMatch && lineMatch[1]) {
+      recentInquiry = lineMatch[1].trim();
+    }
+  }
+  
+  // Pattern 3: Look for company name with date format
+  if (!recentInquiry) {
+    const dateFormatPattern = /([A-Z][A-Z0-9\s\/.]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
+    const dateMatch = text.match(dateFormatPattern);
+    if (dateMatch && dateMatch[1] && dateMatch[1].length < 100) {
+      recentInquiry = dateMatch[1].trim();
+    }
+  }
+  
   // Alternative pattern for Equifax specific format
-  const equifaxInquiryPattern = /(EQUIFAX\s+INC\s+\(\d+\)\s+\w+\s+\d+,\s+\d{4})/i;
-  const equifaxMatch = text.match(equifaxInquiryPattern);
-  if (!recentInquiry && equifaxMatch && equifaxMatch[1]) {
-    recentInquiry = equifaxMatch[1].trim();
+  if (!recentInquiry) {
+    const equifaxInquiryPattern = /(EQUIFAX\s+INC\s+\(\d+\)\s+\w+\s+\d+,\s+\d{4})/i;
+    const equifaxMatch = text.match(equifaxInquiryPattern);
+    if (equifaxMatch && equifaxMatch[1]) {
+      recentInquiry = equifaxMatch[1].trim();
+    }
   }
   
   // Extract public records count

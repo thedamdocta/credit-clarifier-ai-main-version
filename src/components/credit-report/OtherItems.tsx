@@ -3,6 +3,7 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
 import { CreditReport } from "@/lib/creditReportParser";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 interface OtherItemsProps {
   report: CreditReport;
@@ -40,47 +41,51 @@ const OtherItems: React.FC<OtherItemsProps> = ({ report }) => {
       <CardContent>
         <p className="mb-4">Your credit report includes your Personal Information and, if applicable, Consumer Statements, and could include other items that may affect your credit score and rating.</p>
         
-        <div className="space-y-4">
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Consumer Statements</span>
-            <span className="text-muted-foreground">
-              {formatCountDisplay(report.statementCount, "Statement")}
-            </span>
-          </div>
-          
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Personal Information</span>
-            <span className="text-muted-foreground">
-              {formatCountDisplay(report.personalInfoItemCount, "Item")}
-            </span>
-          </div>
-          
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Inquiries</span>
-            <span className="text-muted-foreground">
-              {formatCountDisplay(report.inquiryCount, "Inquiry")}
-            </span>
-          </div>
-          
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Most Recent Inquiry</span>
-            <span className="text-muted-foreground">{report.recentInquiry || "Not Available"}</span>
-          </div>
-          
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Public Records</span>
-            <span className="text-muted-foreground">
-              {formatCountDisplay(report.publicRecordCount, "Record")}
-            </span>
-          </div>
-          
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Collections</span>
-            <span className="text-muted-foreground">
-              {formatCountDisplay(report.collectionCount, "Collection")}
-            </span>
-          </div>
-        </div>
+        <Table>
+          <TableBody>
+            <TableRow>
+              <TableCell className="font-medium">Consumer Statements</TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {formatCountDisplay(report.statementCount, "Statement")}
+              </TableCell>
+            </TableRow>
+            
+            <TableRow>
+              <TableCell className="font-medium">Personal Information</TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {formatCountDisplay(report.personalInfoItemCount, "Item")}
+              </TableCell>
+            </TableRow>
+            
+            <TableRow>
+              <TableCell className="font-medium">Inquiries</TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {formatCountDisplay(report.inquiryCount, "Inquiry")}
+              </TableCell>
+            </TableRow>
+            
+            <TableRow>
+              <TableCell className="font-medium w-1/2">Most Recent Inquiry</TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {report.recentInquiry || "Not Available"}
+              </TableCell>
+            </TableRow>
+            
+            <TableRow>
+              <TableCell className="font-medium">Public Records</TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {formatCountDisplay(report.publicRecordCount, "Record")}
+              </TableCell>
+            </TableRow>
+            
+            <TableRow>
+              <TableCell className="font-medium">Collections</TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {formatCountDisplay(report.collectionCount, "Collection")}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );
