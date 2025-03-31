@@ -1,48 +1,21 @@
 
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck } from "lucide-react";
+import { Card, CardHeader } from "@/components/ui/card";
 import { CreditReport } from "@/lib/creditReportParser";
+import ReportConfirmationHeader from "./confirmation/ReportConfirmationHeader";
+import ReportConfirmationDetails from "./confirmation/ReportConfirmationDetails";
 
 interface ReportConfirmationProps {
   report: CreditReport;
 }
 
 const ReportConfirmation: React.FC<ReportConfirmationProps> = ({ report }) => {
-  // Only use the primary name from the Name row in the Personal Information section
-  const displayName = report.consumerName || 
-                     (report.personalInfo?.name && report.personalInfo.name !== 'Not Found' ? 
-                      report.personalInfo.name : "Not Available");
-  
   return (
     <Card>
       <CardHeader className="bg-credit-blue bg-opacity-10">
-        <CardTitle className="text-credit-blue flex items-center">
-          <ShieldCheck className="h-5 w-5 mr-2" />
-          Equifax Credit Report
-        </CardTitle>
-        <CardDescription>
-          Report confirmation details
-        </CardDescription>
+        <ReportConfirmationHeader />
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="grid gap-4">
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Consumer Name</span>
-            <span className="text-muted-foreground">
-              {displayName}
-            </span>
-          </div>
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Report Confirmation</span>
-            <span className="text-muted-foreground">{report.confirmationNumber || "Not Available"}</span>
-          </div>
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-medium">Report Date</span>
-            <span className="text-muted-foreground">{report.reportDate || "Not Available"}</span>
-          </div>
-        </div>
-      </CardContent>
+      <ReportConfirmationDetails report={report} />
     </Card>
   );
 };
