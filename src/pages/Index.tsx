@@ -13,6 +13,7 @@ import PersonalInfoCard from "@/components/PersonalInfoCard";
 import AccountsList from "@/components/AccountsList";
 import WebhookManager from "@/components/WebhookManager";
 import { useToast } from "@/hooks/use-toast";
+import AIAnalysisSummary from "@/components/AIAnalysisSummary";
 
 const Index = () => {
   const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
@@ -123,6 +124,9 @@ const Index = () => {
             </div>
             
             <AccountsList accounts={creditReport.accounts} />
+            
+            {/* AI Analysis Debug Summary - Temporary */}
+            <AIAnalysisSummary report={creditReport} />
           </div>
         ) : (
           <Card>
