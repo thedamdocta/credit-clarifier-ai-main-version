@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
-import { CreditReport } from "@/lib/creditReportParser";
+import { CreditReport } from "@/lib/types/creditReport";
 
 interface ReportSummaryProps {
   report: CreditReport;

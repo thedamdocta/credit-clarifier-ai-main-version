@@ -15,6 +15,10 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processPDF = (file: File) => {
+    if (useAI) {
+      toast.info("Using AI to extract specific report information...");
+    }
+    
     processPDFDocument(file, useAI, {
       setCurrentFile,
       setUploadProgress,

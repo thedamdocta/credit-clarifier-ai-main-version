@@ -2,8 +2,11 @@
 export const extractDate = (text: string): string => {
   const datePatterns = [
     /report date:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+    /report date:?\s*(\w+\s+\d{1,2},\s+\d{4})/i,
     /date issued:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+    /date issued:?\s*(\w+\s+\d{1,2},\s+\d{4})/i,
     /as of:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+    /as of:?\s*(\w+\s+\d{1,2},\s+\d{4})/i,
     /(\d{1,2}\/\d{1,2}\/\d{2,4})/
   ];
   
