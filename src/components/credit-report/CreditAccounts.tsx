@@ -133,7 +133,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
             {accountSummaries.map((summary, index) => (
               <TableRow 
                 key={`account-summary-${summary.accountType}`} 
-                className={summary.accountType === 'Total' ? "font-semibold bg-muted/30" : ""}
+                isHighlighted={summary.accountType === 'Total'}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
                 <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>

@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { extractEntities } from "../../ai/textAnalysis";
 
@@ -26,28 +27,35 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
       const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
       const tableSection = tableSectionMatch ? tableSectionMatch[1] : text;
       
-      // Split into lines for processing row by row
-      const lines = tableSection.split('\n')
+      // Split the table into rows for better processing
+      const rows = tableSection.split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
       
-      // Enhanced processing - go through each account type separately
+      // Find the rows that have account type names in them
+      const accountRows = new Map();
+      
+      // First identify which rows contain which account types
+      for (const row of rows) {
+        for (const accountType of accountTypes) {
+          if (new RegExp(`\\b${accountType}\\b`, 'i').test(row)) {
+            accountRows.set(accountType, row);
+            console.log(`Found row for account type ${accountType}: ${row}`);
+            break;
+          }
+        }
+      }
+      
+      // Now process each account type with its specific row
       for (const accountType of accountTypes) {
-        // Create a default summary with all null values
         const summary = createDefaultSummary(accountType);
+        const row = accountRows.get(accountType);
         
-        // Find lines that contain this specific account type
-        const matchingLines = lines.filter(line => 
-          new RegExp(`\\b${accountType}\\b`, 'i').test(line)
-        );
-        
-        if (matchingLines.length > 0) {
-          // Process the first matching line for this account type
-          const line = matchingLines[0];
-          console.log(`Processing line for ${accountType}:`, line);
-          
-          // AI-enhanced processing - use entities to help identify numbers and dollar amounts
-          await enhancedProcessAccountLine(line, accountType, summary, entities);
+        if (row) {
+          console.log(`Processing row for ${accountType}: ${row}`);
+          await processAccountRow(row, accountType, summary, entities);
+        } else {
+          console.log(`No specific row found for account type: ${accountType}`);
         }
         
         summaries.push(summary);
@@ -78,146 +86,112 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
   return summaries;
 };
 
-// AI-enhanced processing of a single line that contains account type information
-async function enhancedProcessAccountLine(line: string, accountType: string, summary: AccountSummary, entities: any[]) {
-  console.log(`Enhanced processing for ${accountType}:`, line);
+// Process a single row for a specific account type
+async function processAccountRow(row: string, accountType: string, summary: AccountSummary, entities: any[]) {
+  console.log(`Processing account row for ${accountType}`);
   
-  // First, try traditional cell-by-cell extraction
-  processAccountLine(line, accountType, summary);
+  // Find the start position of the account type in the row
+  const accountTypePos = row.indexOf(accountType);
+  if (accountTypePos < 0) return;
   
-  // Then try to enhance with entity recognition
+  // Extract the part after the account type name
+  const afterAccountType = row.substring(accountTypePos + accountType.length).trim();
+  
+  // Split the remaining text into tokens for column-by-column analysis
+  const tokens = afterAccountType.split(/\s+/);
+  const numericTokens = tokens.filter(token => /^-?\d+(\.\d+)?%?$/.test(token) || /^\$[\d,.]+$/.test(token) || /^-\$[\d,.]+$/.test(token));
+  
+  // Extract Open accounts (first numeric value)
+  if (numericTokens.length >= 1) {
+    const openValue = numericTokens[0];
+    if (/^\d+$/.test(openValue)) {
+      summary.open = parseInt(openValue);
+    }
+  }
+  
+  // Extract With Balance (second numeric value)
+  if (numericTokens.length >= 2) {
+    const withBalanceValue = numericTokens[1];
+    if (/^\d+$/.test(withBalanceValue)) {
+      summary.withBalance = parseInt(withBalanceValue);
+    }
+  }
+  
+  // Extract dollar values using regex
+  const dollarPattern = /(-?\$[\d,.]+|-\$[\d,.]+|\$-[\d,.]+)/g;
+  const dollarMatches = [];
+  let match;
+  
+  while ((match = dollarPattern.exec(row)) !== null) {
+    dollarMatches.push(match[0]);
+  }
+  
+  // Assign dollar values in expected order: totalBalance, available, creditLimit, payment
+  if (dollarMatches.length >= 1) {
+    summary.totalBalance = normalizeDollarFormat(dollarMatches[0]);
+  }
+  
+  if (dollarMatches.length >= 2) {
+    summary.available = normalizeDollarFormat(dollarMatches[1]);
+  }
+  
+  if (dollarMatches.length >= 3) {
+    summary.creditLimit = normalizeDollarFormat(dollarMatches[2]);
+  }
+  
+  if (dollarMatches.length >= 4) {
+    summary.payment = normalizeDollarFormat(dollarMatches[3]);
+  }
+  
+  // Extract debt-to-credit percentage
+  const percentPattern = /(\d+\.?\d*)\s*%/;
+  const percentMatch = row.match(percentPattern);
+  if (percentMatch) {
+    summary.debtToCredit = `${percentMatch[0].trim()}`;
+  }
+  
+  // Use AI entity extraction as a fallback for missing values
+  if (!summary.totalBalance || !summary.available || !summary.creditLimit || !summary.payment) {
+    await enhanceWithAI(row, summary, entities);
+  }
+}
+
+// Enhance parsing with AI entity extraction
+async function enhanceWithAI(row: string, summary: AccountSummary, entities: any[]) {
   try {
-    // Find position of account type in the line
-    const typePos = line.indexOf(accountType);
-    if (typePos === -1) return;
-    
-    const afterType = line.substring(typePos + accountType.length);
-    
-    // Find numeric entities that might be column values
-    const numericEntities = entities.filter(entity => {
+    const relevantEntities = entities.filter(entity => {
+      // Find entities that look like numbers, dollar amounts or percentages
       const word = entity.word;
-      // Match numbers, dollar amounts, or percentages
-      return /^-?\d+$/.test(word) || 
-             /^-?\$\d+(?:,\d+)*(?:\.\d+)?$/.test(word) || 
-             /^\d+(?:\.\d+)?%$/.test(word);
+      return /^\d+$/.test(word) || 
+        /^-?\$[\d,.]+$/.test(word) || 
+        /^-\$[\d,.]+$/.test(word) ||
+        /^\d+\.?\d*%$/.test(word);
     });
     
-    // If we found numeric entities, see if they match our line position
-    for (const entity of numericEntities) {
-      if (line.includes(entity.word)) {
-        // Process each known column type
-        if (/^\d+$/.test(entity.word) && !summary.open) {
-          summary.open = parseInt(entity.word);
-        } else if (/^\d+$/.test(entity.word) && summary.open && !summary.withBalance) {
-          summary.withBalance = parseInt(entity.word);
-        } else if (/^-?\$\d+/.test(entity.word) && !summary.totalBalance) {
-          summary.totalBalance = normalizeDollarFormat(entity.word);
-        } else if (/^-?\$\d+/.test(entity.word) && summary.totalBalance && !summary.available) {
-          summary.available = normalizeDollarFormat(entity.word);
-        } else if (/^-?\$\d+/.test(entity.word) && summary.totalBalance && summary.available && !summary.creditLimit) {
-          summary.creditLimit = normalizeDollarFormat(entity.word);
-        } else if (/^-?\$\d+/.test(entity.word) && summary.totalBalance && summary.available && summary.creditLimit && !summary.payment) {
-          summary.payment = normalizeDollarFormat(entity.word);
-        } else if (/\d+%/.test(entity.word) && !summary.debtToCredit) {
-          summary.debtToCredit = entity.word;
+    // Try to map entities to the right fields based on format
+    for (const entity of relevantEntities) {
+      if (row.includes(entity.word)) {
+        const value = entity.word;
+        
+        if (/^\d+$/.test(value) && summary.open === null) {
+          summary.open = parseInt(value);
+        } else if (/^\d+$/.test(value) && summary.open !== null && summary.withBalance === null) {
+          summary.withBalance = parseInt(value);
+        } else if ((/^-?\$[\d,.]+$/.test(value) || /^-\$[\d,.]+$/.test(value)) && !summary.totalBalance) {
+          summary.totalBalance = normalizeDollarFormat(value);
+        } else if ((/^-?\$[\d,.]+$/.test(value) || /^-\$[\d,.]+$/.test(value)) && summary.totalBalance && !summary.available) {
+          summary.available = normalizeDollarFormat(value);
+        } else if ((/^-?\$[\d,.]+$/.test(value) || /^-\$[\d,.]+$/.test(value)) && summary.totalBalance && summary.available && !summary.creditLimit) {
+          summary.creditLimit = normalizeDollarFormat(value);
+        } else if ((/^-?\$[\d,.]+$/.test(value) || /^-\$[\d,.]+$/.test(value)) && summary.totalBalance && summary.available && summary.creditLimit && !summary.payment) {
+          summary.payment = normalizeDollarFormat(value);
+        } else if (/\d+\.?\d*%$/.test(value) && !summary.debtToCredit) {
+          summary.debtToCredit = value;
         }
       }
     }
   } catch (error) {
-    console.error("Error in AI-enhanced line processing:", error);
-  }
-  
-  // Fall back to traditional extraction if needed
-  if (!summary.open && !summary.withBalance && !summary.totalBalance) {
-    processAccountLine(line, accountType, summary);
-  }
-}
-
-// Process a single line that contains account type information
-function processAccountLine(line: string, accountType: string, summary: AccountSummary) {
-  console.log(`Processing line for ${accountType}:`, line);
-  
-  // Find position of account type in the line
-  const typePos = line.indexOf(accountType);
-  if (typePos === -1) return;
-  
-  const afterType = line.substring(typePos + accountType.length).trim();
-  
-  // Cell-by-cell analysis approach
-  // Split by whitespace into potential columns
-  const columns = afterType.split(/\s+/);
-  
-  // Look for the "Open" cell (first number after account type)
-  let foundOpen = false;
-  for (let i = 0; i < columns.length; i++) {
-    if (/^\d+$/.test(columns[i])) {
-      summary.open = parseInt(columns[i]);
-      foundOpen = true;
-      break;
-    }
-  }
-  
-  // Look for "With Balance" cell (second number after account type)
-  // Only if we found "Open" first
-  if (foundOpen) {
-    let numberCount = 0;
-    for (let i = 0; i < columns.length; i++) {
-      if (/^\d+$/.test(columns[i])) {
-        numberCount++;
-        if (numberCount === 2) {
-          summary.withBalance = parseInt(columns[i]);
-          break;
-        }
-      }
-    }
-  }
-  
-  // Extract financial values (dollar amounts, etc.) using cell-by-cell approach
-  extractFinancialValues(line, accountType, summary);
-}
-
-// Extract dollar values and percentages from a line
-function extractFinancialValues(line: string, accountType: string, summary: AccountSummary) {
-  console.log(`Extracting financial values for ${accountType}:`, line);
-  
-  // Find position of account type in line
-  const typePos = line.indexOf(accountType);
-  if (typePos === -1) return;
-  
-  const afterType = line.substring(typePos + accountType.length);
-  
-  // Extract all dollar values with improved pattern that handles negative numbers
-  const dollarPattern = /(-?\$[0-9,.-]+|\$-[0-9,.-]+)/g;
-  const dollars = [];
-  let match;
-  
-  while ((match = dollarPattern.exec(afterType)) !== null) {
-    dollars.push(match[0]);
-  }
-  
-  // Cell-by-cell assignment - only set values if they exist in the text
-  // This ensures empty cells remain null
-  if (dollars.length >= 1) {
-    summary.totalBalance = normalizeDollarFormat(dollars[0]);
-  }
-  
-  if (dollars.length >= 2) {
-    summary.available = normalizeDollarFormat(dollars[1]);
-  }
-  
-  if (dollars.length >= 3) {
-    summary.creditLimit = normalizeDollarFormat(dollars[2]);
-  }
-  
-  if (dollars.length >= 4) {
-    summary.payment = normalizeDollarFormat(dollars[3]);
-  }
-  
-  // Extract debt-to-credit percentage - only if it exists
-  const percentPattern = /(\d+\.?\d*)\s*%/;
-  const percentMatch = afterType.match(percentPattern);
-  if (percentMatch) {
-    summary.debtToCredit = `${percentMatch[0].trim()}`;
+    console.error("Error in AI entity enhancement:", error);
   }
 }
 
