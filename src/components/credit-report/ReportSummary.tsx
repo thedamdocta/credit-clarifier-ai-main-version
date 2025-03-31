@@ -54,7 +54,7 @@ const ReportSummary: React.FC<ReportSummaryProps> = ({ report }) => {
           
           <div className="flex justify-between items-center bg-muted/20 p-2">
             <span className="font-medium">Oldest Account</span>
-            <span>
+            <span className="text-right">
               {report.oldestAccount ? 
                 `${report.oldestAccount.accountName} (Opened ${report.oldestAccount.openDate})` : 
                 "Not Available"}
@@ -63,7 +63,7 @@ const ReportSummary: React.FC<ReportSummaryProps> = ({ report }) => {
           
           <div className="flex justify-between items-center p-2">
             <span className="font-medium">Most Recent Account</span>
-            <span>
+            <span className="text-right">
               {report.recentAccount ? 
                 `${report.recentAccount.accountName} (Opened ${report.recentAccount.openDate})` :
                 "Not Available"}
