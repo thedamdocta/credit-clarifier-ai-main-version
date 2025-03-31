@@ -24,7 +24,32 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        summariesByType.set(summary.accountType, summary);
+        // Clean up the data based on the account type
+        if (summary.accountType === 'Revolving' || summary.accountType === 'Total') {
+          // For Revolving and Total, make open and withBalance null to show "x"
+          summariesByType.set(summary.accountType, {
+            ...summary,
+            open: null,
+            withBalance: null
+          });
+        } else if (summary.accountType === 'Mortgage' || summary.accountType === 'Other') {
+          // For Mortgage and Other, nullify all values except accountType to show "x"
+          summariesByType.set(summary.accountType, {
+            accountType: summary.accountType,
+            totalAccounts: null,
+            open: null,
+            closed: null,
+            balance: null,
+            withBalance: null,
+            totalBalance: null,
+            available: null,
+            creditLimit: null,
+            debtToCredit: null,
+            payment: null
+          });
+        } else {
+          summariesByType.set(summary.accountType, summary);
+        }
       }
     });
   }
@@ -34,18 +59,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     const existingSummary = summariesByType.get(accountType);
     
     if (existingSummary) {
-      // Ensure all values are either the actual value or null/undefined
-      // This ensures our formatters can correctly identify truly empty values
-      accountSummaries.push({
-        ...existingSummary,
-        open: existingSummary.open || null,
-        withBalance: existingSummary.withBalance || null,
-        totalBalance: existingSummary.totalBalance || null,
-        available: existingSummary.available || null,
-        creditLimit: existingSummary.creditLimit || null,
-        debtToCredit: existingSummary.debtToCredit || null,
-        payment: existingSummary.payment || null
-      });
+      accountSummaries.push(existingSummary);
     } else {
       accountSummaries.push({
         accountType,
