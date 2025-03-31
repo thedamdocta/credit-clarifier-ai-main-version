@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";

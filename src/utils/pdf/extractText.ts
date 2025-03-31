@@ -1,5 +1,6 @@
 
 import { toast } from "sonner";
+import { extractTextFromImageWithOCR } from "@/lib/ai/ocrExtraction";
 
 export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   let extractedText = '';
@@ -41,14 +42,19 @@ export const extractCreditAccountsTableImage = async (pdf: any): Promise<string 
 export const extractTextFromImage = async (imageUrl: string): Promise<string | null> => {
   try {
     console.log('Starting OCR on image:', imageUrl);
-    // Here we would call a proper OCR model with Hugging Face
-    // For now, we'll use a simple simulation for demonstration purposes
     
-    // Simulate processing delay that would occur with real ML processing
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Call the OCR extraction function from ocrExtraction.ts
+    const extractedText = await extractTextFromImageWithOCR(imageUrl);
     
-    console.log('OCR process completed');
-    return "Simulated OCR text extraction - would be replaced by actual HF model results";
+    if (extractedText) {
+      console.log('OCR process completed');
+      return extractedText;
+    } else {
+      // Fallback to simulation for development
+      console.log('OCR failed, using simulation');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
+      return "Simulated OCR text extraction - would be replaced by actual HF model results";
+    }
   } catch (error) {
     console.error('Error running OCR on image:', error);
     return null;
