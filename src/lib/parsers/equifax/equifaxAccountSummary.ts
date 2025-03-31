@@ -1,14 +1,13 @@
 import { AccountSummary } from "../../types/creditReport";
 
 export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
-  console.log("Starting account summary extraction for 8x6 table structure");
+  console.log("Starting account summary extraction for 8x5 table structure");
   
-  // Define the empty account summaries structure (now for 6 rows - 5 account types + header)
+  // Define the empty account summaries structure (now for 5 rows - 4 account types + header)
   const accountSummaries: AccountSummary[] = [
     { accountType: 'Revolving', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
     { accountType: 'Mortgage', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
     { accountType: 'Installment', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
-    { accountType: 'Collection', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
     { accountType: 'Other', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
     { accountType: 'Total', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null }
   ];
@@ -28,7 +27,7 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     }
     
     // Get individual rows by finding lines that contain the account types
-    const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Collection', 'Other', 'Total'];
+    const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
     const rows: {[key: string]: string} = {};
     
     // Find complete lines containing each account type
@@ -68,11 +67,11 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
 };
 
 function extractTableSection(text: string): string | null {
-  // Look for sections that contain account summary tables - additional pattern for Collection accounts
+  // Look for sections that contain account summary tables - REMOVED Collection from patterns
   const possibleMarkers = [
     /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit/i,
     /Your\s+credit\s+report\s+includes\s+information\s+about\s+activity\s+on\s+your\s+credit\s+accounts/i,
-    /Account\s+Type[\s\S]+?(?:Revolving|Mortgage|Installment|Collection|Other|Total)/i
+    /Account\s+Type[\s\S]+?(?:Revolving|Mortgage|Installment|Other|Total)/i
   ];
   
   let tableSection = null;
@@ -87,9 +86,9 @@ function extractTableSection(text: string): string | null {
     }
   }
   
-  // If we still don't have a match, try a more generic approach with Collection added
+  // If we still don't have a match, try a more generic approach - REMOVED Collection
   if (!tableSection) {
-    const genericMatch = text.match(/((?:Revolving|Mortgage|Installment|Collection|Other|Total)[\s\S]+?(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report))/i);
+    const genericMatch = text.match(/((?:Revolving|Mortgage|Installment|Other|Total)[\s\S]+?(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report))/i);
     if (genericMatch && genericMatch[1]) {
       tableSection = genericMatch[1];
       console.log("Found table section using generic approach");
@@ -100,7 +99,7 @@ function extractTableSection(text: string): string | null {
 }
 
 function findHeaderRow(tableSection: string): string | null {
-  // Try to find the header row to understand column structure - added "Collection" to patterns
+  // Try to find the header row to understand column structure - REMOVED Collection from patterns
   const headerPatterns = [
     /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i,
     /Account\s+Type\s+Total\s+Accounts\s+Open\s+Closed\s+Balance/i,

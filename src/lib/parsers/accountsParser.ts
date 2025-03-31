@@ -39,7 +39,7 @@ export const extractAccounts = (text: string): Account[] => {
     
     let status = '';
     const statusMatch = section.match(/status:?\s*([A-Za-z\s]+)/i) ||
-                        section.match(/(open|closed|paid|charged off|collection)/i);
+                        section.match(/(open|closed|paid|charged off)/i); // Removed collection
     if (statusMatch && statusMatch[1]) {
       status = statusMatch[1].trim();
     }
