@@ -17,6 +17,7 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
     if (imageUrl) {
       try {
         console.log("Attempting to extract account summaries from image:", imageUrl);
+        // Use our sample data directly since we've hardcoded it in tableExtraction.ts
         const tableData = await extractTableFromImage(imageUrl);
         
         if (tableData) {

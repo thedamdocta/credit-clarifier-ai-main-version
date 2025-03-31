@@ -29,9 +29,6 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     // For actual values, format them properly
     return formatter(value);
   };
-  
-  // Get the sample image for reference (non-functional, just for display)
-  const sampleImageUrl = 'public/lovable-uploads/4aaea5c8-6809-4f4f-8b46-22dc5514db9c.png';
 
   return (
     <div>
@@ -56,7 +53,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
             return (
               <TableRow 
                 key={`account-summary-${summary.accountType}`}
-                isHighlighted={summary.accountType === 'Total'} 
+                className={summary.accountType === 'Total' ? 'bg-muted/30' : ''}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
                 <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
@@ -79,7 +76,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
         </p>
         <div className="flex justify-center">
           <img 
-            src={sampleImageUrl} 
+            src="/lovable-uploads/458643ea-a052-40a4-a3fd-e8a38ddec467.png" 
             alt="Credit Accounts Table Reference" 
             className="max-w-full h-auto rounded-md border border-gray-200 shadow-sm"
             style={{ maxHeight: '200px' }} 
