@@ -48,22 +48,15 @@ export const extractEquifaxOtherItems = (text: string): {
     }
   }
   
-  // Clean the consumer name - extract ONLY the primary name
+  // Clean the consumer name to ONLY return the primary name (first name with middle initial and last name)
   if (consumerName) {
-    // Remove everything after any of these phrases/characters
-    const cutoffPhrases = [
-      'formerly known as',
-      'social security',
-      'ssn',
-      'aka',
-      'fka',
-      'dba',
-      ' - ',
-      ' / ',
-      'report'
+    // Take only the first part before any special phrases
+    let stopPhrases = [
+      'formerly', 'formerly known as', 'social security', 'ssn', 'aka', 'fka', 'dba',
+      'number', 'address', 'report', '/', '-'
     ];
     
-    for (const phrase of cutoffPhrases) {
+    for (const phrase of stopPhrases) {
       const index = consumerName.toLowerCase().indexOf(phrase);
       if (index > 0) {
         consumerName = consumerName.substring(0, index).trim();
@@ -76,10 +69,13 @@ export const extractEquifaxOtherItems = (text: string): {
     // Remove any trailing punctuation
     consumerName = consumerName.replace(/[.,;:\s]+$/g, '').trim();
     
-    // Extract only the first 2-3 words (likely first, middle initial, last name)
+    // Most importantly, extract only the first 2-3 words (first name, middle initial, last name)
+    // This ensures we get just the primary name
     const nameParts = consumerName.split(/\s+/);
-    if (nameParts.length > 3) {
-      consumerName = nameParts.slice(0, 3).join(' ');
+    if (nameParts.length > 0) {
+      // Keep maximum 3 words for the name (first, middle initial, last)
+      const maxNameParts = Math.min(3, nameParts.length);
+      consumerName = nameParts.slice(0, maxNameParts).join(' ');
     }
   }
   
