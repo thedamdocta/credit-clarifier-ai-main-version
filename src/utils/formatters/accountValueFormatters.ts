@@ -40,6 +40,8 @@ export const formatDollarAmount = (value: any): string => {
 
 /**
  * Parse account value to number or null
+ * Note: This function remains but should no longer be used in the
+ * equifaxAccountSummary.ts file since we want to treat all values as text
  */
 export const parseAccountValueToNumber = (value: any): number | null => {
   if (value === undefined || value === null || value === '') {
