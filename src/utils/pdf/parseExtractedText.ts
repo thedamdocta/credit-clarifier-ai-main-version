@@ -175,54 +175,128 @@ function enhanceAccountSummaries(parsedReport: any, extractedText: string) {
   console.log("Attempting to extract expanded account summaries");
   
   if (parsedReport.accountSummaries) {
+    // First extract main content containing account summaries table
+    const tableSectionMatch = extractedText.match(/Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment([\s\S]+?)(?:Summary of|Statement|Public Records)/i);
+    const tableSection = tableSectionMatch ? tableSectionMatch[1] : extractedText;
+    
     for (const summary of parsedReport.accountSummaries) {
-      // Try to find open account counts - don't use hardcoded values
-      const openPattern = new RegExp(`${summary.accountType}\\s+(\\d+)\\s+\\d+\\s+`, 'i');
-      const openMatch = extractedText.match(openPattern);
-      if (openMatch && openMatch[1]) {
-        summary.open = parseInt(openMatch[1]);
+      const accountTypePattern = new RegExp(`(${summary.accountType}[^\\n]+)`, 'i');
+      const accountLine = tableSection.match(accountTypePattern);
+      const accountData = accountLine ? accountLine[1] : '';
+      
+      if (accountData) {
+        console.log(`Found account data for ${summary.accountType}:`, accountData);
+        
+        // Extract open accounts
+        const openMatch = accountData.match(/^[^0-9]*(\d+)/i);
+        if (openMatch && openMatch[1]) {
+          summary.open = parseInt(openMatch[1]);
+        }
+        
+        // Extract with balance
+        const withBalanceMatch = accountData.match(/(\d+)\s+(?:with|(?:\$[\d,.]+))/i);
+        if (withBalanceMatch && withBalanceMatch[1]) {
+          summary.withBalance = parseInt(withBalanceMatch[1]);
+        }
+        
+        // Extract total balance
+        const totalBalanceMatch = accountData.match(/(\$[\d,.]+)/);
+        if (totalBalanceMatch && totalBalanceMatch[1]) {
+          summary.totalBalance = totalBalanceMatch[1];
+        }
+        
+        // Extract available credit (negative values possible)
+        const availableMatch = accountData.match(/([-]?\$[\d,.]+)/);
+        if (availableMatch && availableMatch[1]) {
+          summary.available = availableMatch[1];
+        }
+        
+        // Extract credit limit
+        const creditLimitPattern = /\$[\d,.]+\s+(\$[\d,.]+)/;
+        const creditLimitMatch = accountData.match(creditLimitPattern);
+        if (creditLimitMatch && creditLimitMatch[1]) {
+          summary.creditLimit = creditLimitMatch[1];
+        }
+        
+        // Extract debt to credit ratio
+        const debtToCreditMatch = accountData.match(/(\d+\.?\d*%)/);
+        if (debtToCreditMatch && debtToCreditMatch[1]) {
+          summary.debtToCredit = debtToCreditMatch[1];
+        }
+        
+        // Extract payment amount - should be the last dollar amount
+        const paymentMatch = accountData.match(/.*(\$[\d,.]+)(?:\s*|$)/);
+        if (paymentMatch && paymentMatch[1]) {
+          summary.payment = paymentMatch[1];
+        }
+      }
+    }
+    
+    // For fallback, try overall patterns for the entire account types
+    for (const summary of parsedReport.accountSummaries) {
+      // Only try these if we don't already have values
+      
+      // Try to find open account counts if not already set
+      if (summary.open === null) {
+        const openPattern = new RegExp(`${summary.accountType}\\s+(\\d+)\\s`, 'i');
+        const openMatch = extractedText.match(openPattern);
+        if (openMatch && openMatch[1]) {
+          summary.open = parseInt(openMatch[1]);
+        }
       }
       
-      // Try to find with balance counts
-      const withBalancePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\b(\\d+)\\s+with\\s+balance\\b`, 'i');
-      const withBalanceMatch = extractedText.match(withBalancePattern);
-      if (withBalanceMatch && withBalanceMatch[1]) {
-        summary.withBalance = parseInt(withBalanceMatch[1]);
+      // Try to find with balance counts if not already set
+      if (summary.withBalance === null) {
+        const withBalancePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\b(\\d+)\\s+with\\s+balance\\b`, 'i');
+        const withBalanceMatch = extractedText.match(withBalancePattern);
+        if (withBalanceMatch && withBalanceMatch[1]) {
+          summary.withBalance = parseInt(withBalanceMatch[1]);
+        }
       }
       
-      // Try to find total balance
-      const totalBalancePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\btotal\\s+balance\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
-      const totalBalanceMatch = extractedText.match(totalBalancePattern);
-      if (totalBalanceMatch && totalBalanceMatch[1]) {
-        summary.totalBalance = `$${totalBalanceMatch[1]}`;
+      // Try to find total balance if not already set
+      if (!summary.totalBalance) {
+        const totalBalancePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\$([\\d,.]+)`, 'i');
+        const totalBalanceMatch = extractedText.match(totalBalancePattern);
+        if (totalBalanceMatch && totalBalanceMatch[1]) {
+          summary.totalBalance = `$${totalBalanceMatch[1]}`;
+        }
       }
       
-      // Try to find available credit
-      const availablePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bavailable\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
-      const availableMatch = extractedText.match(availablePattern);
-      if (availableMatch && availableMatch[1]) {
-        summary.available = `$${availableMatch[1]}`;
+      // Other patterns for remaining fields if not set already...
+      if (!summary.available) {
+        const availablePattern = new RegExp(`${summary.accountType}[\\s\\S]*?available[:\\s]*(-?\\$[\\d,.]+)`, 'i');
+        const availableMatch = extractedText.match(availablePattern);
+        if (availableMatch && availableMatch[1]) {
+          summary.available = availableMatch[1];
+        }
       }
       
-      // Try to find credit limit - don't use hardcoded values
-      const creditLimitPattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bcredit\\s+limit\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
-      const creditLimitMatch = extractedText.match(creditLimitPattern);
-      if (creditLimitMatch && creditLimitMatch[1]) {
-        summary.creditLimit = `$${creditLimitMatch[1]}`;
+      // Credit limit - ensure we're not setting a hardcoded value
+      if (!summary.creditLimit) {
+        const creditLimitPattern = new RegExp(`${summary.accountType}[\\s\\S]*?credit\\s+limit[:\\s]*\\$([\\d,.]+)`, 'i');
+        const creditLimitMatch = extractedText.match(creditLimitPattern);
+        if (creditLimitMatch && creditLimitMatch[1]) {
+          summary.creditLimit = `$${creditLimitMatch[1]}`;
+        }
       }
       
-      // Try to find debt to credit ratio
-      const debtToCreditPattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bdebt-to-credit\\s*:?\\s*(\\d+%)\\b`, 'i');
-      const debtToCreditMatch = extractedText.match(debtToCreditPattern);
-      if (debtToCreditMatch && debtToCreditMatch[1]) {
-        summary.debtToCredit = debtToCreditMatch[1];
+      // Debt to credit ratio
+      if (!summary.debtToCredit) {
+        const debtToCreditPattern = new RegExp(`${summary.accountType}[\\s\\S]*?debt-to-credit[:\\s]*(\\d+(?:\\.\\d+)?%)`, 'i');
+        const debtToCreditMatch = extractedText.match(debtToCreditPattern);
+        if (debtToCreditMatch && debtToCreditMatch[1]) {
+          summary.debtToCredit = debtToCreditMatch[1];
+        }
       }
       
-      // Try to find payment amount
-      const paymentPattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bpayment\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
-      const paymentMatch = extractedText.match(paymentPattern);
-      if (paymentMatch && paymentMatch[1]) {
-        summary.payment = `$${paymentMatch[1]}`;
+      // Payment amount
+      if (!summary.payment) {
+        const paymentPattern = new RegExp(`${summary.accountType}[\\s\\S]*?payment[:\\s]*\\$([\\d,.]+)`, 'i');
+        const paymentMatch = extractedText.match(paymentPattern);
+        if (paymentMatch && paymentMatch[1]) {
+          summary.payment = `$${paymentMatch[1]}`;
+        }
       }
     }
   }
