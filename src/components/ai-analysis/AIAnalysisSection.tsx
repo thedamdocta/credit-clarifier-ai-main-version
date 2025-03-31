@@ -8,9 +8,9 @@ interface AIAnalysisSectionProps {
 
 const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ title, children }) => {
   return (
-    <div className="border rounded-md p-4 bg-white shadow-sm mb-4">
-      <h3 className="font-medium text-base mb-2 pb-2 border-b">{title}</h3>
-      <div className="mt-1">
+    <div className="border rounded-md p-4 bg-white shadow-sm mb-6">
+      <h3 className="font-medium text-lg mb-3 pb-2 border-b">{title}</h3>
+      <div className="mt-2">
         {children}
       </div>
     </div>
