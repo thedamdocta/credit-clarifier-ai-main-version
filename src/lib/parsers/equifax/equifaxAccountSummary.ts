@@ -20,16 +20,19 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
       // Updated to match the format: Account Type, Total Accounts, Open, Closed, Balance
       const rowRegex = new RegExp(`${accountType}\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*(?:\\$([\\.\\d,]+)|\\$0|-)?`, 'i');
       
-      // Try to find the row
+      // Alternative pattern for just the account type and a number (for "Open" column)
+      const simpleRowRegex = new RegExp(`${accountType}\\s+(\\d+)`, 'i');
+      
+      // Try to find the row with the detailed pattern
       const rowMatch = text.match(rowRegex);
       
       if (rowMatch) {
-        console.log(`Found row for ${accountType}:`, rowMatch[0]);
+        console.log(`Found detailed row for ${accountType}:`, rowMatch[0]);
 
-        // Extract the values (with fallbacks for missing data)
-        const totalAccounts = rowMatch[1] ? parseInt(rowMatch[1]) : 0;
-        const openAccounts = rowMatch[2] ? parseInt(rowMatch[2]) : 0;
-        const closedAccounts = rowMatch[3] ? parseInt(rowMatch[3]) : 0;
+        // Extract the values (without providing fallbacks, to allow nulls)
+        const totalAccounts = rowMatch[1] ? parseInt(rowMatch[1]) : null;
+        const openAccounts = rowMatch[2] ? parseInt(rowMatch[2]) : null;
+        const closedAccounts = rowMatch[3] ? parseInt(rowMatch[3]) : null;
         
         // For balance, try to extract it from either pattern
         let balance: string | null = null;
@@ -48,26 +51,42 @@ export const extractEquifaxAccountSummaries = (text: string): AccountSummary[] =
         
         summaries.push(summary);
       } else {
-        // If no match, create a default entry for this account type
-        summaries.push({
-          accountType,
-          totalAccounts: 0,
-          open: 0,
-          closed: 0,
-          balance: null
-        });
+        // Try the simple pattern for just finding the open account number
+        const simpleMatch = text.match(simpleRowRegex);
+        
+        if (simpleMatch && simpleMatch[1]) {
+          console.log(`Found simple row for ${accountType}:`, simpleMatch[0]);
+          
+          // Create summary with just the open account number
+          summaries.push({
+            accountType,
+            totalAccounts: null,
+            open: parseInt(simpleMatch[1]),
+            closed: null,
+            balance: null
+          });
+        } else {
+          // If no match, create a default entry for this account type with nulls
+          summaries.push({
+            accountType,
+            totalAccounts: null,
+            open: null,
+            closed: null,
+            balance: null
+          });
+        }
       }
     }
   } else {
     console.log("Could not find Equifax account summary table header");
     
-    // Create default entries for all account types
+    // Create default entries for all account types with nulls
     accountTypes.forEach(accountType => {
       summaries.push({
         accountType,
-        totalAccounts: 0,
-        open: 0,
-        closed: 0,
+        totalAccounts: null,
+        open: null,
+        closed: null,
         balance: null
       });
     });

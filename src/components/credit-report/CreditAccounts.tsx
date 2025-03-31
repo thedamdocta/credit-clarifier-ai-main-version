@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CreditCard } from "lucide-react";
-import { CreditReport, AccountSummary } from "@/lib/creditReportParser";
+import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 
 interface CreditAccountsProps {
   report: CreditReport;

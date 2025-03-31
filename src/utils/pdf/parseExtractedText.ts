@@ -176,6 +176,13 @@ function enhanceAccountSummaries(parsedReport: any, extractedText: string) {
   
   if (parsedReport.accountSummaries) {
     for (const summary of parsedReport.accountSummaries) {
+      // Try to find open account counts - don't use hardcoded values
+      const openPattern = new RegExp(`${summary.accountType}\\s+(\\d+)\\s+\\d+\\s+`, 'i');
+      const openMatch = extractedText.match(openPattern);
+      if (openMatch && openMatch[1]) {
+        summary.open = parseInt(openMatch[1]);
+      }
+      
       // Try to find with balance counts
       const withBalancePattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\b(\\d+)\\s+with\\s+balance\\b`, 'i');
       const withBalanceMatch = extractedText.match(withBalancePattern);
@@ -197,7 +204,7 @@ function enhanceAccountSummaries(parsedReport: any, extractedText: string) {
         summary.available = `$${availableMatch[1]}`;
       }
       
-      // Try to find credit limit
+      // Try to find credit limit - don't use hardcoded values
       const creditLimitPattern = new RegExp(`${summary.accountType}[\\s\\S]*?\\bcredit\\s+limit\\s*[:\\$]\\s*([\\d,.]+)\\b`, 'i');
       const creditLimitMatch = extractedText.match(creditLimitPattern);
       if (creditLimitMatch && creditLimitMatch[1]) {
