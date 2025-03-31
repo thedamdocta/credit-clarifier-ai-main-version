@@ -110,10 +110,11 @@ export const enhanceEquifaxReport = (parsedReport: any, extractedText: string) =
     // Extract key summary data with highly targeted approaches
     extractSummaryData(parsedReport, extractedText);
     
-    // Extract expanded account table data if available
+    // Extract account summaries if needed - but don't override properly extracted data
+    // We'll improve this function to respect null values and empty cells
     const expandedTablePattern = /Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment/i;
-    if (expandedTablePattern.test(extractedText)) {
-      enhanceAccountSummaries(parsedReport, extractedText);
+    if (expandedTablePattern.test(extractedText) && parsedReport.accountSummaries) {
+      enhanceAccountSummariesCellByCellApproach(parsedReport, extractedText);
     }
     
     // Additional Equifax-specific enhancements
@@ -171,67 +172,106 @@ function extractSummaryData(parsedReport: any, extractedText: string) {
   }
 }
 
-function enhanceAccountSummaries(parsedReport: any, extractedText: string) {
-  console.log("Attempting to extract expanded account summaries");
+function enhanceAccountSummariesCellByCellApproach(parsedReport: any, extractedText: string) {
+  console.log("Attempting to extract expanded account summaries cell by cell");
   
   if (parsedReport.accountSummaries && parsedReport.accountSummaries.length > 0) {
-    // First extract main content containing account summaries table
+    // Extract the table section
     const tableSectionMatch = extractedText.match(/Account\s+Type\s+Open\s+With\s+Balance\s+Total\s+Balance\s+Available\s+Credit\s+Limit\s+Debt-to-Credit\s+Payment([\s\S]+?)(?:Summary of|Statement|Public Records|Other Items)/i);
     const tableSection = tableSectionMatch ? tableSectionMatch[1] : extractedText;
     
-    // Process each account summary individually
+    // Split the table into lines for better processing
+    const lines = tableSection.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    // Process each account type individually
     for (const summary of parsedReport.accountSummaries) {
-      // Look for a line specifically containing this account type
-      const accountTypeRegex = new RegExp(`\\b${summary.accountType}\\b[^\\n]*`, 'i');
-      const accountLine = tableSection.match(accountTypeRegex);
+      const accountType = summary.accountType;
       
-      if (accountLine && accountLine[0]) {
-        const line = accountLine[0].trim();
-        console.log(`Found account data for ${summary.accountType}:`, line);
+      // Find the specific line containing just this account type's data
+      const accountTypeLine = lines.find(line => 
+        new RegExp(`^${accountType}\\b`, 'i').test(line)
+      );
+      
+      if (accountTypeLine) {
+        console.log(`Found account data for ${accountType}:`, accountTypeLine);
         
-        // Extract values from this specific line
+        // Process this specific line for this specific account type
+        processAccountLine(accountTypeLine, summary);
+      }
+    }
+  }
+}
+
+function processAccountLine(line: string, summary: any) {
+  const accountType = summary.accountType;
+  
+  // Split into tokens for easier processing
+  const tokens = line.split(/\s+/);
+  const accountTypeIndex = tokens.findIndex(t => 
+    t.toLowerCase() === accountType.toLowerCase());
+    
+  if (accountTypeIndex >= 0) {
+    // Open accounts - first number after account type if present
+    let currentIndex = accountTypeIndex + 1;
+    if (currentIndex < tokens.length && /^\d+$/.test(tokens[currentIndex])) {
+      summary.open = parseInt(tokens[currentIndex]);
+      currentIndex++;
+    }
+    
+    // With Balance - second number if present
+    if (currentIndex < tokens.length && /^\d+$/.test(tokens[currentIndex])) {
+      summary.withBalance = parseInt(tokens[currentIndex]);
+      currentIndex++;
+    }
+    
+    // For dollar values, extract them in the correct context
+    const accountTypePos = line.toLowerCase().indexOf(accountType.toLowerCase());
+    const afterAccountType = line.substring(accountTypePos);
+    
+    // Get all dollar values in this line section
+    const dollarMatches = afterAccountType.match(/\$[\d,.-]+/g);
+    
+    // Only process if we found dollar values
+    if (dollarMatches) {
+      // Find where the next account type starts (if any)
+      let relevantSection = afterAccountType;
+      const accountTypes = ['Revolving', 'Installment', 'Mortgage', 'Other', 'Total'];
+      
+      for (const type of accountTypes) {
+        if (type === accountType) continue; // Skip the current account type
         
-        // Extract open accounts - first number after account type
-        const openMatch = line.match(new RegExp(`\\b${summary.accountType}\\b\\s+(\\d+)`));
-        if (openMatch && openMatch[1]) {
-          summary.open = parseInt(openMatch[1]);
-        }
-        
-        // Extract withBalance - should be the second number in the line
-        const lineData = line.split(/\s+/);
-        const accountTypeIndex = lineData.findIndex(part => 
-          part.toLowerCase() === summary.accountType.toLowerCase());
-          
-        if (accountTypeIndex >= 0 && lineData.length > accountTypeIndex + 2) {
-          const potentialWithBalance = lineData[accountTypeIndex + 2];
-          if (/^\d+$/.test(potentialWithBalance)) {
-            summary.withBalance = parseInt(potentialWithBalance);
-          }
-        }
-        
-        // Extract dollar amounts in order: totalBalance, available, creditLimit, payment
-        const dollarValues = line.match(/\$[\d,.]+/g);
-        if (dollarValues) {
-          // Ensure we don't overwrite existing values with null
-          if (dollarValues.length > 0 && !summary.totalBalance) 
-            summary.totalBalance = dollarValues[0];
-            
-          if (dollarValues.length > 1 && !summary.available) 
-            summary.available = dollarValues[1];
-            
-          if (dollarValues.length > 2 && !summary.creditLimit) 
-            summary.creditLimit = dollarValues[2];
-            
-          if (dollarValues.length > 3 && !summary.payment) 
-            summary.payment = dollarValues[3];
-        }
-        
-        // Extract debt to credit ratio - should be a percentage
-        const debtToCreditMatch = line.match(/(\d+\.?\d*%)/);
-        if (debtToCreditMatch && debtToCreditMatch[1]) {
-          summary.debtToCredit = debtToCreditMatch[1];
+        // Find the next occurrence of another account type
+        const nextTypeIndex = afterAccountType.indexOf(type);
+        if (nextTypeIndex > -1 && nextTypeIndex < relevantSection.length) {
+          relevantSection = afterAccountType.substring(0, nextTypeIndex);
         }
       }
+      
+      // Get dollar values only from the relevant section
+      const relevantDollarMatches = relevantSection.match(/\$[\d,.-]+/g);
+      
+      if (relevantDollarMatches) {
+        // Assign dollar values in order: totalBalance, available, creditLimit, payment
+        if (relevantDollarMatches.length > 0) 
+          summary.totalBalance = relevantDollarMatches[0];
+          
+        if (relevantDollarMatches.length > 1) 
+          summary.available = relevantDollarMatches[1];
+          
+        if (relevantDollarMatches.length > 2) 
+          summary.creditLimit = relevantDollarMatches[2];
+          
+        if (relevantDollarMatches.length > 3) 
+          summary.payment = relevantDollarMatches[3];
+      }
+    }
+    
+    // Extract debt-to-credit percentage specific to this account
+    const percentagePattern = new RegExp(`${accountType}[^%]*?(\\d+\\.?\\d*%)`, 'i');
+    const percentageMatch = line.match(percentagePattern);
+    
+    if (percentageMatch && percentageMatch[1]) {
+      summary.debtToCredit = percentageMatch[1];
     }
   }
 }

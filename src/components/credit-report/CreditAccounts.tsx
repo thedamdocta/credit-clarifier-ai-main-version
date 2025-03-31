@@ -77,14 +77,6 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Get properly ordered account summaries
   const accountSummaries = ensureAccountSummaries();
 
-  // Display numeric values only when they exist
-  const displayValue = (value: any) => {
-    if (value === undefined || value === null) {
-      return "";
-    }
-    return value;
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -117,8 +109,8 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
                 isHighlighted={summary.accountType === 'Total'}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
-                <TableCell>{displayValue(summary.open)}</TableCell>
-                <TableCell>{displayValue(summary.withBalance)}</TableCell>
+                <TableCell>{summary.open !== null ? summary.open : ""}</TableCell>
+                <TableCell>{summary.withBalance !== null ? summary.withBalance : ""}</TableCell>
                 <TableCell>{formatValue(summary.totalBalance)}</TableCell>
                 <TableCell>{formatValue(summary.available)}</TableCell>
                 <TableCell>{formatValue(summary.creditLimit)}</TableCell>
