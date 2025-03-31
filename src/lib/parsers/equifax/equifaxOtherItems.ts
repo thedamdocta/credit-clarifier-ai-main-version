@@ -16,68 +16,39 @@ export const extractEquifaxOtherItems = (text: string): {
   let statementCount = 0;
   let consumerName = '';
   
-  // Extract consumer name - try different patterns focused on first page header
-  const namePatterns = [
-    /Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
-    /Consumer\s*Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
-    /Report\s+for\s+([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
-    /CONSUMER\s*NAME:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i
-  ];
-  
-  // Try each name pattern
-  for (const pattern of namePatterns) {
-    const nameMatch = text.match(pattern);
-    if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
-      consumerName = nameMatch[1].trim();
-      break;
-    }
+  // Extract consumer name - focus specifically on the Name row in Personal Information section
+  const nameRowPattern = /Name\s*(?:\n\s*)?([A-Z][A-Z\s]+)(?:\n|$)/;
+  const nameMatch = text.match(nameRowPattern);
+  if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
+    consumerName = nameMatch[1].trim();
   }
   
-  // If still not found, try to look in the first 1000 characters for a name-like pattern
+  // If not found with specific pattern, try general patterns as fallback
   if (!consumerName) {
-    const headerText = text.substring(0, 1000);
-    const headerLines = headerText.split(/\n/);
+    const namePatterns = [
+      /Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
+      /Consumer\s*Name:\s*([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i,
+      /Report\s+for\s+([A-Za-z\s.,'-]+?)(?:\n|$|\s{2,})/i
+    ];
     
-    for (const line of headerLines) {
-      // Look for lines that might contain a name (2+ words, each capitalized)
-      const nameLikePattern = /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}$/;
-      if (nameLikePattern.test(line.trim()) && line.trim().length > 5) {
-        consumerName = line.trim();
+    // Try each name pattern
+    for (const pattern of namePatterns) {
+      const nameMatch = text.match(pattern);
+      if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
+        consumerName = nameMatch[1].trim();
+        // Remove any text after known separators
+        consumerName = consumerName.split(/formerly|aka|fka|dba|\/|-|\(|,|;/i)[0].trim();
         break;
       }
     }
   }
   
-  // Completely revised name cleaning - extract ONLY the primary name 
+  // Keep the name simple - no more than two parts
   if (consumerName) {
-    // First, remove all text after any of these markers
-    const markers = [
-      'formerly', 'aka', 'fka', 'dba', 'ssn', 'social', 'security', 'number', 
-      '/', '-', '(', ',', ';'
-    ];
-    
-    let cleanedName = consumerName;
-    for (const marker of markers) {
-      const index = cleanedName.toLowerCase().indexOf(marker);
-      if (index > 0) {
-        cleanedName = cleanedName.substring(0, index).trim();
-      }
-    }
-    
-    // Now extract only the first part of the name (first 1-2 words max)
-    const nameParts = cleanedName.split(/\s+/);
-    
-    // Only keep first 1-2 parts for simple name
+    const nameParts = consumerName.split(/\s+/);
     if (nameParts.length > 2) {
-      // For 3+ words, take just the first and last
       consumerName = `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
-    } else {
-      // For 1-2 words, keep as is
-      consumerName = cleanedName;
     }
-    
-    // Ensure any middle initials are removed
-    consumerName = consumerName.replace(/\s+[A-Z]\s+/, ' ');
   }
   
   // Extract inquiry count

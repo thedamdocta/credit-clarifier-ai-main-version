@@ -9,8 +9,7 @@ interface ReportConfirmationProps {
 }
 
 const ReportConfirmation: React.FC<ReportConfirmationProps> = ({ report }) => {
-  // Extract the consumer name for display, ensure we only show the primary name
-  // and remove any extra information like "formerly known as" or middle initials
+  // Use only the primary name from the Name row in Personal Information section
   const displayName = report.consumerName || 
                      (report.personalInfo?.name && report.personalInfo.name !== 'Not Found' ? 
                       report.personalInfo.name : "Not Available");
