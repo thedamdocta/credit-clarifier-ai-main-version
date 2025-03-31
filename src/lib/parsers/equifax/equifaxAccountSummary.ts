@@ -2,222 +2,189 @@
 import { AccountSummary } from "../../types/creditReport";
 
 export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
-  console.log("Starting account summary extraction with cell-by-cell approach");
+  console.log("Starting account summary extraction with true cell-by-cell approach");
   
-  // Create a completely empty data grid for our 5x8 table
-  // 5 rows (account types) and 8 columns (metrics)
+  // Define the empty account summaries structure
   const accountSummaries: AccountSummary[] = [
-    // Revolving row (all individual cells)
-    {
-      accountType: 'Revolving',
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null, 
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    },
-    
-    // Mortgage row (all individual cells)
-    {
-      accountType: 'Mortgage',
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null,
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    },
-    
-    // Installment row (all individual cells)
-    {
-      accountType: 'Installment',
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null,
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    },
-    
-    // Other row (completely empty)
-    {
-      accountType: 'Other',
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null,
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    },
-    
-    // Total row (all individual cells)
-    {
-      accountType: 'Total',
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null,
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    }
+    { accountType: 'Revolving', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Mortgage', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Installment', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Other', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Total', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null }
   ];
-  
+
   try {
-    console.log("Attempting to find cell values one by one in text");
-    
-    // Find table section that contains account summaries
-    const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
-    if (tableSectionMatch) {
-      const tableSection = tableSectionMatch[1];
-      console.log("Found account table section");
-      
-      // Process tables using a cell-by-cell approach
-      processTableCellByCellApproach(tableSection, accountSummaries);
-    } else {
+    // Extract the table section with account summaries
+    const tableSection = extractTableSection(text);
+    if (!tableSection) {
       console.log("Could not find account summary table section");
+      return accountSummaries;
     }
+    
+    // Process each cell independently
+    processTableCellByCellTrue(tableSection, accountSummaries);
+    
+    // Log the results for debugging
+    console.log("Extracted account summaries:", accountSummaries);
     
     return accountSummaries;
   } catch (error) {
     console.error("Error extracting account summaries:", error);
-    return accountSummaries; // Return our structure even if processing fails
+    return accountSummaries; // Return empty structure on error
   }
 };
 
-// Process the table cell by cell without any dependencies between cells
-function processTableCellByCellApproach(tableSection: string, accountSummaries: AccountSummary[]): void {
+function extractTableSection(text: string): string | null {
+  // Look for the account summary table section
+  const tableSectionMatch = text.match(/(Account\s+Type[\s\S]+?)(?:Other Items|Summary of|Consumer Statement|Public Records|End of Report)/i);
+  if (tableSectionMatch) {
+    return tableSectionMatch[1];
+  }
+  return null;
+}
+
+function processTableCellByCellTrue(tableSection: string, accountSummaries: AccountSummary[]): void {
+  // Process each account type separately for true cell-by-cell extraction
+  const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+  
+  console.log("Processing account summaries individually for each account type");
+  
+  // Split into lines for processing
   const lines = tableSection.split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 0);
   
-  // Process each account type individually
-  const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
-  
-  for (let rowIndex = 0; rowIndex < accountTypes.length; rowIndex++) {
-    const accountType = accountTypes[rowIndex];
+  // For each account type, find specific information about it
+  for (let i = 0; i < accountTypes.length; i++) {
+    const accountType = accountTypes[i];
     
-    // Find any line containing this account type
-    const accountLineIndices = lines.reduce((indices, line, index) => {
-      if (new RegExp(`(?:^|\\s)${accountType}(?:\\s|$)`, 'i').test(line)) {
-        indices.push(index);
-      }
-      return indices;
-    }, [] as number[]);
+    // Find lines containing this account type
+    const relevantLines = lines.filter(line => 
+      new RegExp(`(?:^|\\s)${accountType}(?:\\s|$)`, 'i').test(line)
+    );
     
-    // Process each found line for this account type
-    for (const lineIdx of accountLineIndices) {
-      const line = lines[lineIdx];
-      console.log(`Processing line for ${accountType}: ${line}`);
+    if (relevantLines.length > 0) {
+      const accountLine = relevantLines[0]; // Use the first matching line
+      console.log(`Processing line for ${accountType}: ${accountLine}`);
       
-      // Call individual cell processors independently
-      // Each processor only looks for its specific data point
-      
-      // Process 'open' cell (numeric)
-      extractOpenCellValue(line, accountType, accountSummaries[rowIndex]);
-      
-      // Process 'withBalance' cell (numeric)
-      extractWithBalanceCellValue(line, accountType, accountSummaries[rowIndex]);
-      
-      // Process 'totalBalance' cell (dollar amount)
-      extractTotalBalanceCellValue(line, accountSummaries[rowIndex]);
-      
-      // Process 'available' cell (dollar amount)
-      extractAvailableCellValue(line, accountSummaries[rowIndex]);
-      
-      // Process 'creditLimit' cell (dollar amount)
-      extractCreditLimitCellValue(line, accountSummaries[rowIndex]);
-      
-      // Process 'debtToCredit' cell (percentage)
-      extractDebtToCreditCellValue(line, accountSummaries[rowIndex]);
-      
-      // Process 'payment' cell (dollar amount - usually last $ value)
-      extractPaymentCellValue(line, accountSummaries[rowIndex]);
+      // Extract each cell value independently for this account type
+      extractCellValue(accountLine, accountType, accountSummaries[i], 'open');
+      extractCellValue(accountLine, accountType, accountSummaries[i], 'withBalance');
+      extractCellValue(accountLine, accountType, accountSummaries[i], 'totalBalance');
+      extractCellValue(accountLine, accountType, accountSummaries[i], 'available');
+      extractCellValue(accountLine, accountType, accountSummaries[i], 'creditLimit');
+      extractCellValue(accountLine, accountType, accountSummaries[i], 'debtToCredit');
+      extractCellValue(accountLine, accountType, accountSummaries[i], 'payment');
     }
   }
 }
 
-// Individual cell processing functions - each operates independently
-
-function extractOpenCellValue(line: string, accountType: string, summary: AccountSummary): void {
-  // Look for a number after the account type
-  const openMatch = line.match(new RegExp(`${accountType}\\s+(\\d+)`, 'i'));
-  if (openMatch && openMatch[1]) {
-    summary.open = parseInt(openMatch[1], 10);
-    console.log(`✓ Cell updated: ${accountType} open = ${summary.open}`);
+function extractCellValue(line: string, accountType: string, summary: AccountSummary, field: keyof AccountSummary): void {
+  // Get position of account type in the line
+  const accountTypePos = line.toLowerCase().indexOf(accountType.toLowerCase());
+  if (accountTypePos < 0) return;
+  
+  // Get remainder of line after account type
+  const remainingText = line.substring(accountTypePos + accountType.length).trim();
+  
+  // Extract specific cell value based on field
+  switch (field) {
+    case 'open': {
+      // First number after account type is usually the 'open' count
+      const match = remainingText.match(/^(\d+)/);
+      if (match && match[1]) {
+        const value = parseInt(match[1]);
+        if (!isNaN(value) && summary[field] === null) {
+          summary[field] = value;
+          console.log(`Found ${accountType} ${field}: ${value}`);
+        }
+      }
+      break;
+    }
+    
+    case 'withBalance': {
+      // Second number is usually the 'with balance' count
+      const match = remainingText.match(/^\s*\d+\s+(\d+)/);
+      if (match && match[1]) {
+        const value = parseInt(match[1]);
+        if (!isNaN(value) && summary[field] === null) {
+          summary[field] = value;
+          console.log(`Found ${accountType} ${field}: ${value}`);
+        }
+      }
+      break;
+    }
+    
+    case 'totalBalance': {
+      // First dollar amount is usually the 'total balance'
+      const match = remainingText.match(/\s(\$[\d,]+|-\$[\d,]+|\$-[\d,]+)/);
+      if (match && match[1]) {
+        if (summary[field] === null) {
+          summary[field] = normalizeDollarFormat(match[1]);
+          console.log(`Found ${accountType} ${field}: ${summary[field]}`);
+        }
+      }
+      break;
+    }
+    
+    case 'available': {
+      // Second dollar amount is usually 'available'
+      const dollars = extractAllDollarAmounts(remainingText);
+      if (dollars.length >= 2 && summary[field] === null) {
+        summary[field] = dollars[1];
+        console.log(`Found ${accountType} ${field}: ${summary[field]}`);
+      }
+      break;
+    }
+    
+    case 'creditLimit': {
+      // Third dollar amount is usually 'credit limit'
+      const dollars = extractAllDollarAmounts(remainingText);
+      if (dollars.length >= 3 && summary[field] === null) {
+        summary[field] = dollars[2];
+        console.log(`Found ${accountType} ${field}: ${summary[field]}`);
+      }
+      break;
+    }
+    
+    case 'debtToCredit': {
+      // Look for a percentage value
+      const match = remainingText.match(/(\d+(?:\.\d+)?\s*%)/);
+      if (match && match[1] && summary[field] === null) {
+        summary[field] = match[1].trim();
+        console.log(`Found ${accountType} ${field}: ${summary[field]}`);
+      }
+      break;
+    }
+    
+    case 'payment': {
+      // Last dollar amount is usually 'payment'
+      const dollars = extractAllDollarAmounts(remainingText);
+      if (dollars.length > 0 && summary[field] === null) {
+        summary[field] = dollars[dollars.length - 1];
+        console.log(`Found ${accountType} ${field}: ${summary[field]}`);
+      }
+      break;
+    }
   }
 }
 
-function extractWithBalanceCellValue(line: string, accountType: string, summary: AccountSummary): void {
-  // Look for second number after account type (specific pattern for "with balance" column)
-  const withBalanceMatch = line.match(new RegExp(`${accountType}\\s+\\d+\\s+(\\d+)`, 'i'));
-  if (withBalanceMatch && withBalanceMatch[1]) {
-    summary.withBalance = parseInt(withBalanceMatch[1], 10);
-    console.log(`✓ Cell updated: ${accountType} withBalance = ${summary.withBalance}`);
+function extractAllDollarAmounts(text: string): string[] {
+  const dollarPattern = /(\$[\d,]+|-\$[\d,]+|\$-[\d,]+)/g;
+  const dollars: string[] = [];
+  let match;
+  
+  while ((match = dollarPattern.exec(text)) !== null) {
+    dollars.push(normalizeDollarFormat(match[1]));
   }
+  
+  return dollars;
 }
 
-function extractTotalBalanceCellValue(line: string, summary: AccountSummary): void {
-  // Look for the first dollar amount
-  const totalBalanceMatch = line.match(/(\$[0-9,.]+|-\$[0-9,.]+)/);
-  if (totalBalanceMatch) {
-    summary.totalBalance = totalBalanceMatch[0];
-    console.log(`✓ Cell updated: ${summary.accountType} totalBalance = ${summary.totalBalance}`);
+function normalizeDollarFormat(value: string): string {
+  // Normalize $-X,XXX format to -$X,XXX for consistency
+  if (value.startsWith('$-')) {
+    return `-$${value.substring(2)}`;
   }
-}
-
-function extractAvailableCellValue(line: string, summary: AccountSummary): void {
-  // Look for the second dollar amount
-  const allDollarMatches = Array.from(line.matchAll(/(\$[0-9,.]+|-\$[0-9,.]+)/g));
-  if (allDollarMatches.length >= 2) {
-    summary.available = allDollarMatches[1][0];
-    console.log(`✓ Cell updated: ${summary.accountType} available = ${summary.available}`);
-  }
-}
-
-function extractCreditLimitCellValue(line: string, summary: AccountSummary): void {
-  // Look for the third dollar amount
-  const allDollarMatches = Array.from(line.matchAll(/(\$[0-9,.]+|-\$[0-9,.]+)/g));
-  if (allDollarMatches.length >= 3) {
-    summary.creditLimit = allDollarMatches[2][0];
-    console.log(`✓ Cell updated: ${summary.accountType} creditLimit = ${summary.creditLimit}`);
-  }
-}
-
-function extractDebtToCreditCellValue(line: string, summary: AccountSummary): void {
-  // Look for percentage values
-  const percentMatch = line.match(/(\d+\.?\d*)\s*%/);
-  if (percentMatch) {
-    summary.debtToCredit = `${percentMatch[0].trim()}`;
-    console.log(`✓ Cell updated: ${summary.accountType} debtToCredit = ${summary.debtToCredit}`);
-  }
-}
-
-function extractPaymentCellValue(line: string, summary: AccountSummary): void {
-  // Look for the last dollar amount in the line
-  const allDollarMatches = Array.from(line.matchAll(/(\$[0-9,.]+|-\$[0-9,.]+)/g));
-  if (allDollarMatches.length > 0) {
-    summary.payment = allDollarMatches[allDollarMatches.length - 1][0];
-    console.log(`✓ Cell updated: ${summary.accountType} payment = ${summary.payment}`);
-  }
+  return value;
 }

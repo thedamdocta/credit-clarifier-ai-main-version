@@ -54,32 +54,40 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
-  // Create a mapping of account summaries by account type for easier lookup
-  const accountTypeMap = new Map<string, AccountSummary>();
+  // Create properly ordered account summaries with empty values for missing types
+  const accountSummaries: AccountSummary[] = [];
   
+  // First create a map of existing account summaries by type
+  const summariesByType = new Map<string, AccountSummary>();
   if (report.accountSummaries && report.accountSummaries.length > 0) {
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
-        accountTypeMap.set(summary.accountType, summary);
+        summariesByType.set(summary.accountType, summary);
       }
     });
   }
   
-  // Create properly ordered account summaries with default empty values for missing types
-  const accountSummaries: AccountSummary[] = requiredAccountTypes.map(type => {
-    return accountTypeMap.get(type) || {
-      accountType: type,
-      totalAccounts: null,
-      open: null,
-      closed: null,
-      balance: null,
-      withBalance: null,
-      totalBalance: null,
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: null
-    };
+  // Then create our final list in the required order, creating empty entries for missing types
+  requiredAccountTypes.forEach(accountType => {
+    const existingSummary = summariesByType.get(accountType);
+    
+    if (existingSummary) {
+      accountSummaries.push(existingSummary);
+    } else {
+      accountSummaries.push({
+        accountType,
+        totalAccounts: null,
+        open: null,
+        closed: null,
+        balance: null,
+        withBalance: null,
+        totalBalance: null,
+        available: null,
+        creditLimit: null,
+        debtToCredit: null,
+        payment: null
+      });
+    }
   });
 
   // Log the account summaries for debugging
