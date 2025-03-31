@@ -13,6 +13,47 @@ const AIAnalysisSummary: React.FC<AIAnalysisSummaryProps> = ({ report }) => {
   // Calculate total accounts from account summaries if available
   const totalAccounts = report.accountSummaries?.find(summary => summary.accountType === 'Total')?.totalAccounts || 0;
   
+  // Format value function for account summary table cells
+  const formatValue = (value: string | number | undefined | null) => {
+    // Return empty string for null/undefined values
+    if (value === undefined || value === null || value === '') {
+      return ""; 
+    }
+    
+    // Convert value to string
+    const stringValue = String(value);
+    
+    // For values already properly formatted with $ or -$, return as is
+    if (typeof stringValue === 'string' && (stringValue.startsWith('$') || stringValue.startsWith('-$'))) {
+      return stringValue;
+    }
+    
+    // For numerical values or numeric strings that should be dollar amounts
+    if (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value.replace(/[^0-9.-]/g, ''))))) {
+      let numericValue: number;
+      
+      if (typeof value === 'number') {
+        numericValue = value;
+      } else {
+        // Extract numeric value from string, preserving negative sign
+        const cleanedValue = value.replace(/[^0-9.-]/g, '');
+        numericValue = parseFloat(cleanedValue);
+      }
+      
+      // Format according to sign
+      return numericValue < 0 ? 
+        `-$${Math.abs(numericValue).toLocaleString()}` : 
+        `$${numericValue.toLocaleString()}`;
+    }
+    
+    return value; // Return as is if it's not a numeric value
+  };
+
+  // Utility function to check if a cell value exists
+  const hasValue = (value: any): boolean => {
+    return value !== undefined && value !== null && value !== '';
+  };
+  
   return (
     <Card className="mt-8 border-dashed border-yellow-500">
       <CardHeader className="bg-yellow-50">
@@ -45,26 +86,35 @@ const AIAnalysisSummary: React.FC<AIAnalysisSummaryProps> = ({ report }) => {
           
           {report.accountSummaries && report.accountSummaries.length > 0 && (
             <div>
-              <h3 className="font-medium mb-2">Detected Account Summaries</h3>
+              <h3 className="font-medium mb-2">Detected Account Summaries (Full 8x5 Table)</h3>
               <div className="border rounded-md overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Account Type</TableHead>
-                      <TableHead>Total Accounts</TableHead>
                       <TableHead>Open</TableHead>
-                      <TableHead>Closed</TableHead>
-                      <TableHead>Balance</TableHead>
+                      <TableHead>With Balance</TableHead>
+                      <TableHead>Total Balance</TableHead>
+                      <TableHead>Available</TableHead>
+                      <TableHead>Credit Limit</TableHead>
+                      <TableHead>Debt-to-Credit</TableHead>
+                      <TableHead>Payment</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {report.accountSummaries.map((summary, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{summary.accountType}</TableCell>
-                        <TableCell>{summary.totalAccounts}</TableCell>
-                        <TableCell>{summary.open}</TableCell>
-                        <TableCell>{summary.closed}</TableCell>
-                        <TableCell>{summary.balance || '$0'}</TableCell>
+                      <TableRow 
+                        key={index} 
+                        className={summary.accountType === 'Total' ? 'bg-muted/30 font-semibold' : ''}
+                      >
+                        <TableCell className="font-medium">{summary.accountType}</TableCell>
+                        <TableCell>{hasValue(summary.open) ? summary.open : ""}</TableCell>
+                        <TableCell>{hasValue(summary.withBalance) ? summary.withBalance : ""}</TableCell>
+                        <TableCell>{hasValue(summary.totalBalance) ? formatValue(summary.totalBalance) : ""}</TableCell>
+                        <TableCell>{hasValue(summary.available) ? formatValue(summary.available) : ""}</TableCell>
+                        <TableCell>{hasValue(summary.creditLimit) ? formatValue(summary.creditLimit) : ""}</TableCell>
+                        <TableCell>{hasValue(summary.debtToCredit) ? summary.debtToCredit : ""}</TableCell>
+                        <TableCell>{hasValue(summary.payment) ? formatValue(summary.payment) : ""}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
