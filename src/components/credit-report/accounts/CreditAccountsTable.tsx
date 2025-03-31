@@ -15,13 +15,17 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     console.log(`Rendering cell: ${fieldName} - value: ${value}`);
     
+    // Special handling for "0" values - make sure they display as "0"
+    if (value === 0 || value === "0") {
+      return "0";
+    }
+    
     // Display "x" for null, undefined, or empty strings
-    // But treat 0 as a valid value that should be displayed
     if (value === null || value === undefined || value === '') {
       return "x";
     }
     
-    // For actual values (including 0), format them properly
+    // For actual values, format them properly
     return formatter(value);
   };
 

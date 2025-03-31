@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -223,6 +224,44 @@ function processAccountType(
   // Process the account line - each cell is treated independently
   processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
   
+  // Special handling for Revolving account - explicitly look for "0" values
+  if (accountType === 'Revolving') {
+    // Additional logging to debug Revolving row specifically
+    console.log("Revolving raw line:", accountLine);
+    
+    // Enhanced detection for "0" values in the Revolving row
+    const zeroPattern = /\b0\b/g;
+    const matches = [...accountLine.matchAll(zeroPattern)];
+    console.log("Zero matches in Revolving row:", matches.length);
+    
+    // If we find multiple zeros, check if they correspond to open and withBalance columns
+    if (matches.length >= 2) {
+      // Check for zeros near the expected column positions
+      const openPos = columns['open'] || 0;
+      const withBalancePos = columns['withBalance'] || 0;
+      
+      // Map matches to their positions
+      const matchPositions = matches.map(m => m.index || 0);
+      console.log("Zero positions:", matchPositions);
+      console.log("Column positions - Open:", openPos, "WithBalance:", withBalancePos);
+      
+      // Find closest match to each column position
+      for (const matchPos of matchPositions) {
+        // Determine which column this zero is closest to
+        const openDist = Math.abs(matchPos - openPos);
+        const withBalanceDist = Math.abs(matchPos - withBalancePos);
+        
+        if (openDist < withBalanceDist && openDist < 30) {
+          accountSummary.open = "0";
+          console.log("Explicitly set Revolving open to 0");
+        } else if (withBalanceDist < 30) {
+          accountSummary.withBalance = "0";
+          console.log("Explicitly set Revolving withBalance to 0");
+        }
+      }
+    }
+  }
+  
   console.log(`${accountType} row after processing:`, accountSummary);
 }
 
@@ -263,8 +302,12 @@ function processAccountLineWithColumnAwareness(
     // Extract content for this cell position
     const cellContent = extractCellContent(line, startPos, endPos);
     
+    // Log explicitly what we found for debugging
+    console.log(`[${accountSummary.accountType}] Cell ${key}: "${cellContent}"`);
+    
     // If cell is empty, leave as null (which will render as 'x')
     if (!cellContent) {
+      console.log(`[${accountSummary.accountType}] Cell ${key} is empty, keeping as null`);
       continue;
     }
     
@@ -273,6 +316,7 @@ function processAccountLineWithColumnAwareness(
       if (key === 'open' || key === 'withBalance') {
         // Fix: Convert to string "0" instead of numeric 0 to match type
         accountSummary[key] = "0"; // Store as string "0", not numeric 0
+        console.log(`[${accountSummary.accountType}] Set ${key} to string "0"`, accountSummary[key]);
         continue;
       }
     }
@@ -283,6 +327,7 @@ function processAccountLineWithColumnAwareness(
       if (numericValue !== null) {
         // Fix: Ensure we're storing string values, not numbers
         accountSummary[key] = String(numericValue); // Convert to string to match type
+        console.log(`[${accountSummary.accountType}] Set ${key} to extracted value`, accountSummary[key]);
       }
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);

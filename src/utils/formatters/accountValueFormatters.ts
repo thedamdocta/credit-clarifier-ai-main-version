@@ -98,6 +98,12 @@ export const extractCellContent = (line: string, startPos: number, endPos: numbe
   // If the cell space is completely empty or only has whitespace
   if (substring.length === 0) return null;
   
+  // Enhanced detection for standalone "0" values
+  if (substring.trim() === "0" || /\b0\b/.test(substring)) {
+    console.log("Found standalone '0' value in cell:", substring);
+    return "0";
+  }
+  
   return substring;
 };
 
@@ -108,7 +114,8 @@ export const extractNumericValue = (cellContent: string | null): string | null =
   if (!cellContent) return null;
   
   // Check for exactly "0" with word boundaries (handles the Revolving row case in your example)
-  if (/\b0\b/.test(cellContent)) {
+  if (cellContent.trim() === "0" || /\b0\b/.test(cellContent)) {
+    console.log("Found standalone '0' value in numeric extraction");
     return "0";
   }
   
