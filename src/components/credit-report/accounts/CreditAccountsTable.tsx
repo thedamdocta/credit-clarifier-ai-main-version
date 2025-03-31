@@ -22,6 +22,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     
     // If the value is empty (null, undefined, or empty string), show "x"
     if (isCellEmpty(value)) {
+      console.log(`Empty cell detected for ${accountType} - ${fieldName}, displaying "x"`);
       return "x";
     }
     

@@ -31,7 +31,19 @@ export function processAccountType(
   });
   
   if (!accountLine) {
-    console.log(`No line found for ${accountType}, keeping empty values (nulls)`);
+    console.log(`No line found for ${accountType}, ensuring all values are null`);
+    // Make sure all account values are explicitly null
+    const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
+    if (accountSummary) {
+      // Set all fields to null explicitly
+      accountSummary.open = null;
+      accountSummary.withBalance = null;
+      accountSummary.totalBalance = null;
+      accountSummary.available = null;
+      accountSummary.creditLimit = null;
+      accountSummary.debtToCredit = null;
+      accountSummary.payment = null;
+    }
     return;
   }
   
@@ -44,7 +56,16 @@ export function processAccountType(
   // Special debug for rows
   console.log(`Processing ${accountType} row`);
   
-  // Process the account line using cell by cell processing with empty cell detection
+  // IMPROVED: First set ALL fields to null by default
+  accountSummary.open = null;
+  accountSummary.withBalance = null;
+  accountSummary.totalBalance = null;
+  accountSummary.available = null;
+  accountSummary.creditLimit = null;
+  accountSummary.debtToCredit = null;
+  accountSummary.payment = null;
+  
+  // Process the account line using cell by cell processing
   processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
   
   // After processing log
@@ -73,10 +94,10 @@ export function processAccountLineWithColumnAwareness(
     return posA - posB;
   });
   
-  // Track which columns have actual data
-  const columnsWithData = new Set<string>();
+  // IMPROVED: All fields start as null (set in the processAccountType function)
+  // We will only set values for fields that have actual data
   
-  // First pass: identify which columns actually have data
+  // Process the data for columns that have values
   for (let i = 0; i < sortedColumnKeys.length; i++) {
     const key = sortedColumnKeys[i];
     const nextKey = i < sortedColumnKeys.length - 1 ? sortedColumnKeys[i + 1] : null;
@@ -91,40 +112,9 @@ export function processAccountLineWithColumnAwareness(
     // Extract content for this cell position
     const cellContent = extractCellContent(line, startPos, endPos);
     
-    // If cell has meaningful content, mark it
-    if (cellContent && cellContent.trim() !== '') {
-      columnsWithData.add(key);
-    }
-  }
-
-  console.log(`${accountSummary.accountType} - Columns with data:`, Array.from(columnsWithData));
-  
-  // Second pass: process the data and ensure values are set properly
-  for (let i = 0; i < sortedColumnKeys.length; i++) {
-    const key = sortedColumnKeys[i];
-    const nextKey = i < sortedColumnKeys.length - 1 ? sortedColumnKeys[i + 1] : null;
-    
-    // Skip accountType as it's already set
-    if (key === 'accountType') continue;
-    
-    // If this column doesn't have data, ensure it's explicitly null
-    if (!columnsWithData.has(key)) {
-      accountSummary[key] = null;
-      console.log(`${accountSummary.accountType} - ${key}: No data found, setting to null`);
-      continue;
-    }
-    
-    // Get the position range for this column
-    const startPos = columns[key];
-    const endPos = nextKey ? columns[nextKey] : undefined;
-    
-    // Extract content for this cell position
-    const cellContent = extractCellContent(line, startPos, endPos);
-    
-    // If cell is empty or can't be extracted, make sure the value is null
+    // Only process if cell has meaningful content
     if (!cellContent || cellContent.trim() === '') {
-      accountSummary[key] = null;
-      console.log(`${accountSummary.accountType} - ${key}: Empty cell detected, setting to null`);
+      console.log(`${accountSummary.accountType} - ${key}: Empty cell detected, keeping as null`);
       continue;
     }
     
@@ -134,16 +124,22 @@ export function processAccountLineWithColumnAwareness(
     // Process based on column type
     if (key === 'open' || key === 'withBalance') {
       const numericValue = extractNumericValue(cellContent);
-      accountSummary[key] = numericValue;
-      console.log(`${accountSummary.accountType} - ${key}: Numeric value: ${numericValue}`);
+      if (numericValue !== null) {
+        accountSummary[key] = numericValue;
+        console.log(`${accountSummary.accountType} - ${key}: Numeric value: ${numericValue}`);
+      }
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);
-      accountSummary[key] = dollarValue;
-      console.log(`${accountSummary.accountType} - ${key}: Dollar value: ${dollarValue}`);
+      if (dollarValue !== null) {
+        accountSummary[key] = dollarValue;
+        console.log(`${accountSummary.accountType} - ${key}: Dollar value: ${dollarValue}`);
+      }
     } else if (key === 'debtToCredit') {
       const percentValue = extractPercentageValue(cellContent);
-      accountSummary[key] = percentValue;
-      console.log(`${accountSummary.accountType} - ${key}: Percentage value: ${percentValue}`);
+      if (percentValue !== null) {
+        accountSummary[key] = percentValue;
+        console.log(`${accountSummary.accountType} - ${key}: Percentage value: ${percentValue}`);
+      }
     }
   }
   
@@ -157,4 +153,3 @@ export function processAccountLineWithColumnAwareness(
     payment: accountSummary.payment
   });
 }
-
