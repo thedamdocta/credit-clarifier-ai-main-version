@@ -1,3 +1,4 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
@@ -27,7 +28,8 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
         // The pipeline function requires at least two arguments: task and model
         const docExtractor = await pipeline(
           'document-question-answering',
-          TABLE_EXTRACTION_MODEL
+          TABLE_EXTRACTION_MODEL,
+          { revision: 'main' }
         );
         
         // Ask model to extract table content
