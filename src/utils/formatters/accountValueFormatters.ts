@@ -1,10 +1,9 @@
-
 /**
  * Safely formats cell values for the account summary tables
  */
 export const formatAccountValue = (value: any): string => {
   if (value === undefined || value === null || value === '') {
-    return ""; 
+    return "x"; 
   }
   
   // Always return as string, don't do numeric conversions
@@ -16,7 +15,7 @@ export const formatAccountValue = (value: any): string => {
  */
 export const formatDollarAmount = (value: any): string => {
   if (value === undefined || value === null || value === '') {
-    return ""; 
+    return "x"; 
   }
 
   const stringValue = String(value);
@@ -49,7 +48,8 @@ export const formatDollarAmount = (value: any): string => {
  * Check if a cell value exists and should be displayed
  */
 export const hasDisplayValue = (value: any): boolean => {
-  return value !== undefined && value !== null && value !== '';
+  // Always return true even for empty values since we'll show "x" 
+  return true;
 };
 
 /**

@@ -9,15 +9,9 @@ interface AIAnalysisAccountTableProps {
 }
 
 const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ accountSummaries }) => {
-  // Filter out account types that have no data at all
+  // Filter out account types that have no data at all (all cells are null/undefined)
   const hasAnyData = (summary: AccountSummary): boolean => {
-    return hasDisplayValue(summary.open) || 
-           hasDisplayValue(summary.withBalance) || 
-           hasDisplayValue(summary.totalBalance) || 
-           hasDisplayValue(summary.available) || 
-           hasDisplayValue(summary.creditLimit) || 
-           hasDisplayValue(summary.debtToCredit) || 
-           hasDisplayValue(summary.payment);
+    return true; // Always show all accounts since we'll display "x" for empty values
   };
 
   const summariesWithData = accountSummaries.filter(hasAnyData);
@@ -45,13 +39,13 @@ const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ account
                 className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
-                <TableCell>{hasDisplayValue(summary.open) ? formatAccountValue(summary.open) : ""}</TableCell>
-                <TableCell>{hasDisplayValue(summary.withBalance) ? formatAccountValue(summary.withBalance) : ""}</TableCell>
-                <TableCell>{hasDisplayValue(summary.totalBalance) ? formatDollarAmount(summary.totalBalance) : ""}</TableCell>
-                <TableCell>{hasDisplayValue(summary.available) ? formatDollarAmount(summary.available) : ""}</TableCell>
-                <TableCell>{hasDisplayValue(summary.creditLimit) ? formatDollarAmount(summary.creditLimit) : ""}</TableCell>
-                <TableCell>{hasDisplayValue(summary.debtToCredit) ? formatAccountValue(summary.debtToCredit) : ""}</TableCell>
-                <TableCell>{hasDisplayValue(summary.payment) ? formatDollarAmount(summary.payment) : ""}</TableCell>
+                <TableCell>{formatAccountValue(summary.open)}</TableCell>
+                <TableCell>{formatAccountValue(summary.withBalance)}</TableCell>
+                <TableCell>{formatDollarAmount(summary.totalBalance)}</TableCell>
+                <TableCell>{formatDollarAmount(summary.available)}</TableCell>
+                <TableCell>{formatDollarAmount(summary.creditLimit)}</TableCell>
+                <TableCell>{formatAccountValue(summary.debtToCredit)}</TableCell>
+                <TableCell>{formatDollarAmount(summary.payment)}</TableCell>
               </TableRow>
             ))
           ) : (
