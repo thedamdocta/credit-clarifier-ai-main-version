@@ -3,8 +3,9 @@
  * Safely formats cell values for the account summary tables
  */
 export const formatAccountValue = (value: any): string => {
-  // Special handling for 0 values - display as "0" not "x"
+  // Special explicit handling for 0 values - display as "0" not "x"
   if (value === 0 || value === "0") {
+    console.log("formatAccountValue: Formatting zero value");
     return "0";
   }
   

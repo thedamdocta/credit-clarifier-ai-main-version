@@ -15,8 +15,9 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     console.log(`Rendering cell: ${fieldName} - value: ${value}`);
     
-    // Special handling for "0" values - make sure they display as "0"
+    // For zero values - explicitly check string "0" as well as number 0
     if (value === 0 || value === "0") {
+      console.log(`Found zero value in ${fieldName} cell`);
       return "0";
     }
     
@@ -44,21 +45,26 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
         </TableRow>
       </TableHeader>
       <TableBody>
-        {accountSummaries.map((summary) => (
-          <TableRow 
-            key={`account-summary-${summary.accountType}`} 
-            className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
-          >
-            <TableCell className="font-medium">{summary.accountType}</TableCell>
-            <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
-            <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
-            <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
-            <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
-            <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
-            <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatAccountValue)}</TableCell>
-            <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
-          </TableRow>
-        ))}
+        {accountSummaries.map((summary) => {
+          // Debug per row
+          console.log(`Rendering row for ${summary.accountType}:`, summary);
+          
+          return (
+            <TableRow 
+              key={`account-summary-${summary.accountType}`} 
+              className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
+            >
+              <TableCell className="font-medium">{summary.accountType}</TableCell>
+              <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
+              <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
+              <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
+              <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
+              <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
+              <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatAccountValue)}</TableCell>
+              <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
