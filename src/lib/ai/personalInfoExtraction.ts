@@ -1,4 +1,3 @@
-
 import { extractEntities } from './textAnalysis';
 import { extractSSNWithAI } from './entityExtraction';
 import { PersonalInfo } from '../types/creditReport';
@@ -126,7 +125,7 @@ export const extractPersonalInfoWithAI = async (text: string): Promise<PersonalI
   }
 };
 
-// Helper function that was previously inlined
+// Helper function for name extraction
 export const extractNameWithAI = async (text: string): Promise<string> => {
   try {
     const entities = await extractEntities(text);

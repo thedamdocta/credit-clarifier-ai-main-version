@@ -4,6 +4,8 @@ export * from './config';
 export * from './modelPipelines';
 export * from './types';
 export * from './textAnalysis';
-export * from './entityExtraction';
+// Export everything from entityExtraction except extractNameWithAI to avoid conflict
+export { extractSSNWithAI, identifyBureauWithAI } from './entityExtraction';
+// Export from personalInfoExtraction (including extractNameWithAI)
 export * from './personalInfoExtraction';
 export * from './creditReportParsing';

@@ -1,5 +1,5 @@
-
 import { extractEntities } from './textAnalysis';
+import { extractNameWithAI } from './personalInfoExtraction';
 
 // Enhanced SSN extraction using NLP
 export const extractSSNWithAI = async (text: string): Promise<string | undefined> => {
@@ -31,52 +31,8 @@ export const extractSSNWithAI = async (text: string): Promise<string | undefined
   }
 };
 
-// Enhanced name extraction with AI
-export const extractNameWithAI = async (text: string): Promise<string> => {
-  try {
-    const entities = await extractEntities(text);
-    
-    // Look for person entities
-    const personEntities = entities.filter(e => e.entity === 'B-PER' || e.entity === 'I-PER');
-    
-    if (personEntities.length > 0) {
-      // Extract full name by finding consecutive person entities
-      let fullName = '';
-      let currentGroup: any[] = [];
-      
-      for (let i = 0; i < personEntities.length; i++) {
-        const current = personEntities[i];
-        if (current.entity === 'B-PER') {
-          if (currentGroup.length > 0) {
-            const name = currentGroup.map(e => e.word).join(' ');
-            if (name.split(' ').length >= 2) {
-              fullName = name;
-              break;
-            }
-          }
-          currentGroup = [current];
-        } else if (current.entity === 'I-PER') {
-          currentGroup.push(current);
-        }
-      }
-      
-      if (fullName && fullName.length > 2) {
-        return fullName;
-      }
-    }
-    
-    // Fall back to regex-based name extraction
-    const nameMatch = text.match(/name:?\s*([A-Za-z\s\.,]+)/i);
-    if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 0) {
-      return nameMatch[1].trim();
-    }
-    
-    return 'Not Found';
-  } catch (error) {
-    console.error('Error extracting name with AI:', error);
-    return 'Not Found';
-  }
-};
+// Re-export extractNameWithAI for backward compatibility
+export { extractNameWithAI };
 
 // Extract bureau information using AI
 export const identifyBureauWithAI = async (text: string): Promise<'Equifax' | 'Experian' | 'TransUnion' | 'Unknown'> => {
