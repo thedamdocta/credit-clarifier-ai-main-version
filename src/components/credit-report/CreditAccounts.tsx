@@ -26,17 +26,24 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   console.log("Incoming account summaries:", report.accountSummaries);
   
   if (report.accountSummaries && report.accountSummaries.length > 0) {
+    // First process non-Total rows
     report.accountSummaries.forEach(summary => {
-      if (summary.accountType) {
+      if (summary.accountType && summary.accountType !== 'Total') {
         // Store the summary in our map, preserving all original values (including zeros)
         summariesByType.set(summary.accountType, summary);
-        
         console.log(`Processing ${summary.accountType} account summary:`, summary);
       }
     });
+    
+    // Handle Total row separately to ensure it's processed correctly
+    const totalRow = report.accountSummaries.find(summary => summary.accountType === 'Total');
+    if (totalRow) {
+      summariesByType.set('Total', totalRow);
+      console.log("Processing Total account summary:", totalRow);
+    }
   }
   
-  // Then create our final list in the required order, creating empty entries for missing types
+  // Create our final list in the required order, creating empty entries for missing types
   requiredAccountTypes.forEach(accountType => {
     const existingSummary = summariesByType.get(accountType);
     
