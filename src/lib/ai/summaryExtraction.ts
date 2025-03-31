@@ -59,7 +59,8 @@ function extractAverageAccountAgeAI(text: string, data: Partial<CreditReport>): 
 }
 
 function extractCreditHistoryLengthAI(text: string, data: Partial<CreditReport>): void {
-  const historyMatch = text.match(/Length\s*of\s*Credit\s*History\s*:?\s*(\d+\s*Years?)(?:\s|$|\n)/i);
+  // Updated pattern to match both "X Years, Y Months" and "X Years" formats
+  const historyMatch = text.match(/Length\s*of\s*Credit\s*History\s*:?\s*(\d+\s*Years?(?:,\s*\d+\s*Months?)?)(?:\s|$|\n)/i);
   if (historyMatch && historyMatch[1]) {
     data.lengthOfCreditHistory = historyMatch[1].trim();
     console.log("Extracted credit history length:", data.lengthOfCreditHistory);

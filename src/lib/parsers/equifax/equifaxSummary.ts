@@ -118,7 +118,8 @@ function extractAccountAge(text: string, summary: any): void {
 }
 
 function extractCreditHistory(text: string, summary: any): void {
-  const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?)/i;
+  // Updated pattern to match both "X Years, Y Months" and "X Years" formats
+  const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?(?:,\s+\d+\s+Months?)?)/i;
   const historyMatch = text.match(historyPattern);
   if (historyMatch && historyMatch[1]) {
     summary.lengthOfCreditHistory = historyMatch[1].trim();

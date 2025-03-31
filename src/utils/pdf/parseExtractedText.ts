@@ -143,9 +143,9 @@ function extractSummaryData(parsedReport: any, extractedText: string) {
     }
   }
   
-  // Extract length of credit history with more precise boundaries
+  // Extract length of credit history with more precise boundaries - updated to match both years and months
   if (!parsedReport.lengthOfCreditHistory) {
-    const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?)(?:\s|$|\n)/i;
+    const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?(?:,\s+\d+\s+Months?)?)(?:\s|$|\n)/i;
     const historyMatch = extractedText.match(historyPattern);
     if (historyMatch && historyMatch[1]) {
       parsedReport.lengthOfCreditHistory = historyMatch[1].trim();
