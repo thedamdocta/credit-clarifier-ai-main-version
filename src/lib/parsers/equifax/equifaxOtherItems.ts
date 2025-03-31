@@ -21,41 +21,62 @@ export const extractEquifaxOtherItems = (text: string): {
     inquiryCount = parseInt(inquiryMatch[1]);
   }
   
-  // Extract most recent inquiry - search with multiple patterns
-  // Pattern 1: Look for a pattern like "Most Recent Inquiry: COMPANY NAME (CODE) Date"
-  const recentInquiryMatch = text.match(/Most\s+Recent\s+Inquiry[:\s]+([^\n]+?)(?:\n|$)/i);
-  if (recentInquiryMatch && recentInquiryMatch[1]) {
-    const inquiryText = recentInquiryMatch[1].trim();
-    // Only use the inquiry if it's not too long (likely not the whole report)
-    if (inquiryText.length < 100) {
+  // Extract most recent inquiry - use multiple patterns with improved approach
+  
+  // Pattern 1: Look for the line containing "Most Recent Inquiry" and capture everything until the end of line
+  const recentInquiryLineMatch = text.match(/Most\s+Recent\s+Inquiry.*?:?\s*([^\n]+?)(?:\n|$)/i);
+  if (recentInquiryLineMatch && recentInquiryLineMatch[1]) {
+    // Clean the captured text - remove "Most Recent Inquiry" if it's still there and trim
+    let inquiryText = recentInquiryLineMatch[1].trim();
+    inquiryText = inquiryText.replace(/^Most\s+Recent\s+Inquiry[:\s]*/i, '');
+    
+    // Only use the inquiry if it's not too long (likely not the whole report) and contains meaningful data
+    if (inquiryText.length < 100 && inquiryText.length > 5) {
       recentInquiry = inquiryText;
     }
   }
   
-  // Pattern 2: Look for the inquiry directly after the "Most Recent Inquiry" text
+  // Pattern 2: Look for content after "Most Recent Inquiry" that matches typical inquiry format
   if (!recentInquiry) {
-    const mostRecentInquiryLinePattern = /Most\s+Recent\s+Inquiry.*?(?:\n|\r\n?)([A-Z][A-Z0-9/\s]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
-    const lineMatch = text.match(mostRecentInquiryLinePattern);
-    if (lineMatch && lineMatch[1]) {
-      recentInquiry = lineMatch[1].trim();
+    const inquiryPattern = /Most\s+Recent\s+Inquiry.*?(?:\n|\r\n?)[\s:]*([A-Z][A-Z0-9\s\/.,()&-]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4})/i;
+    const match = text.match(inquiryPattern);
+    if (match && match[1]) {
+      recentInquiry = match[1].trim();
     }
   }
   
-  // Pattern 3: Look for company name with date format
+  // Pattern 3: Try to find date-based patterns that likely represent inquiries
   if (!recentInquiry) {
-    const dateFormatPattern = /([A-Z][A-Z0-9\s\/.]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/i;
-    const dateMatch = text.match(dateFormatPattern);
-    if (dateMatch && dateMatch[1] && dateMatch[1].length < 100) {
-      recentInquiry = dateMatch[1].trim();
+    // This pattern looks for company name format followed by a date
+    const companyDatePattern = /([A-Z][A-Z0-9\s\/.,()&-]{2,}(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4})/i;
+    
+    // Find the nearest such pattern after "Most Recent Inquiry"
+    const inquiryIndex = text.indexOf("Most Recent Inquiry");
+    if (inquiryIndex >= 0) {
+      // Search in the next 500 characters after "Most Recent Inquiry"
+      const searchText = text.substring(inquiryIndex, inquiryIndex + 500);
+      const dateMatch = searchText.match(companyDatePattern);
+      if (dateMatch && dateMatch[1] && dateMatch[1].length < 100) {
+        recentInquiry = dateMatch[1].trim();
+      }
     }
   }
   
-  // Alternative pattern for Equifax specific format
+  // Pattern 4: Try specific credit bureau formats
   if (!recentInquiry) {
-    const equifaxInquiryPattern = /(EQUIFAX\s+INC\s+\(\d+\)\s+\w+\s+\d+,\s+\d{4})/i;
-    const equifaxMatch = text.match(equifaxInquiryPattern);
-    if (equifaxMatch && equifaxMatch[1]) {
-      recentInquiry = equifaxMatch[1].trim();
+    const creditBureauPatterns = [
+      /(CIC\/[A-Z]+\s+RPTS\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4})/i,
+      /(EQUIFAX\s+(?:INFORMATION\s+SERVICES|INC).*?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4})/i,
+      /(EXPERIAN.*?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4})/i,
+      /(TRANSUNION.*?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4})/i
+    ];
+    
+    for (const pattern of creditBureauPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        recentInquiry = match[1].trim();
+        break;
+      }
     }
   }
   
