@@ -10,10 +10,10 @@ let nerPromise: Promise<any> | null = null;
 export const getClassifier = async () => {
   if (!classifierPromise) {
     console.log('Loading text classification model...');
-    classifierPromise = pipeline(
-      'text-classification', 
-      TEXT_CLASSIFICATION_MODEL
-    );
+    classifierPromise = pipeline({
+      task: 'text-classification',
+      model: TEXT_CLASSIFICATION_MODEL
+    });
   }
   return classifierPromise;
 };
@@ -22,10 +22,10 @@ export const getClassifier = async () => {
 export const getNER = async () => {
   if (!nerPromise) {
     console.log('Loading NER model...');
-    nerPromise = pipeline(
-      'token-classification', 
-      NER_MODEL
-    );
+    nerPromise = pipeline({
+      task: 'token-classification',
+      model: NER_MODEL
+    });
   }
   return nerPromise;
 };
