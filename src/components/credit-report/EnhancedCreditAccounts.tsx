@@ -22,6 +22,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
   const [extractionFailed, setExtractionFailed] = useState(false);
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
+  const [extractionAttempts, setExtractionAttempts] = useState(0);
   
   // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
@@ -32,15 +33,20 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       // Always reset current image state when a new report is loaded
       resetCurrentReportImage();
       
+      // This is a new report, so reset all extraction state
       console.log('New report detected, resetting extraction state:', report.reportId);
       
       // Reset states for new report
       setAccountSummaries([]);
       setAttemptedExtraction(false);
       setExtractionFailed(false);
+      setExtractionAttempts(0);
       
       // Ensure we always trigger a fresh extraction for the current report
-      handleEnhancedExtraction();
+      // Add a slight delay to ensure DOM is ready with any uploaded images
+      setTimeout(() => {
+        handleEnhancedExtraction();
+      }, 500);
     }
   }, [report?.reportId]); // Only trigger when reportId changes to ensure it's a truly new report
   
@@ -84,6 +90,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       }
     });
     
+    console.log('Setting ordered account summaries:', orderedSummaries);
     setAccountSummaries(orderedSummaries);
   };
   
@@ -93,12 +100,15 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setIsProcessing(true);
       setExtractionFailed(false);
       setAttemptedExtraction(true);
+      setExtractionAttempts(prev => prev + 1);
+      
       toast.info("Extracting account data...");
       
       // Stage 1: Get the table image - this now always gets the latest image
       const tableImageUrl = await extractCreditAccountsTableImage(report);
       
       if (!tableImageUrl) {
+        console.error("Could not identify account table image");
         toast.error("Could not identify account table image");
         setIsProcessing(false);
         setExtractionFailed(true);
@@ -111,23 +121,31 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       const tableData = await extractTableFromImage(tableImageUrl);
       
       if (tableData && tableData.rows && tableData.rows.length > 0) {
+        console.log("Extracted table data:", tableData);
+        
         // Convert to account summaries
         const extractedSummaries = convertTableToAccountSummaries(tableData);
         
         if (extractedSummaries.length > 0) {
+          console.log('Successfully extracted account summaries:', extractedSummaries);
           toast.success("Successfully extracted account data");
+          
           // Update the state
           createOrderedAccountSummaries(extractedSummaries);
           setExtractionFailed(false);
         } else {
+          console.error("Failed to extract valid account data");
           toast.error("Failed to extract valid account data");
           setExtractionFailed(true);
+          
           // Create empty account summaries with just the account types
           createOrderedAccountSummaries([]);
         }
       } else {
+        console.error("Could not process table structure from image");
         toast.error("Could not process table structure");
         setExtractionFailed(true);
+        
         // Create empty account summaries with just the account types
         createOrderedAccountSummaries([]);
       }
@@ -135,6 +153,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       console.error("Error during extraction:", error);
       toast.error("Data extraction failed");
       setExtractionFailed(true);
+      
       // Create empty account summaries with just the account types
       createOrderedAccountSummaries([]);
     } finally {
@@ -181,7 +200,13 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           </Alert>
         )}
         
-        {showDebugInfo && <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />}
+        {showDebugInfo && (
+          <div className="mb-4 p-4 border rounded bg-slate-50">
+            <p className="text-xs mb-2">Debug: Extraction attempts: {extractionAttempts}</p>
+            <p className="text-xs mb-2">Report ID: {report.reportId || 'None'}</p>
+            <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />
+          </div>
+        )}
         
         <CreditAccountsTable accountSummaries={accountSummaries} />
       </CardContent>

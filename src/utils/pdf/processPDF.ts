@@ -24,13 +24,10 @@ export const processPDFDocument = async (
     // Reset any cached image data from previous uploads
     resetCurrentReportImage();
     
-    // Store this file as the current PDF being processed
+    // Store this file as the current PDF being processed with a unique ID
     // This is important for image extraction later
     const uniqueReportId = setCurrentPDFData(file);
-    
-    // Add a unique identifier to the file name to ensure uniqueness
-    const uniqueIdForFile = `${file.name}-${Date.now()}`;
-    console.log(`Processing PDF document with unique ID: ${uniqueIdForFile}`);
+    console.log(`Processing PDF document with file: ${file.name}, report ID: ${uniqueReportId}`);
     
     // Setup progress tracking
     const { 
@@ -58,12 +55,13 @@ export const processPDFDocument = async (
         const extractedText = await extractTextFromPDF(pdf);
         
         try {
-          // Parse the extracted text with a clean state - ensure unique report ID
+          // Parse the extracted text with the unique report ID
           const parsedReport = await parsePDFContent(extractedText, useAI);
           
-          // Add unique timestamp to report to avoid caching issues
+          // Ensure the report has a unique ID
           if (parsedReport) {
             parsedReport.reportId = uniqueReportId;
+            parsedReport.fileName = file.name; // Store filename for reference
           }
           
           completeProgressTracking();
@@ -75,8 +73,13 @@ export const processPDFDocument = async (
         } catch (error) {
           console.error("Error parsing PDF content:", error);
           // Fall back to basic processing
-          onPDFUploaded(file, extractedText);
-          toast.success("PDF processed");
+          const basicReport = { 
+            reportId: uniqueReportId,
+            fileName: file.name,
+            rawText: extractedText
+          };
+          onPDFUploaded(file, extractedText, basicReport);
+          toast.success("PDF processed with basic extraction");
           completeProgressTracking();
         }
         
