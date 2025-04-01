@@ -28,7 +28,7 @@ const PDFUploadPlaceholder: React.FC<PDFUploadPlaceholderProps> = ({
         Select PDF
       </Button>
       <div className="mt-4 text-xs text-muted-foreground">
-        Supports PDF files from Equifax, Experian, and TransUnion with AI analysis
+        Supports PDF files from Equifax, Experian, and TransUnion
       </div>
     </>
   );

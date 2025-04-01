@@ -54,16 +54,12 @@ export const processPDFDocument = async (
           // Pass the extracted text, file, and parsed report to the parent component
           onPDFUploaded(file, extractedText, parsedReport);
           
-          if (useAI) {
-            toast.success("PDF successfully processed with AI analysis!");
-          } else {
-            toast.success("PDF successfully processed!");
-          }
+          toast.success("PDF successfully processed!");
         } catch (error) {
           console.error("Error parsing PDF content:", error);
           // Fall back to basic processing
           onPDFUploaded(file, extractedText);
-          toast.success("PDF processed (analysis unavailable)");
+          toast.success("PDF processed");
           completeProgressTracking();
         }
         
@@ -86,4 +82,3 @@ export const processPDFDocument = async (
     callbacks.setUploadProgress(0);
   }
 };
-

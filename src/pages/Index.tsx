@@ -12,7 +12,6 @@ import PersonalInfoCard from "@/components/PersonalInfoCard";
 import AccountsList from "@/components/AccountsList";
 import WebhookManager from "@/components/WebhookManager";
 import { useToast } from "@/hooks/use-toast";
-import AIAnalysisSummary from "@/components/AIAnalysisSummary";
 import EquifaxCreditReport from "@/components/EquifaxCreditReport";
 import ParsingDebugger from "@/components/ParsingDebugger";
 
@@ -32,14 +31,14 @@ const Index = () => {
       } else {
         toast({
           title: "Using basic parsing",
-          description: "AI-enhanced parsing unavailable. Using simplified extraction.",
+          description: "Using simplified extraction.",
         });
       }
       
       toast({
         title: "Credit Report Processed",
         description: parsedReport ? 
-          `Successfully processed your ${parsedReport.bureau} credit report with AI analysis.` :
+          `Successfully processed your ${parsedReport.bureau} credit report.` :
           `Successfully processed your credit report.`,
       });
       
@@ -108,7 +107,6 @@ const Index = () => {
               <AlertTitle>Privacy Note</AlertTitle>
               <AlertDescription>
                 Your credit report data is processed locally in your browser and is never stored on our servers.
-                AI analysis is performed entirely on your device for maximum privacy.
               </AlertDescription>
             </Alert>
             
@@ -139,9 +137,6 @@ const Index = () => {
                   <AccountsList accounts={creditReport.accounts} />
                 </>
               )}
-              
-              {/* AI Analysis Debug Summary - Temporary */}
-              <AIAnalysisSummary report={creditReport} />
             </div>
           ) : (
             <Card>

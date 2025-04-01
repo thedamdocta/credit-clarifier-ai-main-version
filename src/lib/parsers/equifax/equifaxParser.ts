@@ -18,15 +18,14 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
     if (imageUrl) {
       try {
         console.log("Attempting enhanced account summaries extraction from image:", imageUrl);
-        toast.info("Using AI to analyze account table structure...");
         
         // Use our enhanced multi-method extraction
         const tableData = await extractTableFromImage(imageUrl);
         
         if (tableData) {
           accountSummaries = convertTableToAccountSummaries(tableData);
-          console.log("Successfully extracted account summaries with enhanced AI:", accountSummaries);
-          toast.success("AI successfully extracted account table data");
+          console.log("Successfully extracted account summaries with enhanced extraction:", accountSummaries);
+          toast.success("Successfully extracted table data");
         } else {
           // Fall back to text-based extraction
           console.log("Enhanced image extraction failed, falling back to text extraction");
@@ -34,7 +33,7 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
         }
       } catch (error) {
         console.error("Error in enhanced account summary extraction:", error);
-        toast.error("AI extraction error - using fallback method");
+        toast.error("Data extraction error - using fallback method");
         // Fall back to text-based extraction
         accountSummaries = await extractEquifaxAccountSummaries(text);
       }

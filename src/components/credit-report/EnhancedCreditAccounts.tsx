@@ -5,8 +5,6 @@ import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import CreditAccountsHeader from "./accounts/CreditAccountsHeader";
 import CreditAccountsDebug from "./accounts/CreditAccountsDebug";
 import CreditAccountsTable from "./accounts/CreditAccountsTable";
-import { Button } from "@/components/ui/button";
-import { Image, RefreshCw } from "lucide-react";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { toast } from "sonner";
 import { extractCreditAccountsTableImage } from "@/utils/pdf/extractText";
@@ -27,6 +25,9 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   useEffect(() => {
     if (report.accountSummaries && report.accountSummaries.length > 0) {
       createOrderedAccountSummaries(report.accountSummaries);
+    } else {
+      // Auto-trigger enhanced extraction if no account summaries exist
+      handleEnhancedExtraction();
     }
   }, [report]);
   
@@ -73,22 +74,21 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     setAccountSummaries(orderedSummaries);
   };
   
-  // Enhanced table extraction with AI
+  // Enhanced table extraction - now runs automatically when needed
   const handleEnhancedExtraction = async () => {
     try {
       setIsProcessing(true);
-      toast.info("Using enhanced AI to extract account data...");
       
       // Get the table image
       const tableImageUrl = await extractCreditAccountsTableImage(null);
       
       if (!tableImageUrl) {
-        toast.error("Could not find account table image");
+        toast.error("Could not process account table data");
         setIsProcessing(false);
         return;
       }
       
-      // Extract table data using our enhanced multi-AI approach
+      // Extract table data using our enhanced approach
       const tableData = await extractTableFromImage(tableImageUrl);
       
       if (tableData) {
@@ -97,14 +97,12 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         
         // Update the state
         createOrderedAccountSummaries(extractedSummaries);
-        
-        toast.success("Enhanced AI extraction complete!");
       } else {
-        toast.error("AI extraction could not detect table structure");
+        toast.error("Could not process table structure");
       }
     } catch (error) {
-      console.error("Error during enhanced extraction:", error);
-      toast.error("AI extraction failed");
+      console.error("Error during extraction:", error);
+      toast.error("Data extraction failed");
     } finally {
       setIsProcessing(false);
     }
@@ -117,22 +115,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           showDebugInfo={showDebugInfo} 
           toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
         />
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleEnhancedExtraction}
-            disabled={isProcessing}
-            className="flex items-center text-xs"
-          >
-            {isProcessing ? (
-              <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
-            ) : (
-              <Image className="mr-1 h-3 w-3" />
-            )}
-            {isProcessing ? "Processing..." : "Enhance With AI"}
-          </Button>
-        </div>
       </CardHeader>
       <CardContent>
         <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
