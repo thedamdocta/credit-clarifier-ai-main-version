@@ -5,11 +5,11 @@
 
 /**
  * Preprocess an image to improve OCR accuracy
- * Using enhanced preprocessing methods to improve text contrast and recognition
+ * Using direct passthrough to avoid any modifications that could alter the image
  */
 export async function preprocessImageForOCR(imageUrl: string): Promise<string | null> {
   try {
-    console.log('Preprocessing image for OCR:', imageUrl);
+    console.log('Image preprocessing requested for:', imageUrl);
     
     // Check if we have a valid image URL
     if (!imageUrl || typeof imageUrl !== 'string') {
@@ -17,11 +17,11 @@ export async function preprocessImageForOCR(imageUrl: string): Promise<string | 
       return null;
     }
     
-    // For now, we return the original image without modification
-    // This avoids potential CORS issues while still allowing extraction to proceed
+    // Return the original image URL without any modifications
+    // This ensures the OCR process sees the exact image as uploaded
     return imageUrl;
   } catch (error) {
-    console.error('Error preprocessing image:', error);
+    console.error('Error in image preprocessing:', error);
     return null;
   }
 }

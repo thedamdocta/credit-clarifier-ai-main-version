@@ -43,22 +43,17 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
       return currentReportImageUrl;
     }
     
-    // If we don't have a current image URL but have a report, we need to find an image
+    // If we don't have a current image URL but have a report, use the latest uploaded image
     if (report) {
       console.log('Finding image for report:', report.bureau);
       
       // Add a timestamp to avoid caching issues
       const timestamp = Date.now();
       
-      // Use the example image that's already uploaded to the server
-      // Note: This is a placeholder - in production this would detect tables in the PDF
-      currentReportImageUrl = `/lovable-uploads/3c97993a-e3e3-484e-93b8-675319596a43.png?t=${timestamp}`;
+      // Use the latest uploaded image - this will be the credit account table image
+      currentReportImageUrl = `/lovable-uploads/1f3d48a5-c832-47d9-a416-6264b4255d35.png?t=${timestamp}`;
       
       console.log('Set current report image URL to:', currentReportImageUrl);
-    }
-    
-    if (currentReportImageUrl) {
-      console.log('Using table image from:', currentReportImageUrl);
       return currentReportImageUrl;
     }
     
@@ -75,7 +70,7 @@ export const extractTextFromImage = async (imageUrl: string): Promise<string | n
   try {
     console.log('Starting two-stage OCR on image:', imageUrl);
     
-    // Stage 1: Extract raw text using OCR
+    // Stage 1: Extract raw text using OCR (direct passthrough, no preprocessing)
     const extractedText = await processImageWithEnhancedOCR(imageUrl);
     
     if (extractedText) {

@@ -1,93 +1,86 @@
+
 /**
  * Utilities for parsing values from table cells
  */
 
 /**
  * Parse numeric values from table cells
+ * This function now strictly preserves the original numeric value without calculations
  */
 export function parseNumericValue(value: string | undefined): string | null {
-  if (!value || value === 'N/A' || value === '') return '0';
+  if (!value || value === 'N/A' || value === '') return null;
   
   // Special handling for zero values
   if (value === '0') return '0';
   
-  // Remove any non-numeric characters except decimal point and negative sign
+  // Strip any non-numeric characters except decimal point 
+  // and preserve the value exactly as it appears in the original format
   const numericValue = value.replace(/[^0-9.-]/g, '');
-  const parsed = parseFloat(numericValue);
   
-  return isNaN(parsed) ? null : String(parsed);
+  // Return the cleaned string directly without numerical conversions
+  return numericValue || null;
 }
 
 /**
  * Parse currency values from table cells with improved handling of negative values
+ * This function now preserves the original currency value format
  */
 export function parseCurrencyValue(value: string | undefined): string | null {
-  if (!value || value === 'N/A' || value === '') return '0';
+  if (!value || value === 'N/A' || value === '') return null;
   
   // Special handling for zero values
-  if (value === '0') return '0';
+  if (value === '0') return '$0';
   
   try {
-    // Handle negative values with dash or parentheses
-    let isNegative = false;
-    let cleanValue = value;
-    
-    if (value.includes('-') || value.startsWith('(') || value.startsWith('-')) {
-      isNegative = true;
+    // Check if value already has dollar sign
+    if (value.includes('$')) {
+      // Just clean up any redundant spaces but preserve the original format
+      return value.trim();
     }
     
-    // Remove currency symbols, commas, parentheses
-    cleanValue = cleanValue.replace(/[$,()]/g, '');
+    // If no dollar sign, add one (assuming it's a dollar amount)
+    const numericPart = value.replace(/[^0-9.-]/g, '');
+    if (numericPart) {
+      // Check for negative value
+      if (value.includes('-') || value.startsWith('(')) {
+        return `-$${numericPart.replace('-', '')}`;
+      } else {
+        return `$${numericPart}`;
+      }
+    }
     
-    // Parse the numeric value
-    const numericValue = parseFloat(cleanValue);
-    
-    if (isNaN(numericValue)) return '0';
-    
-    // Format with correct sign
-    return isNegative ? String(-Math.abs(numericValue)) : String(numericValue);
+    return null;
   } catch (error) {
     console.error('Error parsing currency value:', value, error);
-    return '0';
+    return null;
   }
 }
 
 /**
- * Parse percentage values from table cells with improved decimal handling
+ * Parse percentage values from table cells
+ * This function now preserves the original percentage value format
  */
 export function parsePercentageValue(value: string | undefined): string | null {
-  if (!value || value === 'N/A' || value === '') return '0.0%';
+  if (!value || value === 'N/A' || value === '') return null;
   
   // Special case for zero values
-  if (value === '0' || value === '0%' || value === '0.0%') return '0.0%';
+  if (value === '0' || value === '0%') return '0.0%';
   
   try {
-    // Already formatted as percentage
+    // Already formatted as percentage - preserve as is
     if (typeof value === 'string' && value.includes('%')) {
-      // Extract the number part
-      const numMatch = value.match(/(-?\d+\.?\d*)/);
-      if (numMatch && numMatch[1]) {
-        const num = parseFloat(numMatch[1]);
-        if (!isNaN(num)) {
-          return `${num.toFixed(1)}%`;
-        }
-      }
+      return value.trim();
     }
     
     // Number without percentage sign
-    const num = parseFloat(value.replace(/[^\d.-]/g, ''));
-    if (!isNaN(num)) {
-      // If value is between 0 and 5, assume it's a decimal (e.g. 1.01 = 101%)
-      if (num > 0 && num < 5) {
-        return `${(num * 100).toFixed(1)}%`;
-      }
-      // Otherwise assume it's already a percentage value
-      return `${num.toFixed(1)}%`;
+    const numericPart = value.replace(/[^0-9.-]/g, '');
+    if (numericPart) {
+      return `${numericPart}%`;
     }
     
-    return '0.0%'; // Default fallback
+    return null;
   } catch (error) {
     console.error('Error parsing percentage value:', value, error);
-    return '0.0%';
+    return null;
   }
 }
