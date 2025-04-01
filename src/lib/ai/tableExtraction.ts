@@ -59,7 +59,7 @@ export async function extractTableFromImage(imageUrl: string) {
       return null;
     }
     
-    // Use Tesseract OCR to extract table data from the image
+    // Use Tesseract OCR to extract table data from the image with enhanced options
     console.log('Using Tesseract OCR to extract table data from image');
     const extractedTable = await extractTableWithTesseract(imageUrl);
     
@@ -119,14 +119,16 @@ async function extractTextFromTable(imageUrl: string): Promise<string | null> {
       logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
     });
     
-    // Configure Tesseract for table extraction
+    // Configure Tesseract with enhanced settings for table extraction
     await worker.loadLanguage('eng');
     await worker.initialize('eng');
     
     // Set page segmentation mode for structured text and tables
+    // PSM.SINGLE_BLOCK is often better for tables than AUTO_OSD
     await worker.setParameters({
-      tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD,
+      tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
       preserve_interword_spaces: '1',
+      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.-%() ',
     });
     
     console.log('Running Tesseract text extraction on image');
@@ -134,6 +136,7 @@ async function extractTextFromTable(imageUrl: string): Promise<string | null> {
     await worker.terminate();
     
     console.log('Tesseract extraction completed with confidence:', result.data.confidence);
+    console.log('Extracted text sample:', result.data.text.substring(0, 200) + '...');
     return result.data.text;
   } catch (error) {
     console.error('Error extracting text from table:', error);
@@ -148,14 +151,30 @@ export function extractTableStructureFromText(text: string) {
   try {
     console.log('Extracting table structure from text using pattern matching');
     
-    // Define expected row patterns for credit report account tables
-    // These patterns identify data in the format: account type + numbers
+    // Define more flexible patterns for credit report account tables
+    // These patterns identify data in various formats
     const rowPatterns = {
-      revolving: /revolving\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      mortgage: /mortgage\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      installment: /installment\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      other: /other\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      total: /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
+      revolving: [
+        /revolving\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /revolving.*?(\d+).*?(\d+).*?\$([\d,]+)/i,
+        /revolving.*?open[:\s]*(\d+).*?balance[:\s]*\$([\d,]+)/i
+      ],
+      mortgage: [
+        /mortgage\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /mortgage.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
+      installment: [
+        /installment\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /installment.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
+      other: [
+        /other\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /other.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
+      total: [
+        /total\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /total.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
     };
     
     // Initialize table structure
@@ -164,25 +183,46 @@ export function extractTableStructureFromText(text: string) {
       rows: []
     };
     
-    // Extract rows using the patterns
-    Object.entries(rowPatterns).forEach(([accountType, pattern]) => {
-      const match = text.match(pattern);
-      if (match) {
-        const row: Record<string, string> = {
-          'Account Type': accountType.charAt(0).toUpperCase() + accountType.slice(1),
-          'Open': match[1] || '0',
-          'With Balance': match[2] || '0',
-          'Total Balance': match[3] ? `$${match[3]}` : '$0',
-          'Available': match[4] ? `$${match[4]}` : '$0',
-          'Credit Limit': match[5] ? `$${match[5]}` : '$0',
-          'Debt-to-Credit': '0%',
-          'Payment': '$0'
-        };
-        
-        tableStructure.rows.push(row);
+    console.log('Text length for pattern matching:', text.length);
+    console.log('Sample text for pattern matching:', text.substring(0, 200) + '...');
+    
+    // Extract rows using multiple patterns for each account type
+    Object.entries(rowPatterns).forEach(([accountType, patterns]) => {
+      // Try each pattern for this account type
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          console.log(`Found match for ${accountType} using pattern:`, pattern);
+          
+          const row: Record<string, string> = {
+            'Account Type': accountType.charAt(0).toUpperCase() + accountType.slice(1),
+            'Open': match[1] ? match[1].trim() : '0',
+            'With Balance': match[2] ? match[2].trim() : '0',
+            'Total Balance': match[3] ? `$${match[3].trim()}` : '$0',
+            'Available': '$0',
+            'Credit Limit': '$0',
+            'Debt-to-Credit': '0%',
+            'Payment': '$0'
+          };
+          
+          // Try to find additional values
+          const availableMatch = text.match(new RegExp(`${accountType}.*?available[:\\s]*(\\$[\\d,]+|[\\d,]+)`, 'i'));
+          if (availableMatch) {
+            row['Available'] = availableMatch[1].startsWith('$') ? availableMatch[1] : `$${availableMatch[1]}`;
+          }
+          
+          const limitMatch = text.match(new RegExp(`${accountType}.*?limit[:\\s]*(\\$[\\d,]+|[\\d,]+)`, 'i'));
+          if (limitMatch) {
+            row['Credit Limit'] = limitMatch[1].startsWith('$') ? limitMatch[1] : `$${limitMatch[1]}`;
+          }
+          
+          tableStructure.rows.push(row);
+          break; // Use the first matching pattern
+        }
       }
     });
     
+    console.log(`Extracted ${tableStructure.rows.length} rows using pattern matching`);
     return tableStructure.rows.length > 0 ? tableStructure : null;
   } catch (error) {
     console.error('Error extracting table structure from text:', error);
@@ -203,8 +243,6 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
   }
   
   console.log('Creating simulated table data');
-  
-  
   
   return {
     headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
@@ -261,7 +299,6 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
       }
     ]
   };
-  return null; // In most cases, we don't want to use simulated data
 }
 
 // Import the value parsers from our value parser module

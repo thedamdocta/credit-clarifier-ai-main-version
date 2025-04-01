@@ -17,12 +17,12 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     // Get the page
     const page = await pdf.getPage(pageNum);
     
-    // Calculate desired dimensions (high resolution for better OCR)
-    const viewport = page.getViewport({ scale: 2.0 });
+    // Calculate desired dimensions (higher resolution for better OCR)
+    const viewport = page.getViewport({ scale: 2.5 }); // Increased scale for better detail
     
     // Create a canvas element
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { alpha: false }); // Disable alpha for better OCR
     
     if (!context) {
       console.error("Could not create canvas context");
@@ -33,10 +33,15 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     canvas.height = viewport.height;
     canvas.width = viewport.width;
     
+    // Use white background for better OCR contrast
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    
     // Render the PDF page to the canvas
     const renderContext = {
       canvasContext: context,
-      viewport: viewport
+      viewport: viewport,
+      background: 'white' // Ensure white background
     };
     
     await page.render(renderContext).promise;
@@ -77,7 +82,7 @@ export async function extractRegionFromPDFPage(
     
     // Create a canvas for the cropped region
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     
     if (!ctx) {
       console.error("Could not create canvas context for region extraction");
@@ -87,6 +92,10 @@ export async function extractRegionFromPDFPage(
     // Set canvas to region size
     canvas.width = region.width;
     canvas.height = region.height;
+    
+    // Fill with white background first
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw the selected region to the canvas
     ctx.drawImage(
