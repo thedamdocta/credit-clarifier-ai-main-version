@@ -89,7 +89,6 @@ export async function extractTableFromImage(imageUrl: string) {
         return null;
       }
     } else {
-      // Simulation fallback - only for development/testing
       console.log('Using simulated table data');
       return {
         headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit'],
