@@ -31,12 +31,12 @@ export async function extractTableFromImage(imageUrl: string) {
     if (!USE_SIMULATION) {
       try {
         // Create the document extractor pipeline
-        // Fix: Use the correct argument structure for pipeline
-        const docExtractor = await pipeline({
-          task: 'document-question-answering',
-          model: TABLE_EXTRACTION_MODEL,
-          ...EXTRACTION_CONFIG
-        });
+        // Fix: Use the positional arguments format for the pipeline function
+        const docExtractor = await pipeline(
+          'document-question-answering',
+          TABLE_EXTRACTION_MODEL,
+          { revision: 'main' }
+        );
         
         // Questions to extract table structure
         const questions = [
