@@ -10,6 +10,19 @@ let parsingSummary: any = {
 };
 
 export const parsingLogger = {
+  startParsing(): string {
+    const reportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'parsing_started',
+      reportId,
+      success: true
+    });
+    parsingSummary.reportId = reportId;
+    parsingSummary.errors = 0;
+    return reportId;
+  },
+  
   logEvent(stage: string, details?: any) {
     parsingLogs.push({
       timestamp: new Date(),
@@ -35,6 +48,62 @@ export const parsingLogger = {
       stage,
       details,
       success: true
+    });
+  },
+  
+  logTextExtraction(textLength: number) {
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'text_extraction',
+      details: { textLength },
+      success: true
+    });
+    parsingSummary.textLength = textLength;
+  },
+  
+  logBureauIdentification(bureau: string, method: string) {
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'bureau_identification',
+      details: { bureau, method },
+      success: true
+    });
+    parsingSummary.bureau = bureau;
+  },
+  
+  logSummaryExtraction(success: boolean, details?: any) {
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'summary_extraction',
+      details,
+      success
+    });
+  },
+  
+  logPersonalInfoExtraction(success: boolean, details?: any) {
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'personal_info_extraction',
+      details,
+      success
+    });
+  },
+  
+  logAccountsExtraction(accountCount: number) {
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'accounts_extraction',
+      details: { accountCount },
+      success: accountCount > 0
+    });
+  },
+  
+  logCreditScoresExtraction(scoreCount: number) {
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'credit_scores_extraction',
+      details: { scoreCount },
+      success: scoreCount > 0
     });
   },
   
@@ -88,6 +157,34 @@ export const parsingLogger = {
       tableImageUrl: imageUrl,
       success: true
     });
+  },
+  
+  trackReport(report: any) {
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'report_tracking',
+      report: report,
+      success: true
+    });
+  },
+  
+  completeParsing() {
+    const startTime = parsingSummary.startTime || Date.now() - 5000;
+    const endTime = Date.now();
+    const durationMs = endTime - startTime;
+    
+    parsingLogs.push({
+      timestamp: new Date(),
+      stage: 'parsing_completed',
+      details: {
+        reportId: parsingSummary.reportId,
+        durationMs,
+        errors: parsingSummary.errors
+      },
+      success: parsingSummary.errors === 0
+    });
+    
+    parsingSummary.durationMs = durationMs;
   },
   
   getLogs() {

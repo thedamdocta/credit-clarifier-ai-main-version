@@ -1,7 +1,12 @@
+
 import { parsingLogger } from "@/utils/parsingLogger";
 
 let extractedReportData: any = null;
 let currentReportImage: string | null = null;
+let currentPDFData: {
+  file?: File,
+  reportId?: string
+} = {};
 
 // Function to extract text from PDF pages
 export async function extractTextFromPDF(pdf: any, options = { sampleLimit: 1000 }): Promise<string> {
@@ -33,6 +38,16 @@ export async function extractTextFromPDF(pdf: any, options = { sampleLimit: 1000
     console.error("Error extracting text from PDF:", error);
     return '';
   }
+}
+
+// Function to set current PDF data and return a unique report ID
+export function setCurrentPDFData(file: File): string {
+  const reportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+  currentPDFData = {
+    file,
+    reportId
+  };
+  return reportId;
 }
 
 // Function to extract credit account table image specifically
@@ -109,6 +124,11 @@ export function getExtractedReportData(): any {
 
 // Function to save extracted report data
 export function saveExtractedReportData(data: any): void {
+  extractedReportData = data;
+}
+
+// Export function to set extracted report data (originally missing)
+export function setExtractedReportData(data: any): void {
   extractedReportData = data;
 }
 
