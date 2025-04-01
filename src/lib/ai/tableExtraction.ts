@@ -24,7 +24,9 @@ export async function extractTableFromImage(imageUrl: string) {
       
       // Check if there's any real data in the account summaries
       const hasRealData = extractedData.accountSummaries.some(summary => 
-        summary.open || summary.withBalance || summary.totalBalance);
+        (summary.open && summary.open !== "0") || 
+        (summary.withBalance && summary.withBalance !== "0") || 
+        (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
       
       if (hasRealData) {
         console.log('Real account data found, using it');
@@ -97,9 +99,10 @@ export async function extractTableFromImage(imageUrl: string) {
     }
     
     // If all extraction methods failed but we're in development, generate simulated data
-    if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
+    // IMPORTANT CHANGE: Be much more restrictive about when we use simulated data
+    if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost' && !window.localStorage.getItem('disableSampleData')) {
       console.log('Development environment detected, using simulated data as last resort');
-      return createSimulatedTableData(false);
+      return null; // Return null by default to discourage sample data usage
     }
     
     // In production, return null to indicate failure rather than showing fake data
@@ -164,6 +167,11 @@ function extractTableStructureFromText(text: string) {
 export function createSimulatedTableData(forceUseActualImage: boolean = false) {
   // If we're forcing use of actual image data, don't return simulated data
   if (forceUseActualImage) {
+    return null;
+  }
+  
+  // Don't use sample data in production environments
+  if (process.env.NODE_ENV !== 'development' && window.location.hostname !== 'localhost') {
     return null;
   }
   
