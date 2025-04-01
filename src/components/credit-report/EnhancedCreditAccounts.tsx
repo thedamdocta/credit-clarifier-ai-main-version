@@ -28,8 +28,11 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   
   // Set up initial account summaries and try extraction on first load
   useEffect(() => {
-    if (report && report.reportId !== undefined) {
-      console.log('New report detected, resetting extraction state:', report.reportId);
+    if (report) {
+      // Use a unique identifier for the report - either reportId if available or generate one from bureau and date
+      const reportIdentifier = report.reportId || 
+                              `${report.bureau}-${report.reportDate}-${Date.now()}`;
+      console.log('New report detected, resetting extraction state:', reportIdentifier);
       setAttemptedExtraction(false);
       setExtractionFailed(false);
       

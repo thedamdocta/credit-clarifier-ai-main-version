@@ -213,7 +213,9 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean = fa
     parsedReport.rawText = extractedText;
     
     // Add a unique report ID for tracking
-    parsedReport.reportId = `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    if (!parsedReport.reportId) {
+      parsedReport.reportId = `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    }
     
     // Apply bureau-specific enhancements
     if (parsedReport.bureau === 'Equifax') {

@@ -1,3 +1,4 @@
+
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -54,6 +55,9 @@ export interface CreditReport {
   collections: any[];
   creditScores: CreditScore[];
   rawText: string;
+  
+  // Add reportId property to track unique reports
+  reportId?: string;
   
   // Additional fields for displaying in the report
   recentInquiry?: string;
