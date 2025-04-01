@@ -49,7 +49,8 @@ export async function extractTableFromImage(imageUrl: string) {
         
         // Process each question
         const responses = await Promise.all(questions.map(async question => {
-          // Fix the type error by providing all required parameters as an object
+          // Fix: Use correct parameters for the docExtractor function
+          // The pipeline expects an object with image and question properties
           const result = await docExtractor({
             image: imageUrl,
             question: question
