@@ -3,6 +3,8 @@ import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
 import { formatAccountValue, formatDollarAmount, formatPercentageValue } from "@/utils/formatters/accountValueFormatters";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
@@ -11,13 +13,15 @@ interface CreditAccountsTableProps {
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
 
-  // Check if we have any valid data
+  // Check if we have any valid data (at least one field with an actual value)
   const hasAnyData = accountSummaries && accountSummaries.some(summary => 
     summary.open !== null || 
     summary.withBalance !== null || 
     summary.totalBalance !== null ||
     summary.available !== null ||
-    summary.creditLimit !== null
+    summary.creditLimit !== null ||
+    summary.debtToCredit !== null ||
+    summary.payment !== null
   );
 
   // Function to render a cell value with proper formatting based on data type
@@ -44,9 +48,18 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     { accountType: 'Other', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
     { accountType: 'Total', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null }
   ];
-
+  
   return (
     <div>
+      {!hasAnyData && (
+        <Alert className="mb-4 bg-amber-50">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            No account data was found in your credit report. The table below shows placeholder values.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Table>
         <TableHeader>
           <TableRow className="bg-muted">
@@ -64,7 +77,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
           {summariesToRender.map((summary) => (
             <TableRow 
               key={`account-summary-${summary.accountType}`}
-              isHighlighted={summary.accountType === 'Total'}
+              className={summary.accountType === 'Total' ? 'bg-muted/30 font-medium' : ''}
             >
               <TableCell className="font-medium">{summary.accountType}</TableCell>
               <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
