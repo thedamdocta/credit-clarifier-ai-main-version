@@ -12,6 +12,8 @@
  */
 export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<string | null> {
   try {
+    console.log(`Starting PDF to image conversion for page ${pageNum}`);
+    
     // Get the page
     const page = await pdf.getPage(pageNum);
     
@@ -38,11 +40,12 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     };
     
     await page.render(renderContext).promise;
-    console.log(`Rendered page ${pageNum} to canvas`);
+    console.log(`Rendered page ${pageNum} to canvas, dimensions: ${canvas.width}x${canvas.height}`);
     
     // Convert the canvas to a data URL (PNG format)
     // Using PNG for lossless quality which is better for OCR
     const imageData = canvas.toDataURL('image/png');
+    console.log(`Successfully converted page ${pageNum} to image, data URL length: ${imageData.length}`);
     return imageData;
   } catch (error) {
     console.error(`Error converting page ${pageNum} to image:`, error);

@@ -219,7 +219,9 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       }
       
       // Stage 1: Get the table image 
+      console.log("Attempting to extract table image from PDF");
       const newTableImageUrl = await extractCreditAccountsTableImage(report);
+      console.log("Table image extraction result:", newTableImageUrl ? "Success" : "Failed");
       setTableImageUrl(newTableImageUrl);
       
       if (!newTableImageUrl) {
@@ -293,13 +295,16 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       console.log("Using table image URL for extraction:", newTableImageUrl);
       
       // Stage 2: Extract table data using template-based approach
+      console.log("Attempting to extract table data from image");
       const tableData = await extractTableFromImage(newTableImageUrl);
+      console.log("Table extraction result:", tableData);
       
       if (tableData && tableData.rows && tableData.rows.length > 0) {
         console.log("Extracted table data:", tableData);
         
         // Convert to account summaries
         const extractedSummaries = convertTableToAccountSummaries(tableData);
+        console.log("Converted to account summaries:", extractedSummaries);
         
         if (extractedSummaries.length > 0 && hasRealData(extractedSummaries) && !isSampleData(extractedSummaries)) {
           console.log('Successfully extracted account summaries:', extractedSummaries);

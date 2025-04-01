@@ -1,4 +1,7 @@
 
+// Import the function for PDF to image conversion
+import { convertPDFPageToImage } from './pdfToImage';
+
 // Global storage for the current PDF being processed
 let currentPdfData: {
   pdfFile?: File;
@@ -9,9 +12,6 @@ let currentPdfData: {
   extractedText?: string;
   tableImageUrl?: string; // Added to store table image URL
 } = {};
-
-// Import the function for PDF to image conversion
-import { convertPDFPageToImage } from './pdfToImage';
 
 // Cache for extracted report data - prevents overriding with sample data
 let extractedReportData: any = null;
