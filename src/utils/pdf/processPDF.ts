@@ -3,11 +3,13 @@ import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
+import { convertPDFPageToImage } from "./pdfToImage";
 
 interface PDFProcessingCallbacks {
   setCurrentFile: (file: File) => void;
   setUploadProgress: (value: number | ((prev: number) => number)) => void;
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
+  useImageExtraction?: boolean;
 }
 
 export const processPDFDocument = async (
@@ -15,11 +17,11 @@ export const processPDFDocument = async (
   useAI: boolean,
   callbacks: PDFProcessingCallbacks
 ) => {
-  const { setCurrentFile, onPDFUploaded } = callbacks;
+  const { setCurrentFile, onPDFUploaded, useImageExtraction = false } = callbacks;
   
   try {
     setCurrentFile(file);
-    console.log(`Processing PDF document with file: ${file.name}`);
+    console.log(`Processing PDF document with file: ${file.name}, using image extraction: ${useImageExtraction}`);
     
     // Store this file as the current PDF being processed with a unique ID
     const uniqueReportId = setCurrentPDFData(file);
@@ -29,7 +31,8 @@ export const processPDFDocument = async (
     const { 
       clearProgressTracking, 
       completeProgressTracking, 
-      handleProgressError 
+      handleProgressError,
+      updateProgress
     } = setupProgressTracking(callbacks);
     
     // Load the PDF.js library dynamically
@@ -46,10 +49,47 @@ export const processPDFDocument = async (
       try {
         // Load the PDF document
         const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+        const numPages = pdf.numPages;
+        console.log(`PDF loaded with ${numPages} pages`);
+        updateProgress(10);
         
-        // Extract text from the PDF
-        const extractedText = await extractTextFromPDF(pdf);
+        // Method for text extraction
+        let extractedText = "";
+        
+        if (useImageExtraction) {
+          // Image-based extraction method
+          console.log("Using image-based extraction method");
+          let combinedText = "";
+          
+          // Process each page
+          for (let i = 1; i <= numPages; i++) {
+            updateProgress(10 + Math.floor((i / numPages) * 40));
+            console.log(`Converting page ${i} to image`);
+            
+            try {
+              // Convert the page to an image
+              const imageData = await convertPDFPageToImage(pdf, i);
+              if (imageData) {
+                // Use Tesseract.js to extract text from the image
+                const pageText = await extractTextFromImage(imageData);
+                if (pageText) {
+                  combinedText += pageText + " ";
+                  console.log(`Extracted ${pageText.length} characters from page ${i}`);
+                }
+              }
+            } catch (pageError) {
+              console.error(`Error processing page ${i}:`, pageError);
+            }
+          }
+          
+          extractedText = combinedText;
+        } else {
+          // Direct PDF text extraction method
+          extractedText = await extractTextFromPDF(pdf);
+        }
+        
         console.log("Successfully extracted text from PDF, length:", extractedText.length);
+        updateProgress(60);
         
         try {
           // Parse the extracted text with the unique report ID
@@ -111,6 +151,37 @@ export const processPDFDocument = async (
     callbacks.setUploadProgress(0);
   }
 };
+
+// Extract OCR using Tesseract
+async function extractTextFromImage(imageData: string): Promise<string | null> {
+  try {
+    const Tesseract = (await import('tesseract.js')).default;
+    console.log("Using Tesseract.js for OCR");
+    
+    const worker = await Tesseract.createWorker({
+      logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
+    });
+    
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
+    
+    // Set page segmentation mode for better recognition of tables and structured text
+    await worker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Auto detect orientation
+      preserve_interword_spaces: '1', // Preserve spaces between words
+      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.-% ', // Limit to relevant characters
+    });
+    
+    const result = await worker.recognize(imageData);
+    console.log("Tesseract confidence:", result.data.confidence);
+    
+    await worker.terminate();
+    return result.data.text;
+  } catch (error) {
+    console.error("OCR extraction error:", error);
+    return null;
+  }
+}
 
 // Extract basic processing into a separate function for better readability
 function handleBasicProcessing(reportId: string, file: File, extractedText: string, onPDFUploaded: (file: File, text: string, parsedReport?: any) => void) {

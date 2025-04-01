@@ -21,7 +21,10 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
     handleDrop,
     handleFileInputChange,
     triggerFileInput
-  } = usePDFUpload({ onPDFUploaded, useAI: true });
+  } = usePDFUpload({ 
+    onPDFUploaded, 
+    useAI: true // Enable AI-powered extraction
+  });
 
   return (
     <div className="w-full max-w-3xl mx-auto">

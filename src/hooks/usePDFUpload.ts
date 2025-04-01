@@ -19,7 +19,8 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
     processPDFDocument(file, useAI, {
       setCurrentFile,
       setUploadProgress,
-      onPDFUploaded
+      onPDFUploaded,
+      useImageExtraction: true // Enable image-based extraction
     });
   };
 
