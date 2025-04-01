@@ -1,3 +1,4 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
@@ -21,22 +22,31 @@ export async function extractTableFromImage(imageUrl: string) {
       console.log('Using pre-extracted account data from actual report:', extractedData.reportId);
       console.log('Found account summaries:', extractedData.accountSummaries);
       
-      // Convert to table format for compatibility
-      const tableFormat = {
-        headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
-        rows: extractedData.accountSummaries.map(summary => ({
-          'Account Type': summary.accountType,
-          'Open': summary.open || '0',
-          'With Balance': summary.withBalance || '0',
-          'Total Balance': summary.totalBalance || '$0',
-          'Available': summary.available || '$0',
-          'Credit Limit': summary.creditLimit || '$0',
-          'Debt-to-Credit': summary.debtToCredit || '0%',
-          'Payment': summary.payment || '$0'
-        }))
-      };
+      // Check if there's any real data in the account summaries
+      const hasRealData = extractedData.accountSummaries.some(summary => 
+        summary.open || summary.withBalance || summary.totalBalance);
       
-      return tableFormat;
+      if (hasRealData) {
+        console.log('Real account data found, using it');
+        // Convert to table format for compatibility
+        const tableFormat = {
+          headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
+          rows: extractedData.accountSummaries.map(summary => ({
+            'Account Type': summary.accountType,
+            'Open': summary.open || '0',
+            'With Balance': summary.withBalance || '0',
+            'Total Balance': summary.totalBalance || '$0',
+            'Available': summary.available || '$0',
+            'Credit Limit': summary.creditLimit || '$0',
+            'Debt-to-Credit': summary.debtToCredit || '0%',
+            'Payment': summary.payment || '$0'
+          }))
+        };
+        
+        return tableFormat;
+      } else {
+        console.log('Account summaries exist but contain no real data');
+      }
     }
     
     if (!imageUrl) {
@@ -86,12 +96,18 @@ export async function extractTableFromImage(imageUrl: string) {
       console.error('Text-based extraction failed:', textError);
     }
     
-    // Return null instead of simulated data
+    // If all extraction methods failed but we're in development, generate simulated data
+    if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
+      console.log('Development environment detected, using simulated data as last resort');
+      return createSimulatedTableData(false);
+    }
+    
+    // In production, return null to indicate failure rather than showing fake data
     return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
     toast.error("Error processing the image");
-    return null; // Return null instead of simulated data
+    return null;
   }
 }
 

@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { extractCreditAccountsTableImage, resetCurrentReportImage, getExtractedReportData } from "@/utils/pdf/extractText";
 import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface EnhancedCreditAccountsProps {
   report: CreditReport;
@@ -24,6 +26,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
   const [extractionAttempts, setExtractionAttempts] = useState(0);
   const [usingSampleData, setUsingSampleData] = useState(false);
+  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   
   // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
@@ -37,33 +40,13 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       // This is a new report, so reset all extraction state
       console.log('New report detected, resetting extraction state:', report.reportId);
       
-      // Check if report already has account summaries
-      if (report.accountSummaries && report.accountSummaries.length > 0) {
-        console.log('Using account summaries from report object:', report.accountSummaries);
-        const hasActualData = report.accountSummaries.some(summary => 
-          (summary.open !== null && summary.open !== "") || 
-          (summary.withBalance !== null && summary.withBalance !== "") || 
-          (summary.totalBalance !== null && summary.totalBalance !== "")
-        );
-        
-        if (hasActualData) {
-          console.log('Report has actual data, using it');
-          createOrderedAccountSummaries(report.accountSummaries);
-          setAttemptedExtraction(true);
-          setExtractionFailed(false);
-          setUsingSampleData(false);
-          return;
-        } else {
-          console.log('Report has account summaries but no actual data');
-        }
-      }
-      
       // Reset states for new report
       setAccountSummaries([]);
       setAttemptedExtraction(false);
       setExtractionFailed(false);
       setExtractionAttempts(0);
       setUsingSampleData(false);
+      setTableImageUrl(null);
       
       // Added explicit log to see when extraction is triggered
       console.log('Auto-triggering extraction for new report on component mount');
@@ -72,7 +55,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       // Add a slight delay to ensure DOM is ready with any uploaded images
       const extractionTimer = setTimeout(() => {
         handleEnhancedExtraction();
-      }, 1000); // Increased delay to 1000ms to ensure DOM is fully loaded
+      }, 1500); // Increased delay to 1500ms to ensure DOM is fully loaded
       
       // Clear the timer on cleanup
       return () => clearTimeout(extractionTimer);
@@ -104,7 +87,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         // Convert all numeric values to strings to avoid type comparison errors
         orderedSummaries.push({
           ...existingSummary,
-          // Handling specific case for the type comparison errors on lines 107 and 109
+          // Handling specific case for the type comparison errors
           // Consistently convert all values to strings if they exist, or null if they don't
           open: existingSummary.open === "0" || (existingSummary.open !== null && existingSummary.open !== undefined && existingSummary.open.toString() === "0") ? 
                 "0" : existingSummary.open !== null ? String(existingSummary.open) : null,
@@ -143,6 +126,16 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     setAccountSummaries(orderedSummaries);
   };
   
+  // Check if account summaries have actual data
+  const hasActualData = (summaries: AccountSummary[]) => {
+    if (!summaries || summaries.length === 0) return false;
+    
+    return summaries.some(summary => 
+      (summary.open !== null && summary.open !== "") || 
+      (summary.withBalance !== null && summary.withBalance !== "") || 
+      (summary.totalBalance !== null && summary.totalBalance !== ""));
+  };
+  
   // Two-stage enhanced table extraction
   const handleEnhancedExtraction = async () => {
     try {
@@ -155,81 +148,71 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       toast.info("Extracting account data...");
       console.log("Starting enhanced extraction process for report:", report?.reportId);
       
-      // Check if we already have extracted data in the report
-      if (report.accountSummaries && report.accountSummaries.length > 0) {
-        const hasActualData = report.accountSummaries.some(summary => 
-          (summary.open !== null && summary.open !== "") || 
-          (summary.withBalance !== null && summary.withBalance !== "") || 
-          (summary.totalBalance !== null && summary.totalBalance !== "")
-        );
-        
-        if (hasActualData) {
-          console.log("Using account summaries with actual data from report object:", report.accountSummaries);
-          createOrderedAccountSummaries(report.accountSummaries);
-          setIsProcessing(false);
-          toast.success("Using provided account data");
-          return;
-        } else {
-          console.log("Report has account summaries but no actual data, continuing extraction");
-        }
-      }
+      // Stage 1: Get the table image 
+      const newTableImageUrl = await extractCreditAccountsTableImage(report);
+      setTableImageUrl(newTableImageUrl);
       
-      // Check if we have extracted data in our global cache
-      const cachedData = getExtractedReportData();
-      if (cachedData && cachedData.accountSummaries && cachedData.accountSummaries.length > 0) {
-        const hasActualData = cachedData.accountSummaries.some(summary => 
-          (summary.open !== null && summary.open !== "") || 
-          (summary.withBalance !== null && summary.withBalance !== "") || 
-          (summary.totalBalance !== null && summary.totalBalance !== "")
-        );
+      if (!newTableImageUrl) {
+        console.log("No table image found, attempting text-based extraction");
         
-        if (hasActualData) {
-          console.log("Using account summaries with actual data from cached data:", cachedData.accountSummaries);
+        // Check if the report has text-based data we can parse
+        if (report.rawText && report.rawText.length > 0) {
+          // Look for credit account table patterns in the text
+          const tablePattern = /\b(account\s+type|revolving|mortgage|installment|total).+(\d+)\s+(\d+)\s+\$[\d,]+/i;
+          if (tablePattern.test(report.rawText)) {
+            toast.info("Attempting to extract data from report text");
+            
+            // Parse existing report account summaries if available
+            if (report.accountSummaries && report.accountSummaries.length > 0) {
+              if (hasActualData(report.accountSummaries)) {
+                console.log("Using account summaries from report text:", report.accountSummaries);
+                createOrderedAccountSummaries(report.accountSummaries);
+                setIsProcessing(false);
+                toast.success("Successfully extracted account data from text");
+                return;
+              }
+            }
+          }
+        }
+        
+        // If we couldn't get data from the text, check for cached data
+        const cachedData = getExtractedReportData();
+        if (cachedData && cachedData.accountSummaries && hasActualData(cachedData.accountSummaries)) {
+          console.log("Using account summaries from cached data");
           createOrderedAccountSummaries(cachedData.accountSummaries);
           setIsProcessing(false);
-          toast.success("Using extracted account data");
-          return;
-        } else {
-          console.log("Cached data has account summaries but no actual data, continuing extraction");
-        }
-      }
-      
-      // Stage 1: Get the table image - this now always gets the latest image
-      const tableImageUrl = await extractCreditAccountsTableImage(report);
-      
-      if (!tableImageUrl) {
-        console.log("No table image found - using original report data");
-        
-        // If the report has account summaries, use those
-        if (report.accountSummaries && report.accountSummaries.length > 0) {
-          console.log("Using account summaries from report:", report.accountSummaries);
-          createOrderedAccountSummaries(report.accountSummaries);
-          setIsProcessing(false);
-          toast.success("Using report's account data");
+          toast.success("Using cached account data");
           return;
         }
         
-        // Last resort - use the sample data
-        console.log("No account data available - using sample data");
-        const tableData = createSimulatedTableData(false);
-        if (tableData) {
-          const sampleSummaries = convertTableToAccountSummaries(tableData);
-          createOrderedAccountSummaries(sampleSummaries);
-          setUsingSampleData(true);
-          toast.info("Using sample account data (no image found)");
+        // Last resort - use sample data in development mode only
+        if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
+          console.log("No account data available - using sample data for development");
+          const tableData = createSimulatedTableData(false);
+          if (tableData) {
+            const sampleSummaries = convertTableToAccountSummaries(tableData);
+            createOrderedAccountSummaries(sampleSummaries);
+            setUsingSampleData(true);
+            toast.info("Using sample account data (no image found)");
+          } else {
+            setExtractionFailed(true);
+            toast.error("Failed to extract account data");
+          }
         } else {
+          // In production, don't show sample data
+          console.log("No account data available in production - showing extraction failed");
           setExtractionFailed(true);
-          toast.error("Failed to extract account data");
+          toast.error("No account data found in this report");
         }
         
         setIsProcessing(false);
         return;
       }
       
-      console.log("Using table image URL for extraction:", tableImageUrl);
+      console.log("Using table image URL for extraction:", newTableImageUrl);
       
       // Stage 2: Extract table data using template-based approach
-      const tableData = await extractTableFromImage(tableImageUrl);
+      const tableData = await extractTableFromImage(newTableImageUrl);
       
       if (tableData && tableData.rows && tableData.rows.length > 0) {
         console.log("Extracted table data:", tableData);
@@ -237,68 +220,28 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         // Convert to account summaries
         const extractedSummaries = convertTableToAccountSummaries(tableData);
         
-        if (extractedSummaries.length > 0) {
+        if (extractedSummaries.length > 0 && hasActualData(extractedSummaries)) {
           console.log('Successfully extracted account summaries:', extractedSummaries);
           toast.success("Successfully extracted account data");
           
           // Update the state
           createOrderedAccountSummaries(extractedSummaries);
           setExtractionFailed(false);
+          setUsingSampleData(false);
         } else {
-          console.log("Failed to extract valid account data - trying report data");
-          
-          // Try to use data from the report object first
-          if (report.accountSummaries && report.accountSummaries.length > 0) {
-            createOrderedAccountSummaries(report.accountSummaries);
-            toast.info("Using report's account data");
-          } else {
-            // Last resort - use sample data
-            const tableData = createSimulatedTableData(false);
-            if (tableData) {
-              const sampleSummaries = convertTableToAccountSummaries(tableData);
-              createOrderedAccountSummaries(sampleSummaries);
-              setUsingSampleData(true);
-              toast.info("Using sample account data (extraction failed)");
-            }
-          }
+          console.log("Extracted data had no meaningful values");
+          setExtractionFailed(true);
+          toast.error("No valid account data could be extracted");
         }
       } else {
-        console.log("Could not process table structure - trying report data");
-        
-        // Try to use data from the report object first
-        if (report.accountSummaries && report.accountSummaries.length > 0) {
-          createOrderedAccountSummaries(report.accountSummaries);
-          toast.info("Using report's account data");
-        } else {
-          // Last resort - use sample data
-          const tableData = createSimulatedTableData(false);
-          if (tableData) {
-            const sampleSummaries = convertTableToAccountSummaries(tableData);
-            createOrderedAccountSummaries(sampleSummaries);
-            setUsingSampleData(true);
-            toast.info("Using sample account data (extraction failed)");
-          }
-        }
+        console.log("Could not process table structure");
+        setExtractionFailed(true);
+        toast.error("Table extraction failed");
       }
     } catch (error) {
       console.error("Error during extraction:", error);
-      
-      // Try to use data from the report object first
-      if (report.accountSummaries && report.accountSummaries.length > 0) {
-        createOrderedAccountSummaries(report.accountSummaries);
-        toast.warning("Using report's account data due to extraction error");
-      } else {
-        // Last resort - use sample data
-        const tableData = createSimulatedTableData(false);
-        if (tableData) {
-          const sampleSummaries = convertTableToAccountSummaries(tableData);
-          createOrderedAccountSummaries(sampleSummaries);
-          setUsingSampleData(true);
-          toast.error("Using sample data due to extraction error");
-        }
-      }
-      
       setExtractionFailed(true);
+      toast.error("Error during data extraction");
     } finally {
       setIsProcessing(false);
     }
@@ -338,7 +281,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Table extraction failed. You can retry the extraction or manually enter the data.
+              No account data was found in your credit report. You can retry the extraction or upload a clearer image of your account summary table.
             </AlertDescription>
           </Alert>
         )}
@@ -352,12 +295,22 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           </Alert>
         )}
         
+        {tableImageUrl && showDebugInfo && (
+          <div className="mb-4">
+            <p className="text-xs mb-1">Extracted Table Image:</p>
+            <AspectRatio ratio={16/9} className="bg-muted">
+              <img src={tableImageUrl} alt="Extracted table" className="rounded-md object-cover w-full h-full" />
+            </AspectRatio>
+          </div>
+        )}
+        
         {showDebugInfo && (
           <div className="mb-4 p-4 border rounded bg-slate-50">
             <p className="text-xs mb-2">Debug: Extraction attempts: {extractionAttempts}</p>
             <p className="text-xs mb-2">Report ID: {report.reportId || 'None'}</p>
             <p className="text-xs mb-2">Using sample data: {usingSampleData ? 'Yes' : 'No'}</p>
-            <p className="text-xs mb-2">Uploaded image found: {attemptedExtraction ? 'Yes' : 'Not tried yet'}</p>
+            <p className="text-xs mb-2">Uploaded image found: {tableImageUrl ? 'Yes' : 'No'}</p>
+            <p className="text-xs mb-2">Raw text length: {report.rawText ? report.rawText.length : 0} characters</p>
             <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />
           </div>
         )}
