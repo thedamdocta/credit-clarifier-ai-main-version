@@ -31,7 +31,7 @@ export async function extractTableFromImage(imageUrl: string) {
     // If Tesseract didn't work well, try using Hugging Face
     if (!USE_SIMULATION) {
       try {
-        // The correct format for pipeline with required parameters
+        // Create the pipeline with the correct arguments (model name and configuration)
         const docExtractor = await pipeline(
           'document-question-answering',
           TABLE_EXTRACTION_MODEL,
@@ -58,15 +58,13 @@ export async function extractTableFromImage(imageUrl: string) {
           // Handle the case when result might be an array or object with different structure
           let answer = '';
           if (Array.isArray(result) && result.length > 0) {
-            // Type-safe property access using optional chaining
-            answer = typeof result[0]?.text === 'string' ? result[0].text : 
-                    (typeof result[0] === 'object' && result[0] !== null ? JSON.stringify(result[0]) : '');
+            // Use type assertion to safely access possibly existing properties
+            const firstResult = result[0] as Record<string, any>;
+            answer = firstResult.answer || firstResult.text || JSON.stringify(firstResult);
           } else if (typeof result === 'object' && result !== null) {
-            // Try to extract answer from possible properties with type safety
+            // Use type assertion for safe property access
             const resultObj = result as Record<string, any>;
-            answer = typeof resultObj.text === 'string' ? resultObj.text :
-                    typeof resultObj.answer === 'string' ? resultObj.answer : 
-                    JSON.stringify(result);
+            answer = resultObj.answer || resultObj.text || JSON.stringify(resultObj);
           }
             
           return { question, answer };
