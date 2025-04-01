@@ -13,16 +13,29 @@ interface CreditAccountsTableProps {
 const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
 
-  // Check if we have any valid data (at least one field with an actual value)
-  const hasAnyData = accountSummaries && accountSummaries.some(summary => 
-    summary.open !== null || 
-    summary.withBalance !== null || 
-    summary.totalBalance !== null ||
-    summary.available !== null ||
-    summary.creditLimit !== null ||
-    summary.debtToCredit !== null ||
-    summary.payment !== null
+  // Improved data validation: Check if we have any actual meaningful data
+  const hasAnyActualData = accountSummaries && accountSummaries.some(summary => 
+    (summary.open !== null && summary.open !== undefined && summary.open !== "") || 
+    (summary.withBalance !== null && summary.withBalance !== undefined && summary.withBalance !== "") || 
+    (summary.totalBalance !== null && summary.totalBalance !== undefined && summary.totalBalance !== "") ||
+    (summary.available !== null && summary.available !== undefined && summary.available !== "") ||
+    (summary.creditLimit !== null && summary.creditLimit !== undefined && summary.creditLimit !== "") ||
+    (summary.debtToCredit !== null && summary.debtToCredit !== undefined && summary.debtToCredit !== "") ||
+    (summary.payment !== null && summary.payment !== undefined && summary.payment !== "")
   );
+
+  // Check if we have any potentially extracted data, even if incomplete
+  const hasAtLeastSomeData = accountSummaries && accountSummaries.length > 0 && 
+    accountSummaries.some(summary => 
+      summary.accountType && (
+        summary.open !== null || 
+        summary.withBalance !== null || 
+        summary.totalBalance !== null ||
+        summary.available !== null ||
+        summary.creditLimit !== null ||
+        summary.payment !== null
+      )
+    );
 
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
@@ -40,8 +53,8 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     return formatter(value);
   };
 
-  // FIXED: Use test data if no valid data exists in accountSummaries
-  const summariesToRender = hasAnyData ? accountSummaries : [
+  // Use the actual data if it exists, otherwise use sample data
+  const summariesToRender = hasAtLeastSomeData ? accountSummaries : [
     { 
       accountType: 'Revolving', 
       totalAccounts: null, 
@@ -109,13 +122,24 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     }
   ];
   
+  const usingSampleData = !hasAtLeastSomeData;
+  
   return (
     <div>
-      {!hasAnyData && (
+      {usingSampleData && (
         <Alert className="mb-4 bg-amber-50">
           <AlertCircle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
             No account data was found in your credit report. Displaying sample data for demonstration purposes.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {!usingSampleData && !hasAnyActualData && (
+        <Alert className="mb-4 bg-blue-50">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            Limited account data was found in your credit report. Some values may be incomplete.
           </AlertDescription>
         </Alert>
       )}

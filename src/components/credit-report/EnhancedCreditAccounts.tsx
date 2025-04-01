@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,11 +39,22 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       // Check if report already has account summaries
       if (report.accountSummaries && report.accountSummaries.length > 0) {
         console.log('Using account summaries from report object:', report.accountSummaries);
-        createOrderedAccountSummaries(report.accountSummaries);
-        setAttemptedExtraction(true);
-        setExtractionFailed(false);
-        setUsingSampleData(false);
-        return;
+        const hasActualData = report.accountSummaries.some(summary => 
+          (summary.open !== null && summary.open !== "") || 
+          (summary.withBalance !== null && summary.withBalance !== "") || 
+          (summary.totalBalance !== null && summary.totalBalance !== "")
+        );
+        
+        if (hasActualData) {
+          console.log('Report has actual data, using it');
+          createOrderedAccountSummaries(report.accountSummaries);
+          setAttemptedExtraction(true);
+          setExtractionFailed(false);
+          setUsingSampleData(false);
+          return;
+        } else {
+          console.log('Report has account summaries but no actual data');
+        }
       }
       
       // Reset states for new report
@@ -89,7 +99,12 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       const existingSummary = summariesByType.get(accountType);
       
       if (existingSummary) {
-        orderedSummaries.push(existingSummary);
+        // Make sure we're preserving actual zero values correctly
+        orderedSummaries.push({
+          ...existingSummary,
+          open: existingSummary.open === 0 ? "0" : existingSummary.open,
+          withBalance: existingSummary.withBalance === 0 ? "0" : existingSummary.withBalance
+        });
       } else {
         // Create default entry with null values for missing account types
         orderedSummaries.push({
@@ -126,21 +141,41 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       
       // Check if we already have extracted data in the report
       if (report.accountSummaries && report.accountSummaries.length > 0) {
-        console.log("Using account summaries from report object:", report.accountSummaries);
-        createOrderedAccountSummaries(report.accountSummaries);
-        setIsProcessing(false);
-        toast.success("Using provided account data");
-        return;
+        const hasActualData = report.accountSummaries.some(summary => 
+          (summary.open !== null && summary.open !== "") || 
+          (summary.withBalance !== null && summary.withBalance !== "") || 
+          (summary.totalBalance !== null && summary.totalBalance !== "")
+        );
+        
+        if (hasActualData) {
+          console.log("Using account summaries with actual data from report object:", report.accountSummaries);
+          createOrderedAccountSummaries(report.accountSummaries);
+          setIsProcessing(false);
+          toast.success("Using provided account data");
+          return;
+        } else {
+          console.log("Report has account summaries but no actual data, continuing extraction");
+        }
       }
       
       // Check if we have extracted data in our global cache
       const cachedData = getExtractedReportData();
       if (cachedData && cachedData.accountSummaries && cachedData.accountSummaries.length > 0) {
-        console.log("Using account summaries from cached data:", cachedData.accountSummaries);
-        createOrderedAccountSummaries(cachedData.accountSummaries);
-        setIsProcessing(false);
-        toast.success("Using extracted account data");
-        return;
+        const hasActualData = cachedData.accountSummaries.some(summary => 
+          (summary.open !== null && summary.open !== "") || 
+          (summary.withBalance !== null && summary.withBalance !== "") || 
+          (summary.totalBalance !== null && summary.totalBalance !== "")
+        );
+        
+        if (hasActualData) {
+          console.log("Using account summaries with actual data from cached data:", cachedData.accountSummaries);
+          createOrderedAccountSummaries(cachedData.accountSummaries);
+          setIsProcessing(false);
+          toast.success("Using extracted account data");
+          return;
+        } else {
+          console.log("Cached data has account summaries but no actual data, continuing extraction");
+        }
       }
       
       // Stage 1: Get the table image - this now always gets the latest image
