@@ -1,6 +1,6 @@
 
 import { toast } from "sonner";
-import { extractTextFromImageWithOCR } from "@/lib/ai/ocrExtraction";
+import { extractTextFromImageWithOCR, processImageWithEnhancedOCR } from "@/lib/ai/ocrExtraction";
 
 export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   let extractedText = '';
@@ -24,7 +24,7 @@ export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   return extractedText;
 };
 
-// Extract credit account table as image for AI processing
+// Extract credit account table as image for two-stage processing
 export const extractCreditAccountsTableImage = async (pdf: any): Promise<string | null> => {
   try {
     // For now, we use the uploaded image, but in a production environment
@@ -38,22 +38,22 @@ export const extractCreditAccountsTableImage = async (pdf: any): Promise<string 
   }
 };
 
-// New function to extract text directly from an image using Hugging Face OCR
+// Two-stage text extraction from an image
 export const extractTextFromImage = async (imageUrl: string): Promise<string | null> => {
   try {
-    console.log('Starting OCR on image:', imageUrl);
+    console.log('Starting two-stage OCR on image:', imageUrl);
     
-    // Call the OCR extraction function from ocrExtraction.ts
-    const extractedText = await extractTextFromImageWithOCR(imageUrl);
+    // Stage 1: Extract raw text using OCR
+    const extractedText = await processImageWithEnhancedOCR(imageUrl);
     
     if (extractedText) {
-      console.log('OCR process completed');
+      console.log('Two-stage OCR process completed');
       return extractedText;
     } else {
       // Fallback to simulation for development
       console.log('OCR failed, using simulation');
       await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
-      return "Simulated OCR text extraction - would be replaced by actual HF model results";
+      return "Simulated OCR text extraction - would be replaced by actual model results";
     }
   } catch (error) {
     console.error('Error running OCR on image:', error);

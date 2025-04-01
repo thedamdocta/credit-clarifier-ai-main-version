@@ -9,7 +9,8 @@ import CreditAccountsTable from "./accounts/CreditAccountsTable";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { toast } from "sonner";
 import { extractCreditAccountsTableImage } from "@/utils/pdf/extractText";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EnhancedCreditAccountsProps {
   report: CreditReport;
@@ -19,6 +20,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
+  const [extractionFailed, setExtractionFailed] = useState(false);
   
   // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
@@ -27,6 +29,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   useEffect(() => {
     if (report.accountSummaries && report.accountSummaries.length > 0) {
       createOrderedAccountSummaries(report.accountSummaries);
+      setExtractionFailed(false);
     } else {
       // Auto-trigger enhanced extraction if no account summaries exist
       handleEnhancedExtraction();
@@ -76,22 +79,24 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     setAccountSummaries(orderedSummaries);
   };
   
-  // Enhanced table extraction - now with better error handling and retry option
+  // Two-stage enhanced table extraction
   const handleEnhancedExtraction = async () => {
     try {
       setIsProcessing(true);
-      toast.info("Extracting credit account data...");
+      setExtractionFailed(false);
+      toast.info("Extracting account data using two-stage process...");
       
-      // Get the table image
+      // Stage 1: Get the table image
       const tableImageUrl = await extractCreditAccountsTableImage(null);
       
       if (!tableImageUrl) {
-        toast.error("Could not process account table data");
+        toast.error("Could not identify account table image");
         setIsProcessing(false);
+        setExtractionFailed(true);
         return;
       }
       
-      // Extract table data using our enhanced approach
+      // Stage 2: Extract table data using template-based approach
       const tableData = await extractTableFromImage(tableImageUrl);
       
       if (tableData && tableData.rows && tableData.rows.length > 0) {
@@ -102,15 +107,19 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           toast.success("Successfully extracted account data");
           // Update the state
           createOrderedAccountSummaries(extractedSummaries);
+          setExtractionFailed(false);
         } else {
           toast.error("Failed to extract valid account data");
+          setExtractionFailed(true);
         }
       } else {
         toast.error("Could not process table structure");
+        setExtractionFailed(true);
       }
     } catch (error) {
       console.error("Error during extraction:", error);
       toast.error("Data extraction failed");
+      setExtractionFailed(true);
     } finally {
       setIsProcessing(false);
     }
@@ -136,12 +145,24 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
               Processing...
             </>
           ) : (
-            <>Retry Extraction</>
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry Extraction
+            </>
           )}
         </Button>
       </CardHeader>
       <CardContent>
         <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
+        
+        {extractionFailed && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Table extraction failed. You can retry the extraction or manually enter the data.
+            </AlertDescription>
+          </Alert>
+        )}
         
         {showDebugInfo && <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />}
         
