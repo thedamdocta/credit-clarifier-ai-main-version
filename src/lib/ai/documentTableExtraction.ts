@@ -59,11 +59,11 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
  * Process Tesseract OCR result to extract tabular data
  * This function analyzes word positions to detect table structure
  */
-function extractTableFromOCRResult(ocrResult: Tesseract.RecognizeResult): ExtractedTableData | null {
+function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableData | null {
   try {
-    // Get the HOCR content for positional analysis
-    const lines = ocrResult.lines;
-    if (!lines || lines.length === 0) return null;
+    // Get the lines content for positional analysis
+    const lines = ocrResult.lines || [];
+    if (lines.length === 0) return null;
     
     // Detect column boundaries based on word positions
     const columns = detectColumns(lines);
@@ -83,7 +83,7 @@ function extractTableFromOCRResult(ocrResult: Tesseract.RecognizeResult): Extrac
     return {
       headers,
       rows: dataRows,
-      confidence: ocrResult.confidence
+      confidence: ocrResult.confidence || 0
     };
   } catch (error) {
     console.error('Error extracting table from OCR result:', error);
