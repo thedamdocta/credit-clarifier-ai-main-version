@@ -1,4 +1,5 @@
 
+
 import { pipeline } from '@huggingface/transformers';
 import { TEXT_CLASSIFICATION_MODEL, NER_MODEL } from './config';
 
@@ -23,3 +24,4 @@ export const getNER = async () => {
   }
   return nerPromise;
 };
+
