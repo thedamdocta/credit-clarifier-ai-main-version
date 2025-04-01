@@ -11,3 +11,5 @@ export * from './personalInfoExtraction';
 export * from './creditReportParsing';
 export * from './summaryExtraction';
 export * from './tableExtraction';
+// Export table extraction utilities
+export * from './table';
