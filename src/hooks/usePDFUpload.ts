@@ -15,6 +15,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processPDF = (file: File) => {
+    // Process the PDF file with focus on text extraction
     processPDFDocument(file, useAI, {
       setCurrentFile,
       setUploadProgress,

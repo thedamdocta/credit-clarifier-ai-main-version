@@ -1,20 +1,12 @@
-
 import { AccountSummary } from '../types/creditReport';
-import { pipeline } from '@huggingface/transformers';
-import { toast } from "sonner";
-import { extractTableWithTesseract, convertTesseractTableToAppFormat } from './table';
-import { processImageWithEnhancedOCR } from './ocrExtraction';
-import { preprocessImageForOCR } from './imagePreprocessing';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 
 /**
- * Two-stage extraction approach:
- * 1. Extract all text from the image
- * 2. Apply template-based structure recognition to organize into tables
+ * Extract table data from text directly
  */
 export async function extractTableFromImage(imageUrl: string) {
   try {
-    console.log('Extracting table from image:', imageUrl);
+    console.log('Direct text extraction requested');
     
     // IMPROVED: Check if we already have extracted data from a real file
     const extractedData = getExtractedReportData();
@@ -51,65 +43,10 @@ export async function extractTableFromImage(imageUrl: string) {
       }
     }
     
-    if (!imageUrl) {
-      console.error('No image URL provided for extraction');
-      toast.error("No image provided for table extraction");
-      return null; // Return null instead of simulated data to force actual extraction
-    }
-    
-    // Generate a unique timestamp for this extraction to avoid browser caching
-    const uniqueTimestamp = Date.now();
-    const uniqueImageUrl = imageUrl.includes('?') ? 
-      `${imageUrl}&nocache=${uniqueTimestamp}` : 
-      `${imageUrl}?nocache=${uniqueTimestamp}`;
-    
-    console.log('Using unique image URL for extraction:', uniqueImageUrl);
-    
-    // Attempt table extraction with Tesseract
-    try {
-      console.log('Attempting extraction with Tesseract');
-      const tesseractResult = await extractTableWithTesseract(uniqueImageUrl);
-      
-      if (tesseractResult && tesseractResult.headers.length > 0 && tesseractResult.rows.length > 0) {
-        console.log('Successfully extracted table using Tesseract:', tesseractResult);
-        return convertTesseractTableToAppFormat(tesseractResult);
-      } else {
-        console.log('Tesseract extraction returned no data, trying alternate method');
-      }
-    } catch (tesseractError) {
-      console.error('Tesseract extraction failed:', tesseractError);
-    }
-    
-    // Fallback: Extract text first, then identify table structure
-    try {
-      console.log('Attempting text-based extraction');
-      const extractedText = await processImageWithEnhancedOCR(uniqueImageUrl);
-      
-      if (extractedText) {
-        console.log('Extracted text:', extractedText);
-        const tableStructure = extractTableStructureFromText(extractedText);
-        
-        if (tableStructure && tableStructure.rows && tableStructure.rows.length > 0) {
-          console.log('Successfully extracted table structure from text');
-          return tableStructure;
-        }
-      }
-    } catch (textError) {
-      console.error('Text-based extraction failed:', textError);
-    }
-    
-    // If all extraction methods failed but we're in development, generate simulated data
-    // IMPORTANT CHANGE: Be much more restrictive about when we use simulated data
-    if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost' && !window.localStorage.getItem('disableSampleData')) {
-      console.log('Development environment detected, using simulated data as last resort');
-      return null; // Return null by default to discourage sample data usage
-    }
-    
     // In production, return null to indicate failure rather than showing fake data
     return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
-    toast.error("Error processing the image");
     return null;
   }
 }
@@ -117,7 +54,7 @@ export async function extractTableFromImage(imageUrl: string) {
 /**
  * Extract table structure from raw text using template matching
  */
-function extractTableStructureFromText(text: string) {
+export function extractTableStructureFromText(text: string) {
   try {
     console.log('Extracting table structure from text using pattern matching');
     
@@ -163,7 +100,7 @@ function extractTableStructureFromText(text: string) {
   }
 }
 
-// Create simulated data only as a last resort when explicitly requested
+// Keep simulated data function for development purposes only
 export function createSimulatedTableData(forceUseActualImage: boolean = false) {
   // If we're forcing use of actual image data, don't return simulated data
   if (forceUseActualImage) {
@@ -176,6 +113,8 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
   }
   
   console.log('Creating simulated table data');
+  
+  
   
   return {
     headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
@@ -232,6 +171,7 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
       }
     ]
   };
+  return null; // In most cases, we don't want to use simulated data
 }
 
 // Import the value parsers from our value parser module
@@ -267,17 +207,6 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
       debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
       payment: parseCurrencyValue(row['Payment'])
     };
-    
-    // Log parsed values
-    console.log(`Parsed row for ${accountType}:`, {
-      open: row['Open'] + ' → ' + summary.open,
-      withBalance: row['With Balance'] + ' → ' + summary.withBalance,
-      totalBalance: row['Total Balance'] + ' → ' + summary.totalBalance,
-      available: row['Available'] + ' → ' + summary.available,
-      creditLimit: row['Credit Limit'] + ' → ' + summary.creditLimit,
-      debtToCredit: row['Debt-to-Credit'] + ' → ' + summary.debtToCredit,
-      payment: row['Payment'] + ' → ' + summary.payment
-    });
     
     summaries.push(summary);
   });

@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
-import { resetCurrentReportImage } from "./extractText";
 
 interface PDFProcessingCallbacks {
   setCurrentFile: (file: File) => void;
@@ -20,14 +19,11 @@ export const processPDFDocument = async (
   
   try {
     setCurrentFile(file);
-    
-    // Reset any cached image data from previous uploads
-    resetCurrentReportImage();
+    console.log(`Processing PDF document with file: ${file.name}`);
     
     // Store this file as the current PDF being processed with a unique ID
-    // This is important for image extraction later
     const uniqueReportId = setCurrentPDFData(file);
-    console.log(`Processing PDF document with file: ${file.name}, report ID: ${uniqueReportId}`);
+    console.log(`Set unique report ID: ${uniqueReportId}`);
     
     // Setup progress tracking
     const { 
@@ -53,6 +49,7 @@ export const processPDFDocument = async (
         
         // Extract text from the PDF
         const extractedText = await extractTextFromPDF(pdf);
+        console.log("Successfully extracted text from PDF, length:", extractedText.length);
         
         try {
           // Parse the extracted text with the unique report ID
@@ -62,20 +59,17 @@ export const processPDFDocument = async (
           if (parsedReport) {
             parsedReport.reportId = uniqueReportId;
             parsedReport.fileName = file.name; // Store filename for reference
+            parsedReport.rawText = extractedText; // Store the raw text for later use
             
             // Store this parsed data in our cache to prevent overriding with sample data
             setExtractedReportData(parsedReport);
             
             // Create a global reference to this PDF for better extraction
-            // This helps with finding the correct image data later
             window.currentPdfData = {
               reportId: uniqueReportId,
               fileName: file.name,
               extractedText: extractedText.substring(0, 1000) // Store preview
             };
-            
-            // Log to verify global reference is set correctly
-            console.log('Set global PDF data reference:', window.currentPdfData);
             
             // Make sure state is updated before completing processing
             setTimeout(() => {

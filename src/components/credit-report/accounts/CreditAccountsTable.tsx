@@ -58,13 +58,9 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   
   // Check if all values in the table are null/empty (no extraction)
   const hasNoData = !summariesToDisplay || summariesToDisplay.length === 0 || summariesToDisplay.every(summary =>
-    summary.open === null && 
-    summary.withBalance === null && 
-    summary.totalBalance === null &&
-    summary.available === null &&
-    summary.creditLimit === null &&
-    summary.debtToCredit === null &&
-    summary.payment === null
+    (summary.open === null || summary.open === "") && 
+    (summary.withBalance === null || summary.withBalance === "") && 
+    (summary.totalBalance === null || summary.totalBalance === "" || summary.totalBalance === "$0")
   );
   
   // Function to render a cell value with proper formatting based on data type
