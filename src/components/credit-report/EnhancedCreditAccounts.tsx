@@ -32,7 +32,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       // Reset current image state when a new report is loaded
       resetCurrentReportImage();
       
-      // Use a unique identifier for the report - either reportId if available or generate one from bureau and date
+      // Use a unique identifier for the report
       const reportIdentifier = report.reportId || 
                               `${report.bureau}-${report.reportDate}-${Date.now()}`;
       console.log('New report detected, resetting extraction state:', reportIdentifier);

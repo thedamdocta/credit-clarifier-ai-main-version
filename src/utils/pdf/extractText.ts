@@ -30,22 +30,29 @@ let currentReportImageUrl: string | null = null;
 
 // Reset the current image URL when processing a new report
 export const resetCurrentReportImage = () => {
+  console.log('Resetting current report image URL to null');
   currentReportImageUrl = null;
 };
 
 // Extract credit account table as image for two-stage processing
 export const extractCreditAccountsTableImage = async (report: CreditReport | null): Promise<string | null> => {
   try {
+    // If we already have a current image URL, use it
+    if (currentReportImageUrl) {
+      console.log('Using existing table image from:', currentReportImageUrl);
+      return currentReportImageUrl;
+    }
+    
     // If we don't have a current image URL but have a report, we need to find an image
-    if (!currentReportImageUrl && report) {
+    if (report) {
       console.log('Finding image for report:', report.bureau);
       
-      // Use the example image as a static resource
-      // In a production environment, we would extract this from the PDF
+      // Add a timestamp to avoid caching issues
       const timestamp = Date.now();
       
-      // Use the provided sample image
-      currentReportImageUrl = `/lovable-uploads/d69df182-57e6-4255-9612-a5f948fa7c6a.png?t=${timestamp}`;
+      // Use the example image that's already uploaded to the server
+      // Note: This is a placeholder - in production this would detect tables in the PDF
+      currentReportImageUrl = `/lovable-uploads/3c97993a-e3e3-484e-93b8-675319596a43.png?t=${timestamp}`;
       
       console.log('Set current report image URL to:', currentReportImageUrl);
     }

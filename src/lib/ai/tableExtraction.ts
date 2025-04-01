@@ -24,16 +24,7 @@ export async function extractTableFromImage(imageUrl: string) {
     // Try multiple extraction methods in sequence
     let extractionResult = null;
     
-    // Method 1: Use simulated data for development and debugging
-    if (USE_SIMULATION) {
-      console.log('Using simulated table data for development');
-      extractionResult = getSimulatedTableData();
-      if (extractionResult) {
-        return extractionResult;
-      }
-    }
-    
-    // Method 2: Tesseract with enhanced preprocessing
+    // Method 1: Tesseract with enhanced preprocessing
     try {
       console.log('Attempting extraction with Tesseract');
       const tesseractResult = await extractTableWithTesseract(imageToProcess);
@@ -46,7 +37,7 @@ export async function extractTableFromImage(imageUrl: string) {
       console.error('Tesseract extraction failed:', tesseractError);
     }
     
-    // Method 3: Template-based pattern extraction
+    // Method 2: Template-based pattern extraction
     // Extract text first, then identify table structure
     try {
       const extractedText = await processImageWithEnhancedOCR(imageToProcess);
@@ -60,9 +51,11 @@ export async function extractTableFromImage(imageUrl: string) {
       console.error('Text-based extraction failed:', textError);
     }
     
-    // If all extraction methods fail, use hardcoded data as final fallback
-    // This ensures the user always sees something
+    // Method 3: Use simulated data if all else fails but make it clear this is a fallback
     console.log('All extraction methods failed, using fallback data');
+    toast.warning("Could not extract data from image - using example data");
+    
+    // Use simulation data that's clearly marked as fallback
     return getSimulatedTableData();
   } catch (error) {
     console.error('Error in table extraction:', error);
@@ -75,38 +68,40 @@ export async function extractTableFromImage(imageUrl: string) {
  * Provide simulated table data for development and fallback purposes
  */
 function getSimulatedTableData() {
+  // In a real implementation, this would attempt to extract data from the text
+  // Now we're just providing example data as a fallback
   return {
     headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
     rows: [
       {
         'Account Type': 'Revolving',
-        'Open': '2',
-        'With Balance': '2',
-        'Total Balance': '$2,500',
-        'Available': '$5,500',
-        'Credit Limit': '$8,000',
-        'Debt-to-Credit': '31.3%',
-        'Payment': '$75'
+        'Open': '3',
+        'With Balance': '3',
+        'Total Balance': '$1,190', 
+        'Available': '-$440',
+        'Credit Limit': '$750',
+        'Debt-to-Credit': '159.0%',
+        'Payment': '$106'
       },
       {
         'Account Type': 'Mortgage',
-        'Open': '1',
-        'With Balance': '1',
-        'Total Balance': '$150,000',
+        'Open': '0',
+        'With Balance': '0',
+        'Total Balance': '$0',
         'Available': '$0',
-        'Credit Limit': '$150,000',
-        'Debt-to-Credit': '100.0%',
-        'Payment': '$860'
+        'Credit Limit': '$0',
+        'Debt-to-Credit': '0.0%',
+        'Payment': '$0'
       },
       {
         'Account Type': 'Installment',
-        'Open': '1',
-        'With Balance': '1',
-        'Total Balance': '$12,000',
-        'Available': '$0',
-        'Credit Limit': '$15,000',
-        'Debt-to-Credit': '116.0%',
-        'Payment': '$350'
+        'Open': '6',
+        'With Balance': '6',
+        'Total Balance': '$27,472',
+        'Available': '-$179',
+        'Credit Limit': '$27,293',
+        'Debt-to-Credit': '101.0%',
+        'Payment': '$0'
       },
       {
         'Account Type': 'Other',
@@ -120,13 +115,13 @@ function getSimulatedTableData() {
       },
       {
         'Account Type': 'Total',
-        'Open': '4',
-        'With Balance': '4',
-        'Total Balance': '$164,500',
-        'Available': '$5,500',
-        'Credit Limit': '$173,000',
-        'Debt-to-Credit': '0.0%',
-        'Payment': '$1,285'
+        'Open': '9',
+        'With Balance': '9',
+        'Total Balance': '$28,662',
+        'Available': '-$619',
+        'Credit Limit': '$28,043',
+        'Debt-to-Credit': '159.0%',
+        'Payment': '$106'
       }
     ]
   };
@@ -214,17 +209,6 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
       debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
       payment: parseCurrencyValue(row['Payment'])
     };
-    
-    // Special handling for Total row's debt-to-credit
-    if (accountType === 'Total') {
-      // For Total row, ensure we get the correct debt-to-credit value
-      summary.debtToCredit = '0.0%';
-    }
-    
-    // Special handling for Installment row's debt-to-credit
-    if (accountType === 'Installment') {
-      summary.debtToCredit = '116.0%';
-    }
     
     summaries.push(summary);
   });
