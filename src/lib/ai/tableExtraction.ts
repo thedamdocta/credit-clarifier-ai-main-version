@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
@@ -31,11 +30,11 @@ export async function extractTableFromImage(imageUrl: string) {
     // If Tesseract didn't work well, try using Hugging Face
     if (!USE_SIMULATION) {
       try {
-        // Fix: Properly configure the pipeline with all required arguments
+        // Create the document extractor pipeline with all required arguments
         const docExtractor = await pipeline(
-          'document-question-answering', // Task type
-          TABLE_EXTRACTION_MODEL, // Model name
-          EXTRACTION_CONFIG // Configuration options
+          'document-question-answering',
+          TABLE_EXTRACTION_MODEL,
+          EXTRACTION_CONFIG
         );
         
         // Questions to extract table structure
@@ -49,8 +48,7 @@ export async function extractTableFromImage(imageUrl: string) {
         
         // Process each question
         const responses = await Promise.all(questions.map(async question => {
-          // Fix: Use correct parameters for the docExtractor function
-          // The pipeline expects an object with image and question properties
+          // Pass the image and question as an object to the docExtractor
           const result = await docExtractor({
             image: imageUrl,
             question: question
