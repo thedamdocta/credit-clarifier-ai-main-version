@@ -5,31 +5,36 @@ import { extractEquifaxOtherItems } from "./equifaxOtherItems";
 import { extractEquifaxSummary } from "./equifaxSummary";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { extractTableFromImage, convertTableToAccountSummaries } from "../../ai/tableExtraction";
+import { toast } from "sonner";
 
 export const parseEquifaxReport = async (text: string, imageUrl?: string): Promise<Partial<CreditReport>> => {
   try {
     // Extract report summary (credit file status, confirmation number, etc)
     const reportSummary = await extractEquifaxSummary(text);
     
-    // Account summaries - try image-based extraction if image URL is provided
+    // Account summaries - try multi-method approach if image URL is provided
     let accountSummaries;
     
     if (imageUrl) {
       try {
-        console.log("Attempting to extract account summaries from image:", imageUrl);
-        // Use image-based extraction
+        console.log("Attempting enhanced account summaries extraction from image:", imageUrl);
+        toast.info("Using AI to analyze account table structure...");
+        
+        // Use our enhanced multi-method extraction
         const tableData = await extractTableFromImage(imageUrl);
         
         if (tableData) {
           accountSummaries = convertTableToAccountSummaries(tableData);
-          console.log("Successfully extracted account summaries from image:", accountSummaries);
+          console.log("Successfully extracted account summaries with enhanced AI:", accountSummaries);
+          toast.success("AI successfully extracted account table data");
         } else {
           // Fall back to text-based extraction
-          console.log("Image extraction failed, falling back to text extraction");
+          console.log("Enhanced image extraction failed, falling back to text extraction");
           accountSummaries = await extractEquifaxAccountSummaries(text);
         }
       } catch (error) {
-        console.error("Error in image-based account summary extraction:", error);
+        console.error("Error in enhanced account summary extraction:", error);
+        toast.error("AI extraction error - using fallback method");
         // Fall back to text-based extraction
         accountSummaries = await extractEquifaxAccountSummaries(text);
       }

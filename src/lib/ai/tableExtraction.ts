@@ -1,6 +1,8 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
+import { extractTableWithTesseract, convertTesseractTableToAppFormat } from './documentTableExtraction';
 
 // Interface to represent the extracted table data
 interface ExtractedTable {
@@ -14,7 +16,10 @@ const USE_SIMULATION = true; // Set to false when ready to use actual model
 
 /**
  * Extract table data from an image using visual document understanding
- * Uses Hugging Face Transformers.js for local browser execution
+ * Uses multiple approaches in fallback sequence for best results:
+ * 1. Hugging Face Transformers.js
+ * 2. Tesseract.js with specialized table detection
+ * 3. Simulated data (for development)
  */
 export async function extractTableFromImage(imageUrl: string): Promise<ExtractedTable | null> {
   try {
@@ -40,16 +45,38 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
         console.log('Model extraction result:', result);
         
         // Process the extraction result
-        // This would need to be adjusted based on the actual model output format
-        return processExtractedModelResult(result);
+        const huggingFaceResult = processExtractedModelResult(result);
+        
+        if (huggingFaceResult) {
+          console.log('Successfully extracted table with Hugging Face model');
+          return huggingFaceResult;
+        }
+        
+        // Fall through to Tesseract if Hugging Face doesn't return valid data
+        console.log('Hugging Face extraction incomplete, trying Tesseract...');
       } catch (error) {
         console.error('Error using Hugging Face model:', error);
-        toast.error("AI extraction failed - using backup method");
-        // Fall back to simulated extraction if model fails
+        toast.error("AI extraction failed - trying backup method");
+        // Continue to next method
+      }
+      
+      // Try Tesseract-based extraction as a second option
+      try {
+        console.log('Attempting Tesseract-based table extraction...');
+        const tesseractResult = await extractTableWithTesseract(imageUrl);
+        
+        if (tesseractResult) {
+          console.log('Successfully extracted table with Tesseract');
+          const formattedResult = convertTesseractTableToAppFormat(tesseractResult);
+          return formattedResult;
+        }
+      } catch (error) {
+        console.error('Error using Tesseract extraction:', error);
+        // Continue to simulation fallback
       }
     }
     
-    // Use simulated extraction for development or fallback
+    // Use simulated extraction for development or final fallback
     return simulateTableExtraction(imageUrl);
   } catch (error) {
     console.error('Error extracting table from image:', error);
