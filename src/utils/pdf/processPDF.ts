@@ -76,24 +76,25 @@ export const processPDFDocument = async (
             
             // Log to verify global reference is set correctly
             console.log('Set global PDF data reference:', window.currentPdfData);
+            
+            // Make sure state is updated before completing processing
+            setTimeout(() => {
+              completeProgressTracking();
+              
+              // Pass the extracted text, file, and parsed report to the parent component
+              onPDFUploaded(file, extractedText, parsedReport);
+              
+              toast.success("PDF successfully processed!");
+            }, 500);
+          } else {
+            handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+            completeProgressTracking();
           }
           
-          completeProgressTracking();
-          
-          // Pass the extracted text, file, and parsed report to the parent component
-          onPDFUploaded(file, extractedText, parsedReport);
-          
-          toast.success("PDF successfully processed!");
         } catch (error) {
           console.error("Error parsing PDF content:", error);
           // Fall back to basic processing
-          const basicReport = { 
-            reportId: uniqueReportId,
-            fileName: file.name,
-            rawText: extractedText
-          };
-          onPDFUploaded(file, extractedText, basicReport);
-          toast.success("PDF processed with basic extraction");
+          handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
           completeProgressTracking();
         }
         
@@ -116,3 +117,33 @@ export const processPDFDocument = async (
     callbacks.setUploadProgress(0);
   }
 };
+
+// Extract basic processing into a separate function for better readability
+function handleBasicProcessing(reportId: string, file: File, extractedText: string, onPDFUploaded: (file: File, text: string, parsedReport?: any) => void) {
+  const basicReport = { 
+    reportId: reportId,
+    fileName: file.name,
+    rawText: extractedText,
+    bureau: 'Unknown' as const,
+    reportDate: new Date().toISOString().split('T')[0],
+    personalInfo: { name: 'Unknown', addresses: [] },
+    accounts: [],
+    inquiries: [],
+    publicRecords: [],
+    collections: [],
+    creditScores: []
+  };
+  
+  // Store in global for easier access
+  window.currentPdfData = {
+    reportId: reportId,
+    fileName: file.name,
+    extractedText: extractedText.substring(0, 1000)
+  };
+  
+  // Store this parsed data in our cache
+  setExtractedReportData(basicReport);
+  
+  onPDFUploaded(file, extractedText, basicReport);
+  toast.success("PDF processed with basic extraction");
+}

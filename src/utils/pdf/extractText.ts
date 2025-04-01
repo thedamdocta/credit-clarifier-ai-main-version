@@ -32,12 +32,14 @@ let currentPDFData: {
   uploadedFile: File | null;
   reportId: string | null;
   extractedData: any | null; // Store extracted data to prevent overwriting with sample data
+  imageElements: HTMLImageElement[]; // Store references to detected image elements
 } = {
   imageUrl: null,
   timestamp: 0,
   uploadedFile: null,
   reportId: null,
-  extractedData: null
+  extractedData: null,
+  imageElements: []
 };
 
 // Store the most recent uploaded file data
@@ -52,7 +54,8 @@ export const setCurrentPDFData = (file: File) => {
     timestamp: Date.now(),
     uploadedFile: file,
     reportId: uniqueId,
-    extractedData: null // Reset extracted data for new file
+    extractedData: null, // Reset extracted data for new file
+    imageElements: [] // Reset image elements for new file
   };
   
   console.log('Updated current PDF data with new reportId:', uniqueId);
@@ -77,10 +80,63 @@ export const getExtractedReportData = () => {
 // Reset the current image URL when processing a new report
 export const resetCurrentReportImage = () => {
   console.log('Resetting current report image URL to null');
-  if (currentPDFData.imageUrl) {
+  if (currentPDFData) {
     currentPDFData.imageUrl = null;
     currentPDFData.timestamp = Date.now(); // Update timestamp to indicate a fresh reset
+    currentPDFData.imageElements = []; // Clear any tracked images
   }
+};
+
+// Function to check if an image is related to a credit report or data table
+const isRelevantImage = (imgSrc: string | null) => {
+  if (!imgSrc) return false;
+  
+  // Check for common identifiers in the image URL
+  const relevantPatterns = [
+    'lovable-uploads',
+    'credit',
+    'report',
+    'table',
+    'equifax',
+    'experian',
+    'transunion',
+    'accounts'
+  ];
+  
+  return relevantPatterns.some(pattern => imgSrc.toLowerCase().includes(pattern.toLowerCase()));
+};
+
+// Scan the DOM for uploaded images and store them in the currentPDFData
+const scanForUploadedImages = () => {
+  const allImages = document.querySelectorAll('img');
+  const relevantImages: HTMLImageElement[] = [];
+  
+  console.log(`Scanning DOM for images, found ${allImages.length} total images`);
+  
+  allImages.forEach((img: HTMLImageElement) => {
+    const src = img.getAttribute('src');
+    if (src && isRelevantImage(src)) {
+      relevantImages.push(img);
+      console.log('Found relevant image:', src);
+    }
+  });
+  
+  if (relevantImages.length > 0) {
+    // Store all relevant images in currentPDFData
+    currentPDFData.imageElements = relevantImages;
+    
+    // Set the most recent one as the current image URL
+    const mostRecentImage = relevantImages[relevantImages.length - 1];
+    const imgSrc = mostRecentImage.getAttribute('src');
+    
+    if (imgSrc) {
+      currentPDFData.imageUrl = imgSrc;
+      console.log('Set current PDF data image URL to:', imgSrc);
+      return true;
+    }
+  }
+  
+  return false;
 };
 
 // Extract credit account table as image for two-stage processing
@@ -89,7 +145,21 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
     console.log('Finding image for report extraction, report ID:', report?.reportId);
     console.log('Current cache state: ', currentPDFData);
     
-    // IMPROVED: Check more broadly for uploaded images in the DOM
+    // First attempt: Scan the DOM for all relevant images (this is more reliable)
+    const imagesFound = scanForUploadedImages();
+    
+    // If we found relevant images, use the cached image URL
+    if (imagesFound && currentPDFData.imageUrl) {
+      // Add cache-busting timestamp
+      const cacheBustedUrl = currentPDFData.imageUrl.includes('?') ? 
+        `${currentPDFData.imageUrl}&t=${Date.now()}` : 
+        `${currentPDFData.imageUrl}?t=${Date.now()}`;
+      
+      console.log('Using scanned image from DOM:', cacheBustedUrl);
+      return cacheBustedUrl;
+    }
+    
+    // Second attempt: Look specifically for uploaded images with lovable-uploads in the path
     const uploadedImagesSelector = 'img[src*="lovable-uploads/"], img[src*="/lovable-uploads/"]';
     const uploadedImages = document.querySelectorAll(uploadedImagesSelector);
     console.log(`Found ${uploadedImages.length} uploaded images in the DOM using broader selector: ${uploadedImagesSelector}`);
@@ -115,20 +185,53 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
       }
     }
     
-    // If no image is found in the DOM, use the fallback: embedded test image
-    const testImages = [
-      "/lovable-uploads/3f5da6bd-b94e-4b22-91f1-cfe0d84e2f12.png",
-      "/lovable-uploads/a0a9c72b-ad0d-4dce-9e0e-46dccfbb2bb0.png",
-      "/lovable-uploads/1488cf26-6a12-4b97-b614-866ade912179.png"
-    ];
+    // Third attempt: Check for global reference to current PDF
+    if (window.currentPdfData && window.currentPdfData.reportId) {
+      console.log('Found global PDF data reference:', window.currentPdfData);
+      
+      // Check again for images after a short delay (in case they're still loading)
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const secondScanResult = scanForUploadedImages();
+      
+      if (secondScanResult && currentPDFData.imageUrl) {
+        const cacheBustedUrl = currentPDFData.imageUrl.includes('?') ? 
+          `${currentPDFData.imageUrl}&t=${Date.now()}` : 
+          `${currentPDFData.imageUrl}?t=${Date.now()}`;
+        
+        console.log('Found image on second scan:', cacheBustedUrl);
+        return cacheBustedUrl;
+      }
+    }
     
-    // Check if any of these test images exist in the DOM
-    for (const testImage of testImages) {
-      const testCheck = document.querySelector(`img[src="${testImage}"], img[src^="${testImage}"]`);
-      if (testCheck) {
-        console.log('Found test image in the DOM:', testImage);
-        currentPDFData.imageUrl = testImage;
-        return `${testImage}?t=${Date.now()}`;
+    // Check for the image directly in the report object if available
+    if (report && report.reportId && report.fileName) {
+      // Look for images in different containers that might host the uploaded images
+      const containers = [
+        document.querySelector('.pdf-preview'),
+        document.querySelector('.report-preview'),
+        document.querySelector('.image-preview'),
+        document.body
+      ];
+      
+      for (const container of containers) {
+        if (container) {
+          const images = container.querySelectorAll('img');
+          if (images.length > 0) {
+            console.log(`Found ${images.length} images in container`);
+            const lastImage = images[images.length - 1] as HTMLImageElement;
+            const imgSrc = lastImage.getAttribute('src');
+            
+            if (imgSrc && isRelevantImage(imgSrc)) {
+              currentPDFData.imageUrl = imgSrc;
+              const cacheBustedUrl = imgSrc.includes('?') ? 
+                `${imgSrc}&t=${Date.now()}` : 
+                `${imgSrc}?t=${Date.now()}`;
+              
+              console.log('Found image in container:', cacheBustedUrl);
+              return cacheBustedUrl;
+            }
+          }
+        }
       }
     }
     
@@ -145,29 +248,21 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
       return cacheBustedUrl;
     }
     
-    // Look for any file inputs with files
-    const fileInputs = document.querySelectorAll('input[type="file"]');
-    console.log(`Found ${fileInputs.length} file inputs`);
+    // Fallback to using test images if available
+    const testImages = [
+      "/lovable-uploads/3f5da6bd-b94e-4b22-91f1-cfe0d84e2f12.png",
+      "/lovable-uploads/a0a9c72b-ad0d-4dce-9e0e-46dccfbb2bb0.png",
+      "/lovable-uploads/1488cf26-6a12-4b97-b614-866ade912179.png",
+      "/lovable-uploads/2627ca8b-c596-46f7-b81e-49ceea65c3bc.png" // Add the new image
+    ];
     
-    let hasFiles = false;
-    fileInputs.forEach((input: HTMLInputElement) => {
-      if (input.files && input.files.length > 0) {
-        hasFiles = true;
-        console.log('Found file input with files:', input.files[0].name);
-      }
-    });
-    
-    // Final fallback: check for any images in the DOM
-    console.log('Checking for any valid images in the DOM as last resort');
-    const allImages = document.querySelectorAll('img');
-    console.log(`Found ${allImages.length} total images in the DOM`);
-    
-    for (const img of allImages) {
-      const src = img.getAttribute('src');
-      if (src && (src.includes('lovable-uploads') || src.includes('credit') || src.includes('report'))) {
-        console.log('Found potentially relevant image:', src);
-        currentPDFData.imageUrl = src;
-        return `${src}?t=${Date.now()}`;
+    // Check if any of these test images exist in the DOM
+    for (const testImage of testImages) {
+      const testCheck = document.querySelector(`img[src="${testImage}"], img[src^="${testImage}"]`);
+      if (testCheck) {
+        console.log('Found test image in the DOM:', testImage);
+        currentPDFData.imageUrl = testImage;
+        return `${testImage}?t=${Date.now()}`;
       }
     }
     

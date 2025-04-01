@@ -44,6 +44,13 @@ export const extractAccountSummariesWithRegex = (text: string) => {
     const installmentMatch = text.match(/installment\s+(\d+)\s+(\d+)/i);
     const totalMatch = text.match(/total\s+(\d+)\s+(\d+)/i);
     
+    console.log("Regex extraction found matches:", {
+      revolvingMatch: revolvingMatch ? true : false,
+      mortgageMatch: mortgageMatch ? true : false,
+      installmentMatch: installmentMatch ? true : false,
+      totalMatch: totalMatch ? true : false
+    });
+    
     const accountSummaries = [
       {
         accountType: 'Revolving',
@@ -117,6 +124,77 @@ export const extractAccountSummariesWithRegex = (text: string) => {
     console.error('Error extracting account summaries with regex:', error);
     return [];
   }
+};
+
+// Create realistic sample data for testing/development 
+export const createSampleAccountSummaries = () => {
+  return [
+    {
+      accountType: 'Revolving',
+      totalAccounts: 6,
+      open: "5",
+      withBalance: "3",
+      closed: 1,
+      balance: null,
+      totalBalance: "$12,500",
+      available: "$25,000",
+      creditLimit: "$37,500",
+      debtToCredit: "33.3%",
+      payment: "$250"
+    },
+    {
+      accountType: 'Mortgage',
+      totalAccounts: 1,
+      open: "1",
+      withBalance: "1",
+      closed: 0,
+      balance: null,
+      totalBalance: "$180,000",
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: "$1,200"
+    },
+    {
+      accountType: 'Installment',
+      totalAccounts: 2,
+      open: "2",
+      withBalance: "2",
+      closed: 0,
+      balance: null,
+      totalBalance: "$22,500",
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: "$650"
+    },
+    {
+      accountType: 'Other',
+      totalAccounts: 0,
+      open: "0",
+      withBalance: "0",
+      closed: 0,
+      balance: null,
+      totalBalance: "$0",
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: "$0"
+    },
+    {
+      accountType: 'Total',
+      totalAccounts: 9,
+      open: "8",
+      withBalance: "6",
+      closed: 1,
+      balance: null,
+      totalBalance: "$215,000",
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: "$2,100"
+    }
+  ];
 };
 
 // Create default account summaries when all extraction methods fail
@@ -199,25 +277,48 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
     const tableImageUrl = await extractCreditAccountsTableImage(parsedReport);
     
     if (tableImageUrl) {
+      console.log('Found table image URL for extraction:', tableImageUrl);
       const tableData = await extractTableFromImage(tableImageUrl);
       if (tableData) {
         const accountSummaries = convertTableToAccountSummaries(tableData);
         console.log('Successfully extracted account summaries from image:', accountSummaries);
-        return accountSummaries;
+        
+        // If no real data was extracted (all null values), use sample data instead
+        const hasRealData = accountSummaries.some(summary => 
+          summary.open !== null || summary.withBalance !== null || summary.totalBalance !== null);
+        
+        if (hasRealData) {
+          console.log('Using extracted data from image');
+          return accountSummaries;
+        } else {
+          console.log('Extracted data had no real values, trying regex');
+        }
       }
+    } else {
+      console.log('No table image found for extraction');
     }
     
     // Second attempt: Use regex on extracted text
     console.log('Falling back to regex extraction for account summaries...');
     const regexSummaries = extractAccountSummariesWithRegex(extractedText);
     
-    if (regexSummaries.length > 0) {
+    // Check if regex extraction found any data
+    const hasRegexData = regexSummaries.some(summary => 
+      summary.open !== null || summary.withBalance !== null);
+    
+    if (hasRegexData) {
+      console.log('Using account data from regex extraction');
       return regexSummaries;
     }
     
-    // Final fallback: Create default empty summaries
-    console.log('Creating default empty account summaries...');
-    return createDefaultAccountSummaries();
+    // Third attempt: Determine if we need sample data for development or empty data for production
+    if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
+      console.log('Development environment detected: using sample account summaries');
+      return createSampleAccountSummaries();
+    } else {
+      console.log('Production environment: using empty account summaries');
+      return createDefaultAccountSummaries();
+    }
   } catch (error) {
     console.error('Error in improved account summary extraction:', error);
     // Always return something valid, even if extraction completely fails
@@ -232,32 +333,14 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
     // (including null values that will be displayed as "x")
     if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
       try {
-        // Attempt to extract the table image
-        const tableImageUrl = await extractCreditAccountsTableImage(parsedReport);
-        
-        if (tableImageUrl) {
-          const tableData = await extractTableFromImage(tableImageUrl);
-          if (tableData) {
-            parsedReport.accountSummaries = convertTableToAccountSummaries(tableData);
-            console.log('Successfully extracted account summaries from image:', parsedReport.accountSummaries);
-          } else {
-            // Fall back to regex extraction if image analysis fails
-            parsedReport.accountSummaries = extractAccountSummariesWithRegex(extractedText);
-          }
-        } else {
-          // No image available, use regex extraction
-          parsedReport.accountSummaries = extractAccountSummariesWithRegex(extractedText);
-          
-          // If regex also fails, use default empty summaries
-          if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
-            parsedReport.accountSummaries = createDefaultAccountSummaries();
-          }
-        }
+        parsedReport.accountSummaries = await improvedAccountSummaryExtraction(parsedReport, extractedText);
       } catch (error) {
         console.error("Error extracting account summaries:", error);
         // Always ensure we have account summaries
         parsedReport.accountSummaries = createDefaultAccountSummaries();
       }
+    } else {
+      console.log('Report already has account summaries, not overwriting');
     }
     
     // Additional Equifax-specific enhancements can be added here
@@ -311,6 +394,7 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean = fa
     
     // Always ensure we have account summaries, no matter what
     if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
+      console.log('No account summaries found, creating default ones');
       parsedReport.accountSummaries = createDefaultAccountSummaries();
     }
     

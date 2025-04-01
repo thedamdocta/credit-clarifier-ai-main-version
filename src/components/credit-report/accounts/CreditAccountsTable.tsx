@@ -64,7 +64,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
           {summariesToRender.map((summary) => (
             <TableRow 
               key={`account-summary-${summary.accountType}`}
-              className={summary.accountType === 'Total' ? 'bg-muted/30' : ''}
+              isHighlighted={summary.accountType === 'Total'}
             >
               <TableCell className="font-medium">{summary.accountType}</TableCell>
               <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
