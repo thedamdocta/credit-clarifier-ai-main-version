@@ -31,11 +31,13 @@ let currentPDFData: {
   timestamp: number;
   uploadedFile: File | null;
   reportId: string | null;
+  extractedData: any | null; // Store extracted data to prevent overwriting with sample data
 } = {
   imageUrl: null,
   timestamp: 0,
   uploadedFile: null,
-  reportId: null
+  reportId: null,
+  extractedData: null
 };
 
 // Store the most recent uploaded file data
@@ -49,11 +51,27 @@ export const setCurrentPDFData = (file: File) => {
     imageUrl: null, // Will be set when image is extracted
     timestamp: Date.now(),
     uploadedFile: file,
-    reportId: uniqueId
+    reportId: uniqueId,
+    extractedData: null // Reset extracted data for new file
   };
   
   console.log('Updated current PDF data with new reportId:', uniqueId);
   return currentPDFData.reportId;
+};
+
+// Set extracted data when it's actually obtained from a real file
+export const setExtractedReportData = (data: any) => {
+  if (data && currentPDFData) {
+    console.log('Storing actual extracted data for report:', currentPDFData.reportId);
+    currentPDFData.extractedData = data;
+    return true;
+  }
+  return false;
+};
+
+// Get extracted data if we have it
+export const getExtractedReportData = () => {
+  return currentPDFData?.extractedData || null;
 };
 
 // Reset the current image URL when processing a new report
@@ -71,16 +89,14 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
     console.log('Finding image for report extraction, report ID:', report?.reportId);
     console.log('Current cache state: ', currentPDFData);
     
-    // FIXED: Check if we have an uploaded image in the DOM
-    const uploadedImagesSelector = 'img[src^="public/lovable-uploads/"], img[src^="/lovable-uploads/"]';
+    // IMPROVED: Check more broadly for uploaded images in the DOM
+    const uploadedImagesSelector = 'img[src*="lovable-uploads/"], img[src*="/lovable-uploads/"]';
     const uploadedImages = document.querySelectorAll(uploadedImagesSelector);
-    console.log(`Found ${uploadedImages.length} uploaded images in the DOM using selector: ${uploadedImagesSelector}`);
-    
-    let mostRecentImage: HTMLImageElement | null = null;
+    console.log(`Found ${uploadedImages.length} uploaded images in the DOM using broader selector: ${uploadedImagesSelector}`);
     
     if (uploadedImages.length > 0) {
       // Get the most recent image (last one in the DOM)
-      mostRecentImage = uploadedImages[uploadedImages.length - 1] as HTMLImageElement;
+      const mostRecentImage = uploadedImages[uploadedImages.length - 1] as HTMLImageElement;
       const imgSrc = mostRecentImage.getAttribute('src');
       
       if (imgSrc) {
@@ -94,20 +110,26 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
           `${imgSrc}&t=${Date.now()}` : 
           `${imgSrc}?t=${Date.now()}`;
           
+        console.log('Using actual uploaded image:', cacheBustedUrl);
         return cacheBustedUrl;
       }
     }
     
     // If no image is found in the DOM, use the fallback: embedded test image
-    const fallbackImage = "/lovable-uploads/1488cf26-6a12-4b97-b614-866ade912179.png";
-    console.log('No uploaded images found, using fallback test image:', fallbackImage);
+    const testImages = [
+      "/lovable-uploads/3f5da6bd-b94e-4b22-91f1-cfe0d84e2f12.png",
+      "/lovable-uploads/a0a9c72b-ad0d-4dce-9e0e-46dccfbb2bb0.png",
+      "/lovable-uploads/1488cf26-6a12-4b97-b614-866ade912179.png"
+    ];
     
-    // Check if fallback image exists in the DOM
-    const fallbackCheck = document.querySelector(`img[src="${fallbackImage}"], img[src^="${fallbackImage}"]`);
-    if (fallbackCheck) {
-      console.log('Fallback image found in the DOM');
-      currentPDFData.imageUrl = fallbackImage;
-      return `${fallbackImage}?t=${Date.now()}`;
+    // Check if any of these test images exist in the DOM
+    for (const testImage of testImages) {
+      const testCheck = document.querySelector(`img[src="${testImage}"], img[src^="${testImage}"]`);
+      if (testCheck) {
+        console.log('Found test image in the DOM:', testImage);
+        currentPDFData.imageUrl = testImage;
+        return `${testImage}?t=${Date.now()}`;
+      }
     }
     
     // If we have a cached image URL from a previous extraction
@@ -135,60 +157,24 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
       }
     });
     
-    // Final fallback: try using a sample table image if available
+    // Final fallback: check for any images in the DOM
     console.log('Checking for any valid images in the DOM as last resort');
     const allImages = document.querySelectorAll('img');
     console.log(`Found ${allImages.length} total images in the DOM`);
     
     for (const img of allImages) {
       const src = img.getAttribute('src');
-      if (src && 
-          !src.includes('placeholder') && 
-          !src.includes('favicon') && 
-          (src.includes('uploads') || src.includes('credit') || src.includes('report'))) {
-        console.log('Found potential table image:', src);
-        
-        // Use this image as a last resort
+      if (src && (src.includes('lovable-uploads') || src.includes('credit') || src.includes('report'))) {
+        console.log('Found potentially relevant image:', src);
         currentPDFData.imageUrl = src;
-        
-        // Add cache-busting timestamp
-        const cacheBustedUrl = src.includes('?') ? 
-          `${src}&t=${Date.now()}` : 
-          `${src}?t=${Date.now()}`;
-          
-        return cacheBustedUrl;
+        return `${src}?t=${Date.now()}`;
       }
     }
     
-    // If everything fails, use simulation data mode
     console.log('No suitable image found for extraction, enabling simulation mode');
-    // We don't show an error toast here since we'll use simulated data instead
     return null;
   } catch (error) {
-    console.error('Error extracting table image:', error);
-    return null;
-  }
-};
-
-// Two-stage text extraction from an image
-export const extractTextFromImage = async (imageUrl: string): Promise<string | null> => {
-  try {
-    console.log('Starting two-stage OCR on image:', imageUrl);
-    
-    // Stage 1: Extract raw text using OCR (direct passthrough, no preprocessing)
-    const extractedText = await processImageWithEnhancedOCR(imageUrl);
-    
-    if (extractedText) {
-      console.log('Two-stage OCR process completed');
-      return extractedText;
-    } else {
-      // Fallback to simulation for development
-      console.log('OCR failed, using simulation');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing delay
-      return "Simulated OCR text extraction - would be replaced by actual model results";
-    }
-  } catch (error) {
-    console.error('Error running OCR on image:', error);
+    console.error('Error finding image for extraction:', error);
     return null;
   }
 };

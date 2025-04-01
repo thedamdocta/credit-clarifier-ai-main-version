@@ -1,6 +1,6 @@
 
 import { toast } from "sonner";
-import { extractTextFromPDF, setCurrentPDFData } from "./extractText";
+import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
 import { resetCurrentReportImage } from "./extractText";
@@ -63,6 +63,9 @@ export const processPDFDocument = async (
             parsedReport.reportId = uniqueReportId;
             parsedReport.fileName = file.name; // Store filename for reference
             
+            // Store this parsed data in our cache to prevent overriding with sample data
+            setExtractedReportData(parsedReport);
+            
             // Create a global reference to this PDF for better extraction
             // This helps with finding the correct image data later
             window.currentPdfData = {
@@ -71,7 +74,7 @@ export const processPDFDocument = async (
               extractedText: extractedText.substring(0, 1000) // Store preview
             };
             
-            // FIXED: Log to verify global reference is set correctly
+            // Log to verify global reference is set correctly
             console.log('Set global PDF data reference:', window.currentPdfData);
           }
           

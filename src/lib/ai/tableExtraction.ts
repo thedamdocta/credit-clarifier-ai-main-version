@@ -1,10 +1,10 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
 import { extractTableWithTesseract, convertTesseractTableToAppFormat } from './table';
 import { processImageWithEnhancedOCR } from './ocrExtraction';
 import { preprocessImageForOCR } from './imagePreprocessing';
+import { getExtractedReportData } from '@/utils/pdf/extractText';
 
 /**
  * Two-stage extraction approach:
@@ -15,10 +15,34 @@ export async function extractTableFromImage(imageUrl: string) {
   try {
     console.log('Extracting table from image:', imageUrl);
     
+    // IMPROVED: Check if we already have extracted data from a real file
+    const extractedData = getExtractedReportData();
+    if (extractedData && extractedData.accountSummaries && extractedData.accountSummaries.length > 0) {
+      console.log('Using pre-extracted account data from actual report:', extractedData.reportId);
+      console.log('Found account summaries:', extractedData.accountSummaries);
+      
+      // Convert to table format for compatibility
+      const tableFormat = {
+        headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
+        rows: extractedData.accountSummaries.map(summary => ({
+          'Account Type': summary.accountType,
+          'Open': summary.open || '0',
+          'With Balance': summary.withBalance || '0',
+          'Total Balance': summary.totalBalance || '$0',
+          'Available': summary.available || '$0',
+          'Credit Limit': summary.creditLimit || '$0',
+          'Debt-to-Credit': summary.debtToCredit || '0%',
+          'Payment': summary.payment || '$0'
+        }))
+      };
+      
+      return tableFormat;
+    }
+    
     if (!imageUrl) {
       console.error('No image URL provided for extraction');
       toast.error("No image provided for table extraction");
-      return createSimulatedTableData(); // FIXED: Return simulated data instead of null
+      return null; // Return null instead of simulated data to force actual extraction
     }
     
     // Generate a unique timestamp for this extraction to avoid browser caching
@@ -62,13 +86,12 @@ export async function extractTableFromImage(imageUrl: string) {
       console.error('Text-based extraction failed:', textError);
     }
     
-    // Last resort: Always use simulated data for development/testing purposes
-    console.log('All extraction methods failed, providing simulated data');
-    return createSimulatedTableData();
+    // Return null instead of simulated data
+    return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
-    toast.error("Error processing the image, using sample data");
-    return createSimulatedTableData(); // FIXED: Return simulated data on error
+    toast.error("Error processing the image");
+    return null; // Return null instead of simulated data
   }
 }
 
@@ -121,8 +144,13 @@ function extractTableStructureFromText(text: string) {
   }
 }
 
-// Last resort - create simulated data for development/testing
-function createSimulatedTableData() {
+// Create simulated data only as a last resort when explicitly requested
+export function createSimulatedTableData(forceUseActualImage: boolean = false) {
+  // If we're forcing use of actual image data, don't return simulated data
+  if (forceUseActualImage) {
+    return null;
+  }
+  
   console.log('Creating simulated table data');
   
   return {
