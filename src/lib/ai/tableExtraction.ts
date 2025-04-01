@@ -1,3 +1,4 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
@@ -48,9 +49,10 @@ export async function extractTableFromImage(imageUrl: string) {
         
         // Process each question
         const responses = await Promise.all(questions.map(async question => {
-          // Fix: Pass separate arguments rather than an object to the docExtractor
+          // Fix: The docExtractor expects image and question separately in the correct order
           const result = await docExtractor(
-            { image: imageUrl, question }
+            imageUrl,  // First argument: the image
+            question   // Second argument: the question
           );
           
           // Handle the case when result might be an array or object with different structure
