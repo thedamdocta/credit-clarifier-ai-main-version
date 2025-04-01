@@ -59,6 +59,9 @@ export interface CreditReport {
   // Add reportId property to track unique reports
   reportId?: string;
   
+  // Add fileName property to track the original file name
+  fileName?: string;
+  
   // Additional fields for displaying in the report
   recentInquiry?: string;
   personalInfoItemCount?: number;
