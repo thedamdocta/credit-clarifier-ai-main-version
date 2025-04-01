@@ -49,6 +49,7 @@ export async function extractTableFromImage(imageUrl: string) {
         
         // Process each question
         const responses = await Promise.all(questions.map(async question => {
+          // Fix the type error by providing all required parameters as an object
           const result = await docExtractor({
             image: imageUrl,
             question: question
@@ -57,12 +58,15 @@ export async function extractTableFromImage(imageUrl: string) {
           // Handle the case when result might be an array or object with different structure
           let answer = '';
           if (Array.isArray(result) && result.length > 0) {
-            answer = result[0]?.score !== undefined ? result[0].score.toString() : '';
+            // Type-safe property access using optional chaining
+            answer = typeof result[0]?.text === 'string' ? result[0].text : 
+                    (typeof result[0] === 'object' && result[0] !== null ? JSON.stringify(result[0]) : '');
           } else if (typeof result === 'object' && result !== null) {
-            // Try to extract answer from possible properties
-            answer = (result as any).score?.toString() || 
-                    (result as any).text || 
-                    '';
+            // Try to extract answer from possible properties with type safety
+            const resultObj = result as Record<string, any>;
+            answer = typeof resultObj.text === 'string' ? resultObj.text :
+                    typeof resultObj.answer === 'string' ? resultObj.answer : 
+                    JSON.stringify(result);
           }
             
           return { question, answer };
