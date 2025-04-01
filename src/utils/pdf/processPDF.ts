@@ -58,10 +58,18 @@ export const processPDFDocument = async (
           // Parse the extracted text with the unique report ID
           const parsedReport = await parsePDFContent(extractedText, useAI);
           
-          // Ensure the report has a unique ID
+          // Ensure the report has a unique ID and filename
           if (parsedReport) {
             parsedReport.reportId = uniqueReportId;
             parsedReport.fileName = file.name; // Store filename for reference
+            
+            // Create a global reference to this PDF for better extraction
+            // This helps with finding the correct image data later
+            window.currentPdfData = {
+              reportId: uniqueReportId,
+              fileName: file.name,
+              extractedText: extractedText.substring(0, 1000) // Store preview
+            };
           }
           
           completeProgressTracking();

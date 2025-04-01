@@ -119,6 +119,78 @@ export const extractAccountSummariesWithRegex = (text: string) => {
   }
 };
 
+// Create default account summaries when all extraction methods fail
+export const createDefaultAccountSummaries = () => {
+  // Return a complete set of empty account summaries in the required format
+  return [
+    {
+      accountType: 'Revolving',
+      totalAccounts: null,
+      open: null,
+      withBalance: null,
+      closed: null,
+      balance: null,
+      totalBalance: null,
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: null
+    },
+    {
+      accountType: 'Mortgage',
+      totalAccounts: null,
+      open: null,
+      withBalance: null,
+      closed: null,
+      balance: null,
+      totalBalance: null,
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: null
+    },
+    {
+      accountType: 'Installment',
+      totalAccounts: null,
+      open: null,
+      withBalance: null,
+      closed: null,
+      balance: null,
+      totalBalance: null,
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: null
+    },
+    {
+      accountType: 'Other',
+      totalAccounts: null,
+      open: null,
+      withBalance: null,
+      closed: null,
+      balance: null,
+      totalBalance: null,
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: null
+    },
+    {
+      accountType: 'Total',
+      totalAccounts: null,
+      open: null,
+      withBalance: null,
+      closed: null,
+      balance: null,
+      totalBalance: null,
+      available: null,
+      creditLimit: null,
+      debtToCredit: null,
+      payment: null
+    }
+  ];
+};
+
 // Enhanced account summary extraction function that attempts multiple methods
 export const improvedAccountSummaryExtraction = async (parsedReport: any, extractedText: string) => {
   try {
@@ -137,10 +209,19 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
     
     // Second attempt: Use regex on extracted text
     console.log('Falling back to regex extraction for account summaries...');
-    return extractAccountSummariesWithRegex(extractedText);
+    const regexSummaries = extractAccountSummariesWithRegex(extractedText);
+    
+    if (regexSummaries.length > 0) {
+      return regexSummaries;
+    }
+    
+    // Final fallback: Create default empty summaries
+    console.log('Creating default empty account summaries...');
+    return createDefaultAccountSummaries();
   } catch (error) {
     console.error('Error in improved account summary extraction:', error);
-    return [];
+    // Always return something valid, even if extraction completely fails
+    return createDefaultAccountSummaries();
   }
 };
 
@@ -166,11 +247,16 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
         } else {
           // No image available, use regex extraction
           parsedReport.accountSummaries = extractAccountSummariesWithRegex(extractedText);
+          
+          // If regex also fails, use default empty summaries
+          if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
+            parsedReport.accountSummaries = createDefaultAccountSummaries();
+          }
         }
       } catch (error) {
         console.error("Error extracting account summaries:", error);
-        // Only process account summaries if they don't exist yet
-        improvedAccountSummaryExtraction(parsedReport, extractedText);
+        // Always ensure we have account summaries
+        parsedReport.accountSummaries = createDefaultAccountSummaries();
       }
     }
     
@@ -222,6 +308,11 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean = fa
       parsedReport = await enhanceEquifaxReport(parsedReport, extractedText);
     }
     // Add similar blocks for other bureaus if needed
+    
+    // Always ensure we have account summaries, no matter what
+    if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
+      parsedReport.accountSummaries = createDefaultAccountSummaries();
+    }
     
     console.log('Enhanced parsing complete!');
     return parsedReport;
