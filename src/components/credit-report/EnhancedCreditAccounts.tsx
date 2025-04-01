@@ -100,21 +100,24 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       const existingSummary = summariesByType.get(accountType);
       
       if (existingSummary) {
-        // Fix: Handle numeric 0 values by converting them to string "0"
-        // This prevents type errors when comparing string and number
+        // Fix: Ensure consistent string type for all fields that might be compared
+        // Convert all numeric values to strings to avoid type comparison errors
         orderedSummaries.push({
           ...existingSummary,
-          open: existingSummary.open === 0 ? "0" : existingSummary.open,
-          withBalance: existingSummary.withBalance === 0 ? "0" : existingSummary.withBalance,
-          // Convert any other numeric fields that might be compared with strings
-          totalBalance: typeof existingSummary.totalBalance === 'number' ? 
-            String(existingSummary.totalBalance) : existingSummary.totalBalance,
-          available: typeof existingSummary.available === 'number' ? 
-            String(existingSummary.available) : existingSummary.available,
-          creditLimit: typeof existingSummary.creditLimit === 'number' ? 
-            String(existingSummary.creditLimit) : existingSummary.creditLimit,
-          payment: typeof existingSummary.payment === 'number' ? 
-            String(existingSummary.payment) : existingSummary.payment
+          open: existingSummary.open === 0 || existingSummary.open === "0" ? "0" : 
+                existingSummary.open !== null ? String(existingSummary.open) : null,
+          withBalance: existingSummary.withBalance === 0 || existingSummary.withBalance === "0" ? "0" : 
+                      existingSummary.withBalance !== null ? String(existingSummary.withBalance) : null,
+          totalBalance: existingSummary.totalBalance !== null ? 
+                       String(existingSummary.totalBalance) : null,
+          available: existingSummary.available !== null ? 
+                   String(existingSummary.available) : null,
+          creditLimit: existingSummary.creditLimit !== null ? 
+                     String(existingSummary.creditLimit) : null,
+          payment: existingSummary.payment !== null ? 
+                 String(existingSummary.payment) : null,
+          debtToCredit: existingSummary.debtToCredit !== null ?
+                       String(existingSummary.debtToCredit) : null
         });
       } else {
         // Create default entry with null values for missing account types
