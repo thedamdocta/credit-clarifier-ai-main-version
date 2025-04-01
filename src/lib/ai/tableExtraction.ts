@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
@@ -32,7 +31,6 @@ export async function extractTableFromImage(imageUrl: string) {
     if (!USE_SIMULATION) {
       try {
         // Create the document extractor pipeline with all required arguments
-        // Fix: Pass all required arguments to pipeline function
         const docExtractor = await pipeline(
           'document-question-answering',
           TABLE_EXTRACTION_MODEL,
