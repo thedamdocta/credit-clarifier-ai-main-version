@@ -18,11 +18,11 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     const page = await pdf.getPage(pageNum);
     
     // Calculate desired dimensions (higher resolution for better OCR)
-    const viewport = page.getViewport({ scale: 2.5 }); // Increased scale for better detail
+    const viewport = page.getViewport({ scale: 3.0 }); // Increased scale for better detail and text clarity
     
     // Create a canvas element
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d', { alpha: false }); // Disable alpha for better OCR
+    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true }); // Optimize for OCR
     
     if (!context) {
       console.error("Could not create canvas context");
@@ -37,11 +37,12 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     context.fillStyle = 'white';
     context.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Render the PDF page to the canvas
+    // Render the PDF page to the canvas with enhanced settings
     const renderContext = {
       canvasContext: context,
       viewport: viewport,
-      background: 'white' // Ensure white background
+      background: 'white', // Ensure white background
+      intent: 'print' // Use print intent for higher quality
     };
     
     await page.render(renderContext).promise;
@@ -49,7 +50,7 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     
     // Convert the canvas to a data URL (PNG format)
     // Using PNG for lossless quality which is better for OCR
-    const imageData = canvas.toDataURL('image/png');
+    const imageData = canvas.toDataURL('image/png', 1.0); // Use maximum quality
     console.log(`Successfully converted page ${pageNum} to image, data URL length: ${imageData.length}`);
     return imageData;
   } catch (error) {
@@ -82,7 +83,7 @@ export async function extractRegionFromPDFPage(
     
     // Create a canvas for the cropped region
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
     
     if (!ctx) {
       console.error("Could not create canvas context for region extraction");
@@ -105,7 +106,7 @@ export async function extractRegionFromPDFPage(
     );
     
     // Convert the region to a data URL
-    return canvas.toDataURL('image/png');
+    return canvas.toDataURL('image/png', 1.0); // Use maximum quality
   } catch (error) {
     console.error(`Error extracting region from page ${pageNum}:`, error);
     return null;

@@ -41,7 +41,21 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       
       if (currentDataHasNoValues || newDataHasRealValues) {
         console.log("Updating stable data with new account summaries that have real values");
-        setStableData(accountSummaries);
+        
+        // Clean up any problematic data before setting state
+        const cleanedSummaries = accountSummaries.map(summary => ({
+          ...summary,
+          // Fix comma values in the "Other" row
+          open: summary.open === ',' ? '0' : summary.open,
+          withBalance: summary.withBalance === ',' ? '0' : summary.withBalance,
+          totalBalance: summary.totalBalance === '$,' ? '$0' : summary.totalBalance,
+          // Handle negative values that should be positive
+          available: summary.available && summary.available.includes('-') ? 
+            '$' + summary.available.replace('-$', '').replace('-', '') : 
+            summary.available
+        }));
+        
+        setStableData(cleanedSummaries);
       } else {
         console.log("Keeping existing stable data as it has better values than new data");
       }
@@ -68,6 +82,16 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     // For zero values - explicitly check string "0" as well as number 0
     if (value === 0 || value === "0") {
       return fieldName === "debtToCredit" ? "0.0%" : "0";
+    }
+    
+    // Handle common OCR errors
+    if (value === ',' || value === '.') {
+      return "0";
+    }
+    
+    // Handle "$," error specifically
+    if (value === "$," || value === "$-" || value === "$." || value === "$0") {
+      return "$0";
     }
     
     // Display "x" for null, undefined, or empty strings

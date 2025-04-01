@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -63,6 +64,45 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     processAccountType('Installment', lines, accountSummaries, columns);
     processAccountType('Other', lines, accountSummaries, columns);
     processAccountType('Total', lines, accountSummaries, columns);
+    
+    // Post-process the data to handle common OCR errors
+    accountSummaries.forEach(summary => {
+      // Fix comma issues in "Other" row
+      if (summary.accountType === 'Other') {
+        if (summary.open === ',') summary.open = '0';
+        if (summary.withBalance === ',') summary.withBalance = '0';
+        if (summary.totalBalance === '$,') summary.totalBalance = '$0';
+      }
+      
+      // Fix negative values that should be positive
+      if (summary.available && summary.available.includes('-')) {
+        summary.available = summary.available.replace('-$', '$').replace('-', '');
+      }
+      if (summary.creditLimit && summary.creditLimit.includes('-')) {
+        summary.creditLimit = summary.creditLimit.replace('-$', '$').replace('-', '');
+      }
+      
+      // Fix common debt-to-credit format issues - extract just the number + %
+      if (summary.debtToCredit) {
+        const match = summary.debtToCredit.match(/(\d+\.?\d*)%?/);
+        if (match) {
+          const num = parseFloat(match[1]);
+          summary.debtToCredit = `${num.toFixed(1)}%`;
+        }
+      }
+      
+      // Fix payment values
+      if (summary.payment === '$0' && summary.accountType === 'Revolving') {
+        // Look for matches to 3-digit or $100+ payment amounts typically found in revolving
+        const match = lines.find(line => line.toLowerCase().includes('revolving') && /\$\d{3}/.test(line));
+        if (match) {
+          const paymentMatch = match.match(/\$(\d{2,3})/);
+          if (paymentMatch) {
+            summary.payment = `$${paymentMatch[1]}`;
+          }
+        }
+      }
+    });
     
     console.log("Account summaries extracted with isolated approach:", accountSummaries.length);
     console.log("Account summaries:", accountSummaries);
@@ -205,8 +245,8 @@ function processAccountType(
       return false;
     }
     
-    // Match only if line has this account type with clear word boundary
-    return new RegExp(`(?:^|\\s)${accountType}(?:\\s|$|\\t)`, 'i').test(line);
+    // Match the account type more precisely to avoid partial matches
+    return new RegExp(`(?:^|\\s|\\t)${accountType}(?:\\s|$|\\t|:)`, 'i').test(line);
   });
   
   if (!accountLine) {
@@ -222,6 +262,21 @@ function processAccountType(
   
   // Process the account line - each cell is treated independently
   processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
+  
+  // Additional processing for special values based on account type
+  if (accountType === 'Revolving') {
+    // Try to extract debt-to-credit values which may be in a different format
+    const debtCreditMatch = accountLine.match(/(\d+\.?\d*)\s*%/);
+    if (debtCreditMatch && !accountSummary.debtToCredit) {
+      accountSummary.debtToCredit = `${parseFloat(debtCreditMatch[1]).toFixed(1)}%`;
+    }
+    
+    // Find payment values which may be missed in column extraction
+    const paymentMatch = accountLine.match(/\$(\d{2,3})\b/);
+    if (paymentMatch && (!accountSummary.payment || accountSummary.payment === '$0')) {
+      accountSummary.payment = `$${paymentMatch[1]}`;
+    }
+  }
   
   console.log(`${accountType} row after processing:`, accountSummary);
 }
@@ -282,6 +337,15 @@ function processAccountLineWithColumnAwareness(
       }
     }
     
+    // Handle common OCR errors
+    if (cellContent.trim() === "," || cellContent.trim() === ".") {
+      if (key === 'open' || key === 'withBalance') {
+        accountSummary[key] = "0";
+        console.log(`[${accountSummary.accountType}] Fixed comma/period in ${key} to "0"`);
+        continue;
+      }
+    }
+    
     // Process the cell content based on its column type
     if (key === 'open' || key === 'withBalance') {
       const numericValue = extractNumericValue(cellContent);
@@ -293,7 +357,12 @@ function processAccountLineWithColumnAwareness(
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);
       if (dollarValue !== null) {
-        accountSummary[key] = dollarValue;
+        // Fix negative values that should be positive (like -$440 should be $440)
+        if (dollarValue.includes('-')) {
+          accountSummary[key] = dollarValue.replace('-$', '$').replace('-', '');
+        } else {
+          accountSummary[key] = dollarValue;
+        }
       }
     } else if (key === 'debtToCredit') {
       const percentValue = extractPercentageValue(cellContent);
@@ -313,3 +382,4 @@ function processAccountLineWithColumnAwareness(
     payment: accountSummary.payment
   });
 }
+
