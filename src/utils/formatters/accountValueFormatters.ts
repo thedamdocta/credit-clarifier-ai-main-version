@@ -1,4 +1,3 @@
-
 /**
  * Safely formats cell values for the account summary tables
  */
@@ -56,6 +55,49 @@ export const formatDollarAmount = (value: any): string => {
   }
   
   return stringValue;
+};
+
+/**
+ * Format percentage values consistently
+ */
+export const formatPercentageValue = (value: any): string => {
+  // Handle null/undefined/empty
+  if (value === undefined || value === null || value === '') {
+    return "x";
+  }
+  
+  // Special handling for 0
+  if (value === 0 || value === "0" || value === "0%") {
+    return "0.0%";
+  }
+  
+  const stringValue = String(value);
+  
+  // If it already has a % symbol, ensure it has a decimal place
+  if (stringValue.includes('%')) {
+    // Extract the numeric part
+    const numMatch = stringValue.match(/(\d+\.?\d*)/);
+    if (numMatch && numMatch[1]) {
+      const num = parseFloat(numMatch[1]);
+      return `${num.toFixed(1)}%`;
+    }
+    return stringValue; // Keep as is if we can't parse it
+  }
+  
+  // If it's a decimal like "1.16" (representing 116%)
+  if (!isNaN(parseFloat(stringValue))) {
+    const num = parseFloat(stringValue);
+    
+    // If less than 5, assume it's in decimal form (e.g. 1.16 means 116%)
+    if (num > 0 && num < 5) {
+      return `${(num * 100).toFixed(1)}%`;
+    }
+    // Otherwise assume it's already in percentage form
+    return `${num.toFixed(1)}%`;
+  }
+  
+  // If we get here, just add a % if it doesn't have one
+  return stringValue.endsWith('%') ? stringValue : `${stringValue}%`;
 };
 
 /**
@@ -173,10 +215,16 @@ export const extractPercentageValue = (cellContent: string | null): string | nul
       return match[1];
     }
   } else {
-    // Check for numeric values that might be percentages but without % sign
-    const numericMatch = cellContent.match(/(\d+\.?\d*)(?!\d)/);
+    // Check for decimal values that might represent percentages (e.g. 1.16 for 116%)
+    const numericMatch = cellContent.match(/(\d+\.?\d*)/);
     if (numericMatch && numericMatch[1]) {
-      return `${numericMatch[1]}%`;
+      const value = parseFloat(numericMatch[1]);
+      // If value is less than 5, assume it's in decimal form (like 1.16 meaning 116%)
+      if (value > 0 && value < 5) {
+        return `${(value * 100).toFixed(1)}%`;
+      }
+      // Otherwise treat it as a percentage as is
+      return `${value.toFixed(1)}%`;
     }
   }
   

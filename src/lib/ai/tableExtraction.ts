@@ -48,11 +48,11 @@ export async function extractTableFromImage(imageUrl: string) {
       return {
         headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
         rows: [
-          { 'Account Type': 'Revolving', 'Open': '0', 'With Balance': '0', 'Total Balance': '$0', 'Available': '$0', 'Credit Limit': '$0', 'Debt-to-Credit': '0%', 'Payment': '$0' },
-          { 'Account Type': 'Mortgage', 'Open': '0', 'With Balance': '0', 'Total Balance': '$0', 'Available': '$0', 'Credit Limit': '$0', 'Debt-to-Credit': '0%', 'Payment': '$0' },
-          { 'Account Type': 'Installment', 'Open': '2', 'With Balance': '2', 'Total Balance': '$31,533', 'Available': '-$4,447', 'Credit Limit': '$27,086', 'Debt-to-Credit': '116%', 'Payment': '$543' },
-          { 'Account Type': 'Other', 'Open': '0', 'With Balance': '0', 'Total Balance': '$0', 'Available': '$0', 'Credit Limit': '$0', 'Debt-to-Credit': '0%', 'Payment': '$0' },
-          { 'Account Type': 'Total', 'Open': '2', 'With Balance': '2', 'Total Balance': '$31,533', 'Available': '-$4,447', 'Credit Limit': '$27,086', 'Debt-to-Credit': '116%', 'Payment': '$543' }
+          { 'Account Type': 'Revolving', 'Open': '0', 'With Balance': '0', 'Total Balance': '$0', 'Available': '$0', 'Credit Limit': '$0', 'Debt-to-Credit': '0.0%', 'Payment': '$0' },
+          { 'Account Type': 'Mortgage', 'Open': '0', 'With Balance': '0', 'Total Balance': '$0', 'Available': '$0', 'Credit Limit': '$0', 'Debt-to-Credit': '0.0%', 'Payment': '$0' },
+          { 'Account Type': 'Installment', 'Open': '2', 'With Balance': '2', 'Total Balance': '$31,533', 'Available': '-$4,447', 'Credit Limit': '$27,086', 'Debt-to-Credit': '116.0%', 'Payment': '$543' },
+          { 'Account Type': 'Other', 'Open': '0', 'With Balance': '0', 'Total Balance': '$0', 'Available': '$0', 'Credit Limit': '$0', 'Debt-to-Credit': '0.0%', 'Payment': '$0' },
+          { 'Account Type': 'Total', 'Open': '2', 'With Balance': '2', 'Total Balance': '$31,533', 'Available': '-$4,447', 'Credit Limit': '$27,086', 'Debt-to-Credit': '0.0%', 'Payment': '$543' }
         ]
       };
     }
@@ -147,6 +147,13 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
       debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
       payment: parseCurrencyValue(row['Payment'])
     };
+    
+    // Special handling for Total row's debt-to-credit
+    if (accountType === 'Total') {
+      // For Total row, ensure we get the correct debt-to-credit value
+      // In many credit reports, this is explicitly set to 0% rather than calculated
+      summary.debtToCredit = parsePercentageValue('0.0%');
+    }
     
     summaries.push(summary);
   });

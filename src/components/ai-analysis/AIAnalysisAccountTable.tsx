@@ -2,7 +2,7 @@
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
-import { formatAccountValue, formatDollarAmount } from "@/utils/formatters/accountValueFormatters";
+import { formatAccountValue, formatDollarAmount, formatPercentageValue } from "@/utils/formatters/accountValueFormatters";
 
 interface AIAnalysisAccountTableProps {
   accountSummaries: AccountSummary[];
@@ -10,7 +10,7 @@ interface AIAnalysisAccountTableProps {
 
 const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ accountSummaries }) => {
   // Function to render a cell value
-  const renderCellValue = (value: any, formatter: (value: any) => string) => {
+  const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     // Display "x" for null, undefined, or empty strings
     // But treat 0 as a valid value that should be displayed
     if (value === null || value === undefined || value === '') {
@@ -44,13 +44,13 @@ const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ account
                 className={summary.accountType === 'Total' ? 'font-semibold bg-muted/30' : ''}
               >
                 <TableCell className="font-medium">{summary.accountType}</TableCell>
-                <TableCell>{renderCellValue(summary.open, formatAccountValue)}</TableCell>
-                <TableCell>{renderCellValue(summary.withBalance, formatAccountValue)}</TableCell>
-                <TableCell>{renderCellValue(summary.totalBalance, formatDollarAmount)}</TableCell>
-                <TableCell>{renderCellValue(summary.available, formatDollarAmount)}</TableCell>
-                <TableCell>{renderCellValue(summary.creditLimit, formatDollarAmount)}</TableCell>
-                <TableCell>{renderCellValue(summary.debtToCredit, formatAccountValue)}</TableCell>
-                <TableCell>{renderCellValue(summary.payment, formatDollarAmount)}</TableCell>
+                <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
+                <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
+                <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
+                <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
+                <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
+                <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatPercentageValue)}</TableCell>
+                <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
               </TableRow>
             ))
           ) : (

@@ -2,7 +2,7 @@
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
-import { formatAccountValue, formatDollarAmount } from "@/utils/formatters/accountValueFormatters";
+import { formatAccountValue, formatDollarAmount, formatPercentageValue } from "@/utils/formatters/accountValueFormatters";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
@@ -18,7 +18,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     // For zero values - explicitly check string "0" as well as number 0
     if (value === 0 || value === "0") {
       console.log(`Found zero value in ${fieldName} cell`);
-      return "0";
+      return fieldName === "debtToCredit" ? "0.0%" : "0";
     }
     
     // Display "x" for null, undefined, or empty strings
@@ -61,7 +61,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
                 <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
                 <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
                 <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
-                <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatAccountValue)}</TableCell>
+                <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatPercentageValue)}</TableCell>
                 <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
               </TableRow>
             );
