@@ -53,41 +53,8 @@ export const processPDFDocument = async (
         console.log(`PDF loaded with ${numPages} pages`);
         updateProgress(10);
         
-        // Method for text extraction
-        let extractedText = "";
-        
-        if (useImageExtraction) {
-          // Image-based extraction method
-          console.log("Using image-based extraction method");
-          let combinedText = "";
-          
-          // Process each page
-          for (let i = 1; i <= numPages; i++) {
-            updateProgress(10 + Math.floor((i / numPages) * 40));
-            console.log(`Converting page ${i} to image`);
-            
-            try {
-              // Convert the page to an image
-              const imageData = await convertPDFPageToImage(pdf, i);
-              if (imageData) {
-                // Use Tesseract.js to extract text from the image
-                const pageText = await extractTextFromImage(imageData);
-                if (pageText) {
-                  combinedText += pageText + " ";
-                  console.log(`Extracted ${pageText.length} characters from page ${i}`);
-                }
-              }
-            } catch (pageError) {
-              console.error(`Error processing page ${i}:`, pageError);
-            }
-          }
-          
-          extractedText = combinedText;
-        } else {
-          // Direct PDF text extraction method
-          extractedText = await extractTextFromPDF(pdf);
-        }
-        
+        // Use standard text extraction for the main content
+        const extractedText = await extractTextFromPDF(pdf);
         console.log("Successfully extracted text from PDF, length:", extractedText.length);
         updateProgress(60);
         
@@ -98,7 +65,7 @@ export const processPDFDocument = async (
           // Ensure the report has a unique ID and filename
           if (parsedReport) {
             parsedReport.reportId = uniqueReportId;
-            parsedReport.fileName = file.name; // Store filename for reference
+            parsedReport.fileName = file.name;
             parsedReport.rawText = extractedText; // Store the raw text for later use
             
             // Store this parsed data in our cache to prevent overriding with sample data
@@ -152,7 +119,8 @@ export const processPDFDocument = async (
   }
 };
 
-// Extract OCR using Tesseract
+// Extract OCR using Tesseract - this is kept for the credit account extraction specifically
+// but not used in the main PDF processing flow
 async function extractTextFromImage(imageData: string): Promise<string | null> {
   try {
     const Tesseract = (await import('tesseract.js')).default;

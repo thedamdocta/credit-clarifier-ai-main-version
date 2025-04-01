@@ -15,12 +15,13 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processPDF = (file: File) => {
-    // Process the PDF file with focus on text extraction
+    // Process the PDF file with focus on text extraction for the main content
+    // and only use image-based extraction for the account section
     processPDFDocument(file, useAI, {
       setCurrentFile,
       setUploadProgress,
       onPDFUploaded,
-      useImageExtraction: true // Enable image-based extraction
+      useImageExtraction: false // Disable global image extraction
     });
   };
 
