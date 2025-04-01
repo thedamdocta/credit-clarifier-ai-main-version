@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
@@ -50,6 +49,16 @@ export async function extractTableFromImage(imageUrl: string) {
       }
     }
     
+    // Log the image data for debugging
+    console.log('Image URL length:', imageUrl.length);
+    console.log('Image URL starts with:', imageUrl.substring(0, 30) + '...');
+    
+    // Check if this is a proper data URL
+    if (!imageUrl.startsWith('data:image')) {
+      console.error('Invalid image URL format');
+      return null;
+    }
+    
     // Use Tesseract OCR to extract table data from the image
     console.log('Using Tesseract OCR to extract table data from image');
     const extractedTable = await extractTableWithTesseract(imageUrl);
@@ -72,11 +81,62 @@ export async function extractTableFromImage(imageUrl: string) {
       return formattedTable;
     }
     
-    // If Tesseract extraction fails, return null
-    console.log('Tesseract extraction failed to extract table data');
+    // If Tesseract extraction fails, try to extract table structure from the image text
+    console.log('Tesseract extraction failed, trying to extract table from text');
+    const extractedText = await extractTextFromTable(imageUrl);
+    if (extractedText) {
+      const tableStructure = extractTableStructureFromText(extractedText);
+      if (tableStructure) {
+        return tableStructure;
+      }
+    }
+    
+    // If all extraction methods fail, return null
+    console.log('All extraction methods failed to extract table data');
+    
+    // Fall back to simulated data for development purposes only
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Development environment detected, falling back to simulated data');
+      return createSimulatedTableData();
+    }
+    
     return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
+    return null;
+  }
+}
+
+/**
+ * Extract text specifically from a table image
+ */
+async function extractTextFromTable(imageUrl: string): Promise<string | null> {
+  try {
+    // Use Tesseract.js for text extraction
+    const Tesseract = (await import('tesseract.js')).default;
+    
+    const worker = await Tesseract.createWorker({
+      logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
+    });
+    
+    // Configure Tesseract for table extraction
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
+    
+    // Set page segmentation mode for structured text and tables
+    await worker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD,
+      preserve_interword_spaces: '1',
+    });
+    
+    console.log('Running Tesseract text extraction on image');
+    const result = await worker.recognize(imageUrl);
+    await worker.terminate();
+    
+    console.log('Tesseract extraction completed with confidence:', result.data.confidence);
+    return result.data.text;
+  } catch (error) {
+    console.error('Error extracting text from table:', error);
     return null;
   }
 }

@@ -100,42 +100,69 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
     
     // First, try to find which page contains the account table
     // We'll look for the page that has the most occurrences of relevant table keywords
-    let bestPage = 1;
-    let highestScore = 0;
+    let bestPageScore = 0;
+    let bestPageNum = 0;
     
-    // Check which pages have already been extracted as text
-    const extractedText = currentPdfData.extractedText || "";
-    
-    // Use the extracted text to help locate the account table page
-    const tableKeywords = ['account type', 'open', 'with balance', 'total balance', 'revolving', 'mortgage', 'installment'];
-    const lines = extractedText.split('\n');
-    
-    // For each line, check if it contains the table keywords
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].toLowerCase();
-      let score = 0;
-      
-      tableKeywords.forEach(keyword => {
-        if (line.includes(keyword)) {
-          score += 1;
-        }
-      });
-      
-      if (score >= 3) {
-        console.log(`Found likely table line: "${line}" with score ${score}`);
+    // Check which pages might contain the account table
+    console.log("Scanning PDF pages for credit accounts table...");
+    for (let i = 1; i <= Math.min(numPages, 10); i++) { // Check first 10 pages at most
+      try {
+        const page = await pdfDocument.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
         
-        // We found a line that likely contains the table header
-        // Now we need to convert this page to an image
-        // Since we don't know which page this line is from, we'll have to try each page
-        break;
+        // Keywords that indicate this might be the accounts page
+        const keywords = [
+          'account summary', 'credit accounts', 'account type', 'revolving',
+          'mortgage', 'installment', 'with balance', 'total balance'
+        ];
+        
+        // Calculate a score for this page
+        let score = 0;
+        keywords.forEach(keyword => {
+          if (pageText.includes(keyword.toLowerCase())) {
+            score += 1;
+          }
+        });
+        
+        console.log(`Page ${i} table keyword score: ${score}`);
+        
+        // If this page has a better score, update our best page
+        if (score > bestPageScore) {
+          bestPageScore = score;
+          bestPageNum = i;
+        }
+        
+        // Optimization: If we found a page with many keywords, use it immediately
+        if (score >= 4) {
+          console.log(`Found likely table page at page ${i} with high score: ${score}`);
+          break;
+        }
+      } catch (error) {
+        console.error(`Error scanning page ${i}:`, error);
       }
     }
     
-    // If we couldn't determine the page from text, scan all pages
-    // Start from page 2, as it's often on the second page
-    for (let i = 2; i <= Math.min(numPages, 5); i++) {
+    // If we found a page with some keywords, try to extract it
+    if (bestPageNum > 0) {
+      console.log(`Attempting to extract table from best matched page ${bestPageNum} with score ${bestPageScore}`);
+      const imageData = await convertPDFPageToImage(pdfDocument, bestPageNum);
+      
+      if (imageData) {
+        console.log(`Successfully extracted image from page ${bestPageNum}`);
+        // Store this image URL
+        currentPdfData.tableImageUrl = imageData;
+        return imageData;
+      }
+    }
+    
+    // If we couldn't find a good match, try a comprehensive scan of all pages
+    console.log("No good keyword match found, attempting extraction from all pages");
+    
+    // Try the first 5 pages as fallback
+    for (let i = 1; i <= Math.min(numPages, 5); i++) {
       try {
-        console.log(`Attempting to extract table image from page ${i}`);
+        console.log(`Fallback: extracting image from page ${i}`);
         const imageData = await convertPDFPageToImage(pdfDocument, i);
         
         if (imageData) {
@@ -146,18 +173,6 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
       } catch (error) {
         console.error(`Error extracting image from page ${i}:`, error);
       }
-    }
-    
-    // If all attempts fail, try page 1
-    try {
-      console.log("Attempting to extract table image from page 1 as fallback");
-      const imageData = await convertPDFPageToImage(pdfDocument, 1);
-      if (imageData) {
-        currentPdfData.tableImageUrl = imageData;
-        return imageData;
-      }
-    } catch (error) {
-      console.error("Error extracting image from page 1:", error);
     }
     
     return null;
