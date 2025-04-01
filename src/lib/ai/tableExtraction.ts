@@ -53,7 +53,13 @@ export async function extractTableFromImage(imageUrl: string) {
             image: imageUrl,
             question
           });
-          return { question, answer: result.answer };
+          
+          // Handle the case when result might be an array
+          const answer = Array.isArray(result) 
+            ? result[0]?.answer || ''
+            : result?.answer || '';
+            
+          return { question, answer };
         }));
         
         console.log('Hugging Face extraction results:', responses);
@@ -132,38 +138,38 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
 /**
  * Parse numeric values from table cells
  */
-function parseNumericValue(value: string | undefined): number | null {
-  if (!value || value === '0' || value === 'N/A' || value === '') return 0;
+function parseNumericValue(value: string | undefined): string | null {
+  if (!value || value === '0' || value === 'N/A' || value === '') return '0';
   
   // Remove any non-numeric characters except decimal point
   const numericValue = value.replace(/[^0-9.]/g, '');
   const parsed = parseFloat(numericValue);
   
-  return isNaN(parsed) ? null : parsed;
+  return isNaN(parsed) ? null : String(parsed);
 }
 
 /**
  * Parse currency values from table cells
  */
-function parseCurrencyValue(value: string | undefined): number | null {
-  if (!value || value === '0' || value === 'N/A' || value === '') return 0;
+function parseCurrencyValue(value: string | undefined): string | null {
+  if (!value || value === '0' || value === 'N/A' || value === '') return '0';
   
   // Remove currency symbols and commas
   const numericValue = value.replace(/[$,]/g, '');
   const parsed = parseFloat(numericValue);
   
-  return isNaN(parsed) ? null : parsed;
+  return isNaN(parsed) ? null : String(parsed);
 }
 
 /**
  * Parse percentage values from table cells
  */
-function parsePercentageValue(value: string | undefined): number | null {
-  if (!value || value === '0' || value === 'N/A' || value === '') return 0;
+function parsePercentageValue(value: string | undefined): string | null {
+  if (!value || value === '0' || value === 'N/A' || value === '') return '0';
   
   // Remove percentage symbols
   const numericValue = value.replace(/%/g, '');
   const parsed = parseFloat(numericValue);
   
-  return isNaN(parsed) ? null : parsed / 100; // Convert to decimal
+  return isNaN(parsed) ? null : String(parsed / 100); // Convert to decimal and to string
 }

@@ -1,4 +1,3 @@
-
 import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
 import { CreditReport } from '../../types/creditReport';
 
@@ -20,6 +19,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     openDate: string;
   };
   consumerName?: string;
+  confirmationNumber?: string;
 }> => {
   console.log("Extracting Equifax summary...");
   
@@ -47,6 +47,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     extractOldestAccount(text, summary);
     extractRecentAccount(text, summary);
     extractConsumerName(text, summary);
+    extractConfirmationNumber(text, summary);
     
     // If AI extraction was successful, selectively merge specific fields
     if (Object.keys(enhancedSummary).length > 0) {
@@ -81,6 +82,11 @@ export const extractEquifaxSummary = async (text: string): Promise<{
           enhancedSummary.recentAccount.accountName && 
           enhancedSummary.recentAccount.accountName.length < 50) {
         summary.recentAccount = enhancedSummary.recentAccount;
+      }
+      
+      if (enhancedSummary.confirmationNumber && 
+          enhancedSummary.confirmationNumber.length < 30) {
+        summary.confirmationNumber = enhancedSummary.confirmationNumber;
       }
     }
     
@@ -175,5 +181,33 @@ function extractConsumerName(text: string, summary: any): void {
       summary.consumerName = nameMatch[1].trim();
       return;
     }
+  }
+}
+
+// Add specific function to extract confirmation number
+function extractConfirmationNumber(text: string, summary: any): void {
+  // Try multiple patterns to extract confirmation number
+  const confirmationPatterns = [
+    /Confirmation\s+Number\s*:?\s*#?(\d{2}-\d{7}|\w{5}-\w{5}|[A-Z0-9]{10,})/i,
+    /Report\s+Confirmation\s*:?\s*#?(\d{2}-\d{7}|\w{5}-\w{5}|[A-Z0-9]{10,})/i,
+    /Confirmation\s*:?\s*#?(\d{2}-\d{7}|\w{5}-\w{5}|[A-Z0-9]{10,})/i,
+    /Report\s+Number\s*:?\s*#?(\d{2}-\d{7}|\w{5}-\w{5}|[A-Z0-9]{10,})/i
+  ];
+  
+  for (const pattern of confirmationPatterns) {
+    const confirmationMatch = text.match(pattern);
+    if (confirmationMatch && confirmationMatch[1] && confirmationMatch[1].trim().length > 3) {
+      summary.confirmationNumber = confirmationMatch[1].trim();
+      console.log("Found confirmation number:", summary.confirmationNumber);
+      return;
+    }
+  }
+  
+  // If no specific pattern matched, try to find any alphanumeric code that looks like a confirmation number
+  const genericPattern = /(?:Confirmation|Report)\s+(?:Number|ID)?\s*[:.]?\s*([A-Z0-9]{6,})/i;
+  const genericMatch = text.match(genericPattern);
+  if (genericMatch && genericMatch[1] && genericMatch[1].trim().length > 5) {
+    summary.confirmationNumber = genericMatch[1].trim();
+    console.log("Found generic confirmation number:", summary.confirmationNumber);
   }
 }

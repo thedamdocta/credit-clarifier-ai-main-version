@@ -12,6 +12,15 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
     // Extract report summary (credit file status, confirmation number, etc)
     const reportSummary = await extractEquifaxSummary(text);
     
+    // Extract confirmation number specifically
+    const confirmationPattern = /Confirmation\s+Number\s*:?\s*#?(\d{2}-\d{7}|\w{5}-\w{5}|[A-Z0-9]{10,})/i;
+    const confirmationMatch = text.match(confirmationPattern);
+    
+    if (confirmationMatch && confirmationMatch[1]) {
+      reportSummary.confirmationNumber = confirmationMatch[1].trim();
+      console.log("Found confirmation number:", reportSummary.confirmationNumber);
+    }
+    
     // Account summaries - try multi-method approach if image URL is provided
     let accountSummaries;
     
@@ -19,12 +28,12 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
       try {
         console.log("Attempting enhanced account summaries extraction from image:", imageUrl);
         
-        // Use our enhanced multi-method extraction
+        // Use our multi-method extraction
         const tableData = await extractTableFromImage(imageUrl);
         
         if (tableData) {
           accountSummaries = convertTableToAccountSummaries(tableData);
-          console.log("Successfully extracted account summaries with enhanced extraction:", accountSummaries);
+          console.log("Successfully extracted account summaries:", accountSummaries);
           toast.success("Successfully extracted table data");
         } else {
           // Fall back to text-based extraction
@@ -32,7 +41,7 @@ export const parseEquifaxReport = async (text: string, imageUrl?: string): Promi
           accountSummaries = await extractEquifaxAccountSummaries(text);
         }
       } catch (error) {
-        console.error("Error in enhanced account summary extraction:", error);
+        console.error("Error in account summary extraction:", error);
         toast.error("Data extraction error - using fallback method");
         // Fall back to text-based extraction
         accountSummaries = await extractEquifaxAccountSummaries(text);
