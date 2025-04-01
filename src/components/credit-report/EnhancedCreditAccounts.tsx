@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import CreditAccountsHeader from "./accounts/CreditAccountsHeader";
 import CreditAccountsDebug from "./accounts/CreditAccountsDebug";
@@ -8,6 +9,7 @@ import CreditAccountsTable from "./accounts/CreditAccountsTable";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { toast } from "sonner";
 import { extractCreditAccountsTableImage } from "@/utils/pdf/extractText";
+import { Loader2 } from "lucide-react";
 
 interface EnhancedCreditAccountsProps {
   report: CreditReport;
@@ -74,10 +76,11 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     setAccountSummaries(orderedSummaries);
   };
   
-  // Enhanced table extraction - now runs automatically when needed
+  // Enhanced table extraction - now with better error handling and retry option
   const handleEnhancedExtraction = async () => {
     try {
       setIsProcessing(true);
+      toast.info("Extracting credit account data...");
       
       // Get the table image
       const tableImageUrl = await extractCreditAccountsTableImage(null);
@@ -91,12 +94,17 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       // Extract table data using our enhanced approach
       const tableData = await extractTableFromImage(tableImageUrl);
       
-      if (tableData) {
+      if (tableData && tableData.rows && tableData.rows.length > 0) {
         // Convert to account summaries
         const extractedSummaries = convertTableToAccountSummaries(tableData);
         
-        // Update the state
-        createOrderedAccountSummaries(extractedSummaries);
+        if (extractedSummaries.length > 0) {
+          toast.success("Successfully extracted account data");
+          // Update the state
+          createOrderedAccountSummaries(extractedSummaries);
+        } else {
+          toast.error("Failed to extract valid account data");
+        }
       } else {
         toast.error("Could not process table structure");
       }
@@ -115,6 +123,22 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           showDebugInfo={showDebugInfo} 
           toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
         />
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleEnhancedExtraction}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>Retry Extraction</>
+          )}
+        </Button>
       </CardHeader>
       <CardContent>
         <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>

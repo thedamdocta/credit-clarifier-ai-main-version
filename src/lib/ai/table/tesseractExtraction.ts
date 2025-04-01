@@ -1,7 +1,7 @@
-
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
+import { preprocessImageForOCR } from './imagePreprocessing';
 
 /**
  * Enhanced table detection and extraction using Tesseract.js
@@ -10,6 +10,9 @@ import { ExtractedTableData } from './types';
 export async function extractTableWithTesseract(imageUrl: string): Promise<ExtractedTableData | null> {
   try {
     console.log('Starting Tesseract table extraction from image:', imageUrl);
+    
+    // Preprocess the image to improve OCR quality
+    const processedImageUrl = await preprocessImageForOCR(imageUrl);
     
     // Initialize Tesseract with table structure detection
     const worker = await Tesseract.createWorker({
@@ -25,9 +28,10 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
       tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Auto detect orientation and script detection
       preserve_interword_spaces: '1', // Preserve spaces between words
       tessjs_create_hocr: '1', // Create HOCR output for better structure understanding
+      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy
     });
     
-    const result = await worker.recognize(imageUrl);
+    const result = await worker.recognize(processedImageUrl || imageUrl);
     console.log('Tesseract confidence:', result.data.confidence);
     
     // If confidence is too low, we might want to fall back to other methods
