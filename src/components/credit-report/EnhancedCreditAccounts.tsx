@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,11 +100,21 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       const existingSummary = summariesByType.get(accountType);
       
       if (existingSummary) {
-        // Make sure we're preserving actual zero values correctly
+        // Fix: Handle numeric 0 values by converting them to string "0"
+        // This prevents type errors when comparing string and number
         orderedSummaries.push({
           ...existingSummary,
           open: existingSummary.open === 0 ? "0" : existingSummary.open,
-          withBalance: existingSummary.withBalance === 0 ? "0" : existingSummary.withBalance
+          withBalance: existingSummary.withBalance === 0 ? "0" : existingSummary.withBalance,
+          // Convert any other numeric fields that might be compared with strings
+          totalBalance: typeof existingSummary.totalBalance === 'number' ? 
+            String(existingSummary.totalBalance) : existingSummary.totalBalance,
+          available: typeof existingSummary.available === 'number' ? 
+            String(existingSummary.available) : existingSummary.available,
+          creditLimit: typeof existingSummary.creditLimit === 'number' ? 
+            String(existingSummary.creditLimit) : existingSummary.creditLimit,
+          payment: typeof existingSummary.payment === 'number' ? 
+            String(existingSummary.payment) : existingSummary.payment
         });
       } else {
         // Create default entry with null values for missing account types
