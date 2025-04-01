@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { extractTextFromPDF } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
+import { resetCurrentReportImage } from "./extractText";
 
 interface PDFProcessingCallbacks {
   setCurrentFile: (file: File) => void;
@@ -19,6 +20,9 @@ export const processPDFDocument = async (
   
   try {
     setCurrentFile(file);
+    
+    // Reset any cached image data from previous uploads
+    resetCurrentReportImage();
     
     // Setup progress tracking
     const { 
@@ -46,7 +50,7 @@ export const processPDFDocument = async (
         const extractedText = await extractTextFromPDF(pdf);
         
         try {
-          // Parse the extracted text
+          // Parse the extracted text with a clean state
           const parsedReport = await parsePDFContent(extractedText, useAI);
           
           completeProgressTracking();

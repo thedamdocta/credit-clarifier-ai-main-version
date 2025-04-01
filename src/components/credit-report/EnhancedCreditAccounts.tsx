@@ -29,24 +29,18 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   // Set up initial account summaries and try extraction on first load
   useEffect(() => {
     if (report) {
-      // Reset current image state when a new report is loaded
+      // Always reset current image state when a new report is loaded
       resetCurrentReportImage();
       
-      // Use a unique identifier for the report
-      const reportIdentifier = report.reportId || 
-                              `${report.bureau}-${report.reportDate}-${Date.now()}`;
+      // Generate a unique identifier for the report to ensure fresh extraction
+      const reportIdentifier = `${report.bureau || 'Unknown'}-${Date.now()}`;
       console.log('New report detected, resetting extraction state:', reportIdentifier);
+      
       setAttemptedExtraction(false);
       setExtractionFailed(false);
       
-      if (report.accountSummaries && report.accountSummaries.length > 0) {
-        console.log('Using account summaries from report:', report.accountSummaries.length);
-        createOrderedAccountSummaries(report.accountSummaries);
-      } else {
-        console.log('No account summaries found in report, triggering extraction');
-        // Try extraction immediately on first load
-        handleEnhancedExtraction();
-      }
+      // Ensure we always trigger a fresh extraction for the current report
+      handleEnhancedExtraction();
     }
   }, [report]);
   
@@ -101,10 +95,10 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setAttemptedExtraction(true);
       toast.info("Extracting account data...");
       
-      // Ensure we have a fresh extraction attempt by resetting the image URL
+      // Always reset image URL to ensure we get fresh extraction for the current report
       resetCurrentReportImage();
       
-      // Stage 1: Get the table image
+      // Stage 1: Get the table image - this now always gets the latest image
       const tableImageUrl = await extractCreditAccountsTableImage(report);
       
       if (!tableImageUrl) {

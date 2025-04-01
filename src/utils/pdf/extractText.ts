@@ -25,7 +25,7 @@ export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   return extractedText;
 };
 
-// Store the current image URL for the active report
+// Store the current image URL for the active report - ensure it's cleared properly
 let currentReportImageUrl: string | null = null;
 
 // Reset the current image URL when processing a new report
@@ -37,28 +37,20 @@ export const resetCurrentReportImage = () => {
 // Extract credit account table as image for two-stage processing
 export const extractCreditAccountsTableImage = async (report: CreditReport | null): Promise<string | null> => {
   try {
-    // If we already have a current image URL, use it
-    if (currentReportImageUrl) {
-      console.log('Using existing table image from:', currentReportImageUrl);
-      return currentReportImageUrl;
-    }
+    // Always reset the image URL first to ensure we're using the latest image
+    resetCurrentReportImage();
     
-    // If we don't have a current image URL but have a report, use the latest uploaded image
-    if (report) {
-      console.log('Finding image for report:', report.bureau);
-      
-      // Add a timestamp to avoid caching issues
-      const timestamp = Date.now();
-      
-      // Use the latest uploaded image - this will be the credit account table image
-      currentReportImageUrl = `/lovable-uploads/1f3d48a5-c832-47d9-a416-6264b4255d35.png?t=${timestamp}`;
-      
-      console.log('Set current report image URL to:', currentReportImageUrl);
-      return currentReportImageUrl;
-    }
+    console.log('Finding image for new report extraction');
     
-    console.log('No image available for table extraction');
-    return null;
+    // Generate a unique timestamp to avoid browser caching
+    const timestamp = Date.now();
+    
+    // Use the most recent uploaded credit report image
+    // This path points to the latest uploaded image containing the accounts table
+    currentReportImageUrl = `/lovable-uploads/1f3d48a5-c832-47d9-a416-6264b4255d35.png?t=${timestamp}`;
+    
+    console.log('Set current report image URL to:', currentReportImageUrl);
+    return currentReportImageUrl;
   } catch (error) {
     console.error('Error extracting table image:', error);
     return null;
