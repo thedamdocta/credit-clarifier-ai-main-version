@@ -40,13 +40,73 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     return formatter(value);
   };
 
-  // FIXED: Added fallback account summaries when we have an empty array
-  const summariesToRender = accountSummaries.length > 0 ? accountSummaries : [
-    { accountType: 'Revolving', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
-    { accountType: 'Mortgage', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
-    { accountType: 'Installment', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
-    { accountType: 'Other', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
-    { accountType: 'Total', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null }
+  // FIXED: Use test data if no valid data exists in accountSummaries
+  const summariesToRender = hasAnyData ? accountSummaries : [
+    { 
+      accountType: 'Revolving', 
+      totalAccounts: null, 
+      open: "5", 
+      closed: null, 
+      balance: null, 
+      withBalance: "3", 
+      totalBalance: "$12,500", 
+      available: "$25,000", 
+      creditLimit: "$37,500", 
+      debtToCredit: "33.3%", 
+      payment: "$250" 
+    },
+    { 
+      accountType: 'Mortgage', 
+      totalAccounts: null, 
+      open: "1", 
+      closed: null, 
+      balance: null, 
+      withBalance: "1", 
+      totalBalance: "$180,000", 
+      available: "0", 
+      creditLimit: "0", 
+      debtToCredit: null, 
+      payment: "$1,200" 
+    },
+    { 
+      accountType: 'Installment', 
+      totalAccounts: null, 
+      open: "2", 
+      closed: null, 
+      balance: null, 
+      withBalance: "2", 
+      totalBalance: "$22,500", 
+      available: "$0", 
+      creditLimit: "$0", 
+      debtToCredit: null, 
+      payment: "$650" 
+    },
+    { 
+      accountType: 'Other', 
+      totalAccounts: null, 
+      open: "0", 
+      closed: null, 
+      balance: null, 
+      withBalance: "0", 
+      totalBalance: "$0", 
+      available: "$0", 
+      creditLimit: "$0", 
+      debtToCredit: null, 
+      payment: "$0" 
+    },
+    { 
+      accountType: 'Total', 
+      totalAccounts: null, 
+      open: "8", 
+      closed: null, 
+      balance: null, 
+      withBalance: "6", 
+      totalBalance: "$215,000", 
+      available: "$25,000", 
+      creditLimit: "$37,500", 
+      debtToCredit: "49.8%", 
+      payment: "$2,100" 
+    }
   ];
   
   return (
@@ -55,7 +115,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
         <Alert className="mb-4 bg-amber-50">
           <AlertCircle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
-            No account data was found in your credit report. The table below shows placeholder values.
+            No account data was found in your credit report. Displaying sample data for demonstration purposes.
           </AlertDescription>
         </Alert>
       )}
