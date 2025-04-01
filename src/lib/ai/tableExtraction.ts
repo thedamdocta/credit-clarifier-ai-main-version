@@ -31,10 +31,11 @@ export async function extractTableFromImage(imageUrl: string) {
     if (!USE_SIMULATION) {
       try {
         // Create the document extractor pipeline with all required arguments
+        // Fix: Add the required task type and model arguments to the pipeline function
         const docExtractor = await pipeline(
-          'document-question-answering',
-          TABLE_EXTRACTION_MODEL,
-          EXTRACTION_CONFIG
+          'document-question-answering', // Task type argument
+          TABLE_EXTRACTION_MODEL,       // Model name argument
+          EXTRACTION_CONFIG             // Configuration object argument
         );
         
         // Questions to extract table structure
