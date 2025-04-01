@@ -51,13 +51,19 @@ export async function extractTableFromImage(imageUrl: string) {
         const responses = await Promise.all(questions.map(async question => {
           const result = await docExtractor({
             image: imageUrl,
-            question
+            question: question
           });
           
-          // Handle the case when result might be an array
-          const answer = Array.isArray(result) 
-            ? result[0]?.answer || ''
-            : result?.answer || '';
+          // Handle the case when result might be an array or object with different structure
+          let answer = '';
+          if (Array.isArray(result) && result.length > 0) {
+            answer = result[0]?.score !== undefined ? result[0].score.toString() : '';
+          } else if (typeof result === 'object' && result !== null) {
+            // Try to extract answer from possible properties
+            answer = (result as any).score?.toString() || 
+                    (result as any).text || 
+                    '';
+          }
             
           return { question, answer };
         }));
@@ -117,10 +123,13 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
     const accountType = row['Account Type'];
     if (!accountType) return;
     
-    // Create an account summary object
+    // Create an account summary object with all required properties
     const summary: AccountSummary = {
       accountType: accountType,
+      totalAccounts: null,
       open: parseNumericValue(row['Open']),
+      closed: null,
+      balance: null,
       withBalance: parseNumericValue(row['With Balance']),
       totalBalance: parseCurrencyValue(row['Total Balance']),
       available: parseCurrencyValue(row['Available']),
