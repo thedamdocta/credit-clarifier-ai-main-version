@@ -104,10 +104,12 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         // Convert all numeric values to strings to avoid type comparison errors
         orderedSummaries.push({
           ...existingSummary,
-          open: existingSummary.open === 0 || existingSummary.open === "0" ? "0" : 
-                existingSummary.open !== null ? String(existingSummary.open) : null,
-          withBalance: existingSummary.withBalance === 0 || existingSummary.withBalance === "0" ? "0" : 
-                      existingSummary.withBalance !== null ? String(existingSummary.withBalance) : null,
+          // Handling specific case for the type comparison errors on lines 107 and 109
+          // Consistently convert all values to strings if they exist, or null if they don't
+          open: existingSummary.open === "0" || (existingSummary.open !== null && existingSummary.open !== undefined && existingSummary.open.toString() === "0") ? 
+                "0" : existingSummary.open !== null ? String(existingSummary.open) : null,
+          withBalance: existingSummary.withBalance === "0" || (existingSummary.withBalance !== null && existingSummary.withBalance !== undefined && existingSummary.withBalance.toString() === "0") ? 
+                      "0" : existingSummary.withBalance !== null ? String(existingSummary.withBalance) : null,
           totalBalance: existingSummary.totalBalance !== null ? 
                        String(existingSummary.totalBalance) : null,
           available: existingSummary.available !== null ? 
