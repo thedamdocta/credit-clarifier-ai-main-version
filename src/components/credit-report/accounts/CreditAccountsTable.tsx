@@ -49,10 +49,8 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           open: summary.open === ',' ? '0' : summary.open,
           withBalance: summary.withBalance === ',' ? '0' : summary.withBalance,
           totalBalance: summary.totalBalance === '$,' ? '$0' : summary.totalBalance,
-          // Handle negative values that should be positive
-          available: summary.available && summary.available.includes('-') ? 
-            '$' + summary.available.replace('-$', '').replace('-', '') : 
-            summary.available
+          // Preserve negative values for available (like -$4,447)
+          available: summary.available
         }));
         
         setStableData(cleanedSummaries);
@@ -97,6 +95,20 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     // Display "x" for null, undefined, or empty strings
     if (value === null || value === undefined || value === '') {
       return "x";
+    }
+    
+    // Special handling for negative values like "-$4,447"
+    if (fieldName === 'available' && typeof value === 'string' && value.includes('-')) {
+      // Preserve negative sign for available
+      return value;
+    }
+    
+    // Special handling for percentage values with 3 digits like "116.0%"
+    if (fieldName === 'debtToCredit' && typeof value === 'string') {
+      // Check for large percentage numbers that might be missing decimal point
+      if (value.match(/\d{3}\.?\d*%/)) {
+        return value;
+      }
     }
     
     // For actual values, format them properly
