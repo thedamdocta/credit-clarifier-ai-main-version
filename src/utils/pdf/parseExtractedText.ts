@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
 // Import the table extraction utilities
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
-import { extractCreditAccountsTableImage } from "./extractText";
+import { extractCreditAccountsTableImage, resetCurrentReportImage } from "./extractText";
 
 export const identifyDocumentPatterns = (extractedText: string) => {
   // Pre-process text to better identify account tables
@@ -124,7 +124,7 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
   try {
     // First attempt: Try to extract the table image
     console.log('Attempting to extract account summaries from image...');
-    const tableImageUrl = await extractCreditAccountsTableImage(null);
+    const tableImageUrl = await extractCreditAccountsTableImage(parsedReport);
     
     if (tableImageUrl) {
       const tableData = await extractTableFromImage(tableImageUrl);
@@ -152,7 +152,7 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
     if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
       try {
         // Attempt to extract the table image
-        const tableImageUrl = await extractCreditAccountsTableImage(null);
+        const tableImageUrl = await extractCreditAccountsTableImage(parsedReport);
         
         if (tableImageUrl) {
           const tableData = await extractTableFromImage(tableImageUrl);
@@ -186,6 +186,8 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
 export const parsePDFContent = async (extractedText: string, useAI: boolean = false) => {
   try {
     console.log('Parsing PDF content...');
+    // Reset the current report image for each new PDF processing
+    resetCurrentReportImage();
     
     if (!extractedText || extractedText.length < 100) {
       console.error('Extracted text is too short for parsing');
@@ -209,6 +211,9 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean = fa
     
     // Store the raw text in the report
     parsedReport.rawText = extractedText;
+    
+    // Add a unique report ID for tracking
+    parsedReport.reportId = `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     
     // Apply bureau-specific enhancements
     if (parsedReport.bureau === 'Equifax') {

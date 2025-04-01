@@ -1,6 +1,7 @@
 
 import { toast } from "sonner";
 import { extractTextFromImageWithOCR, processImageWithEnhancedOCR } from "@/lib/ai/ocrExtraction";
+import { CreditReport } from "@/lib/types/creditReport";
 
 export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   let extractedText = '';
@@ -24,14 +25,36 @@ export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   return extractedText;
 };
 
+// Store the current image URL for the active report
+let currentReportImageUrl: string | null = null;
+
+// Reset the current image URL when processing a new report
+export const resetCurrentReportImage = () => {
+  currentReportImageUrl = null;
+};
+
 // Extract credit account table as image for two-stage processing
-export const extractCreditAccountsTableImage = async (pdf: any): Promise<string | null> => {
+export const extractCreditAccountsTableImage = async (report: CreditReport | null): Promise<string | null> => {
   try {
-    // For now, we use the uploaded image, but in a production environment
-    // we would extract the table region from the PDF using heuristics or ML
-    const imageUrl = '/lovable-uploads/458643ea-a052-40a4-a3fd-e8a38ddec467.png';
-    console.log('Using table image from:', imageUrl);
-    return imageUrl;
+    // For demonstration purposes, we'll use an uploaded image
+    // In a production environment, we would extract this from the PDF
+    
+    // If we don't have a current image URL but have a report, we need to find an image
+    if (!currentReportImageUrl && report) {
+      console.log('Finding image for report:', report.bureau);
+      
+      // Generate a random URL for the current session to avoid caching issues
+      const timestamp = Date.now();
+      currentReportImageUrl = `/lovable-uploads/8d2ecd4c-1936-4c99-92da-885ee36a9e27.png?t=${timestamp}`;
+    }
+    
+    if (currentReportImageUrl) {
+      console.log('Using table image from:', currentReportImageUrl);
+      return currentReportImageUrl;
+    }
+    
+    console.log('No image available for table extraction');
+    return null;
   } catch (error) {
     console.error('Error extracting table image:', error);
     return null;

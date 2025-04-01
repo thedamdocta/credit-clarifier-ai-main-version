@@ -21,18 +21,26 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   const [isProcessing, setIsProcessing] = useState(false);
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
   const [extractionFailed, setExtractionFailed] = useState(false);
+  const [attemptedExtraction, setAttemptedExtraction] = useState(false);
   
   // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
-  // Set up initial account summaries
+  // Set up initial account summaries and try extraction on first load
   useEffect(() => {
-    if (report.accountSummaries && report.accountSummaries.length > 0) {
-      createOrderedAccountSummaries(report.accountSummaries);
+    if (report && report.reportId !== undefined) {
+      console.log('New report detected, resetting extraction state:', report.reportId);
+      setAttemptedExtraction(false);
       setExtractionFailed(false);
-    } else {
-      // Auto-trigger enhanced extraction if no account summaries exist
-      handleEnhancedExtraction();
+      
+      if (report.accountSummaries && report.accountSummaries.length > 0) {
+        console.log('Using account summaries from report:', report.accountSummaries.length);
+        createOrderedAccountSummaries(report.accountSummaries);
+      } else {
+        console.log('No account summaries found in report, triggering extraction');
+        // Try extraction immediately on first load
+        handleEnhancedExtraction();
+      }
     }
   }, [report]);
   
@@ -84,10 +92,11 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     try {
       setIsProcessing(true);
       setExtractionFailed(false);
+      setAttemptedExtraction(true);
       toast.info("Extracting account data using two-stage process...");
       
       // Stage 1: Get the table image
-      const tableImageUrl = await extractCreditAccountsTableImage(null);
+      const tableImageUrl = await extractCreditAccountsTableImage(report);
       
       if (!tableImageUrl) {
         toast.error("Could not identify account table image");
@@ -147,7 +156,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           ) : (
             <>
               <RefreshCw className="mr-2 h-4 w-4" />
-              Retry Extraction
+              {attemptedExtraction ? "Retry Extraction" : "Extract Data"}
             </>
           )}
         </Button>
