@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
@@ -7,8 +6,7 @@ import { extractTableWithTesseract, convertTesseractTableToAppFormat } from './d
 // Configuration parameters and models
 const TABLE_EXTRACTION_MODEL = 'impira/layoutlm-document-qa';
 const EXTRACTION_CONFIG = {
-  revision: 'main',
-  quantized: false
+  revision: 'main'
 };
 const USE_SIMULATION = false;
 

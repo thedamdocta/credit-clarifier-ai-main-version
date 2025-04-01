@@ -12,8 +12,7 @@ export const getClassifier = async () => {
     console.log('Loading text classification model...');
     classifierPromise = pipeline(
       'text-classification', 
-      TEXT_CLASSIFICATION_MODEL,
-      { quantized: false }
+      TEXT_CLASSIFICATION_MODEL
     );
   }
   return classifierPromise;
@@ -25,8 +24,7 @@ export const getNER = async () => {
     console.log('Loading NER model...');
     nerPromise = pipeline(
       'token-classification', 
-      NER_MODEL,
-      { quantized: false }
+      NER_MODEL
     );
   }
   return nerPromise;
