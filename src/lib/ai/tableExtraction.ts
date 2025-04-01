@@ -31,11 +31,11 @@ export async function extractTableFromImage(imageUrl: string) {
     // If Tesseract didn't work well, try using Hugging Face
     if (!USE_SIMULATION) {
       try {
-        // FIX: Provide all required arguments to the pipeline function
+        // Fix: Properly configure the pipeline with all required arguments
         const docExtractor = await pipeline(
-          'document-question-answering',
-          TABLE_EXTRACTION_MODEL,
-          EXTRACTION_CONFIG
+          'document-question-answering', // Task type
+          TABLE_EXTRACTION_MODEL, // Model name
+          EXTRACTION_CONFIG // Configuration options
         );
         
         // Questions to extract table structure
