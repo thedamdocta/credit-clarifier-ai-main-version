@@ -1,33 +1,72 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
 import { formatAccountValue, formatDollarAmount, formatPercentageValue } from "@/utils/formatters/accountValueFormatters";
-import { AlertCircle, Info } from "lucide-react";
+import { AlertCircle, Info, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
+  onRequestUpload?: () => void;
 }
 
-const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummaries }) => {
+const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ 
+  accountSummaries,
+  onRequestUpload 
+}) => {
   console.log("Table rendering with account summaries:", accountSummaries);
-
+  const [stableData, setStableData] = useState<AccountSummary[]>(accountSummaries);
+  
+  // If we receive new account summaries with actual data, update our stable data
+  useEffect(() => {
+    // Only update the stable data if:
+    // 1. We currently have no stable data, or
+    // 2. The new data has actual values that are better than what we currently have
+    if (accountSummaries && accountSummaries.length > 0) {
+      const newDataHasRealValues = accountSummaries.some(summary => 
+        ((summary.open !== null && summary.open !== "" && summary.open !== "0") || 
+         (summary.withBalance !== null && summary.withBalance !== "" && summary.withBalance !== "0") || 
+         (summary.totalBalance !== null && summary.totalBalance !== "" && summary.totalBalance !== "$0")) &&
+         summary.accountType.toLowerCase() !== "total" // Exclude "Total" from this check
+      );
+      
+      const currentDataHasNoValues = !stableData || stableData.length === 0 || !stableData.some(summary => 
+        (summary.open !== null && summary.open !== "" && summary.open !== "0") || 
+        (summary.withBalance !== null && summary.withBalance !== "" && summary.withBalance !== "0") ||
+        (summary.totalBalance !== null && summary.totalBalance !== "" && summary.totalBalance !== "$0")
+      );
+      
+      if (currentDataHasNoValues || newDataHasRealValues) {
+        console.log("Updating stable data with new account summaries that have real values");
+        setStableData(accountSummaries);
+      } else {
+        console.log("Keeping existing stable data as it has better values than new data");
+      }
+    }
+  }, [accountSummaries]);
+  
   // More robust data validation - check if we have any meaningful data
-  // Only consider values that aren't empty strings, null, undefined, or "0" for all accounts
-  const hasAnyActualData = accountSummaries && accountSummaries.some(summary => 
-    ((summary.open !== null && summary.open !== "" && summary.open !== "0") || 
-     (summary.withBalance !== null && summary.withBalance !== "" && summary.withBalance !== "0") || 
-     (summary.totalBalance !== null && summary.totalBalance !== "" && summary.totalBalance !== "$0")) &&
-     summary.accountType.toLowerCase() !== "total" // Exclude "Total" from this check
+  const summariesToDisplay = stableData && stableData.length > 0 ? stableData : accountSummaries;
+  
+  // Check if this is clearly sample data based on specific values we use in our sample
+  const isSampleData = summariesToDisplay && 
+    summariesToDisplay.some(s => s.accountType === "Revolving" && s.totalBalance === "$16,355" && s.payment === "$627") &&
+    summariesToDisplay.some(s => s.accountType === "Installment" && s.totalBalance === "$204,150" && s.available === "$15,455");
+  
+  // Check if all values in the table are null/empty (no extraction)
+  const hasNoData = !summariesToDisplay || summariesToDisplay.length === 0 || summariesToDisplay.every(summary =>
+    summary.open === null && 
+    summary.withBalance === null && 
+    summary.totalBalance === null &&
+    summary.available === null &&
+    summary.creditLimit === null &&
+    summary.debtToCredit === null &&
+    summary.payment === null
   );
-
-  // Check if this is clearly sample data based on the specific values we use in our sample
-  const isSampleData = accountSummaries && 
-    accountSummaries.some(s => s.accountType === "Revolving" && s.totalBalance === "$16,355" && s.payment === "$627") &&
-    accountSummaries.some(s => s.accountType === "Installment" && s.totalBalance === "$204,150" && s.available === "$15,455");
-
+  
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     // For zero values - explicitly check string "0" as well as number 0
@@ -43,83 +82,25 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     // For actual values, format them properly
     return formatter(value);
   };
-
-  // Default sample data to show if no actual data is available - kept for compatibility
-  const sampleData = [
-    { 
-      accountType: 'Revolving', 
-      totalAccounts: null, 
-      open: "5", 
-      closed: null, 
-      balance: null, 
-      withBalance: "3", 
-      totalBalance: "$12,500", 
-      available: "$25,000", 
-      creditLimit: "$37,500", 
-      debtToCredit: "33.3%", 
-      payment: "$250" 
-    },
-    { 
-      accountType: 'Mortgage', 
-      totalAccounts: null, 
-      open: "1", 
-      closed: null, 
-      balance: null, 
-      withBalance: "1", 
-      totalBalance: "$180,000", 
-      available: "0", 
-      creditLimit: "0", 
-      debtToCredit: null, 
-      payment: "$1,200" 
-    },
-    { 
-      accountType: 'Installment', 
-      totalAccounts: null, 
-      open: "2", 
-      closed: null, 
-      balance: null, 
-      withBalance: "2", 
-      totalBalance: "$22,500", 
-      available: "$0", 
-      creditLimit: "$0", 
-      debtToCredit: null, 
-      payment: "$650" 
-    },
-    { 
-      accountType: 'Other', 
-      totalAccounts: null, 
-      open: "0", 
-      closed: null, 
-      balance: null, 
-      withBalance: "0", 
-      totalBalance: "$0", 
-      available: "$0", 
-      creditLimit: "$0", 
-      debtToCredit: null, 
-      payment: "$0" 
-    },
-    { 
-      accountType: 'Total', 
-      totalAccounts: null, 
-      open: "8", 
-      closed: null, 
-      balance: null, 
-      withBalance: "6", 
-      totalBalance: "$215,000", 
-      available: "$25,000", 
-      creditLimit: "$37,500", 
-      debtToCredit: "49.8%", 
-      payment: "$2,100" 
-    }
-  ];
-  
-  // Use the actual data if it exists and has meaningful content
-  const summariesToRender = accountSummaries && accountSummaries.length > 0 ? accountSummaries : sampleData;
-  const usingSampleData = !hasAnyActualData || isSampleData;
   
   return (
     <div>
-      {usingSampleData && (
+      {hasNoData && (
+        <Alert className="mb-4 bg-red-50 border-red-200">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800 flex items-center justify-between">
+            <span>We couldn't extract account data from your credit report. Try uploading a clearer PDF with the account summary table clearly visible.</span>
+            {onRequestUpload && (
+              <Button variant="outline" size="sm" className="ml-4 bg-white" onClick={onRequestUpload}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Better PDF
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {!hasNoData && isSampleData && (
         <Alert className="mb-4 bg-amber-50">
           <Info className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
@@ -142,14 +123,14 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
           </TableRow>
         </TableHeader>
         <TableBody>
-          {summariesToRender.map((summary) => (
+          {summariesToDisplay.map((summary) => (
             <TableRow 
               key={`account-summary-${summary.accountType}`}
               className={summary.accountType === 'Total' ? 'bg-muted/30 font-medium' : ''}
             >
               <TableCell className="font-medium">
                 {summary.accountType}
-                {usingSampleData && (
+                {isSampleData && (
                   <Badge variant="outline" className="ml-2 text-xs">Sample</Badge>
                 )}
               </TableCell>
