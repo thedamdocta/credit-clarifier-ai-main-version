@@ -36,6 +36,15 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
     return formatter(value);
   };
 
+  // FIXED: Added fallback account summaries when we have an empty array
+  const summariesToRender = accountSummaries.length > 0 ? accountSummaries : [
+    { accountType: 'Revolving', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Mortgage', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Installment', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Other', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Total', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null }
+  ];
+
   return (
     <div>
       <Table>
@@ -52,34 +61,21 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({ accountSummar
           </TableRow>
         </TableHeader>
         <TableBody>
-          {accountSummaries.length > 0 ? (
-            accountSummaries.map((summary) => (
-              <TableRow 
-                key={`account-summary-${summary.accountType}`}
-                className={summary.accountType === 'Total' ? 'bg-muted/30' : ''}
-              >
-                <TableCell className="font-medium">{summary.accountType}</TableCell>
-                <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
-                <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
-                <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
-                <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
-                <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
-                <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatPercentageValue)}</TableCell>
-                <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
-              </TableRow>
-            ))
-          ) : (
-            // Display empty rows when no data is available
-            ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'].map(accountType => (
-              <TableRow key={`empty-${accountType}`}>
-                <TableCell className="font-medium">{accountType}</TableCell>
-                {/* Display "x" in all cells for empty rows */}
-                {Array(7).fill(0).map((_, i) => (
-                  <TableCell key={i}>x</TableCell>
-                ))}
-              </TableRow>
-            ))
-          )}
+          {summariesToRender.map((summary) => (
+            <TableRow 
+              key={`account-summary-${summary.accountType}`}
+              className={summary.accountType === 'Total' ? 'bg-muted/30' : ''}
+            >
+              <TableCell className="font-medium">{summary.accountType}</TableCell>
+              <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
+              <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
+              <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
+              <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
+              <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
+              <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatPercentageValue)}</TableCell>
+              <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

@@ -70,6 +70,9 @@ export const processPDFDocument = async (
               fileName: file.name,
               extractedText: extractedText.substring(0, 1000) // Store preview
             };
+            
+            // FIXED: Log to verify global reference is set correctly
+            console.log('Set global PDF data reference:', window.currentPdfData);
           }
           
           completeProgressTracking();
