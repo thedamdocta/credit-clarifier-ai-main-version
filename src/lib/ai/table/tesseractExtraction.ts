@@ -1,3 +1,4 @@
+
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
@@ -11,8 +12,38 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
   try {
     console.log('Starting Tesseract table extraction from image:', imageUrl);
     
+    // Handle empty image URL case
+    if (!imageUrl) {
+      console.error('No image URL provided for Tesseract extraction');
+      return null;
+    }
+    
+    // Validate image URL format
+    if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/') && !imageUrl.startsWith('data:')) {
+      console.error('Invalid image URL format:', imageUrl);
+      return null;
+    }
+    
     // Preprocess the image to improve OCR quality
     const processedImageUrl = await preprocessImageForOCR(imageUrl);
+    const imageToProcess = processedImageUrl || imageUrl;
+    
+    // Add error handling for image loading
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    
+    // Wrap image loading in a promise
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => {
+        console.error('Failed to load image for Tesseract');
+        reject(new Error('Failed to load image'));
+      };
+      image.src = imageToProcess;
+    }).catch(err => {
+      console.error('Image loading error:', err);
+      throw new Error('Failed to load image');
+    });
     
     // Initialize Tesseract with table structure detection
     const worker = await Tesseract.createWorker({
@@ -31,7 +62,23 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy
     });
     
-    const result = await worker.recognize(processedImageUrl || imageUrl);
+    // Try both URL and Image object for best compatibility
+    let result;
+    try {
+      // First attempt with URL
+      result = await worker.recognize(imageToProcess);
+    } catch (urlError) {
+      console.warn('Failed to recognize with URL, trying with Image object:', urlError);
+      try {
+        // Second attempt with Image object
+        result = await worker.recognize(image);
+      } catch (imgError) {
+        console.error('Both recognition attempts failed:', imgError);
+        await worker.terminate();
+        throw imgError;
+      }
+    }
+    
     console.log('Tesseract confidence:', result.data.confidence);
     
     // If confidence is too low, we might want to fall back to other methods

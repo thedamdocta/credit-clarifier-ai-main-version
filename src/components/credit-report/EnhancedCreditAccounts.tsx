@@ -8,7 +8,7 @@ import CreditAccountsDebug from "./accounts/CreditAccountsDebug";
 import CreditAccountsTable from "./accounts/CreditAccountsTable";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { toast } from "sonner";
-import { extractCreditAccountsTableImage } from "@/utils/pdf/extractText";
+import { extractCreditAccountsTableImage, resetCurrentReportImage } from "@/utils/pdf/extractText";
 import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -29,6 +29,9 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   // Set up initial account summaries and try extraction on first load
   useEffect(() => {
     if (report) {
+      // Reset current image state when a new report is loaded
+      resetCurrentReportImage();
+      
       // Use a unique identifier for the report - either reportId if available or generate one from bureau and date
       const reportIdentifier = report.reportId || 
                               `${report.bureau}-${report.reportDate}-${Date.now()}`;
@@ -96,7 +99,10 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setIsProcessing(true);
       setExtractionFailed(false);
       setAttemptedExtraction(true);
-      toast.info("Extracting account data using two-stage process...");
+      toast.info("Extracting account data...");
+      
+      // Ensure we have a fresh extraction attempt by resetting the image URL
+      resetCurrentReportImage();
       
       // Stage 1: Get the table image
       const tableImageUrl = await extractCreditAccountsTableImage(report);
@@ -107,6 +113,8 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         setExtractionFailed(true);
         return;
       }
+      
+      console.log("Using table image URL for extraction:", tableImageUrl);
       
       // Stage 2: Extract table data using template-based approach
       const tableData = await extractTableFromImage(tableImageUrl);
