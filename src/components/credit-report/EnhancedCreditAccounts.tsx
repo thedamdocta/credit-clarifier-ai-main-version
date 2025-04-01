@@ -28,13 +28,11 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   
   // Set up initial account summaries and try extraction on first load
   useEffect(() => {
-    if (report) {
+    if (report && report.reportId) {
       // Always reset current image state when a new report is loaded
       resetCurrentReportImage();
       
-      // Generate a unique identifier for the report to ensure fresh extraction
-      const reportIdentifier = `${report.bureau || 'Unknown'}-${Date.now()}`;
-      console.log('New report detected, resetting extraction state:', reportIdentifier);
+      console.log('New report detected, resetting extraction state:', report.reportId);
       
       // Reset states for new report
       setAccountSummaries([]);
@@ -44,7 +42,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       // Ensure we always trigger a fresh extraction for the current report
       handleEnhancedExtraction();
     }
-  }, [report]);
+  }, [report?.reportId]); // Only trigger when reportId changes to ensure it's a truly new report
   
   // Create properly ordered account summaries with empty values for missing types
   const createOrderedAccountSummaries = (sourceSummaries: AccountSummary[]) => {
@@ -96,9 +94,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setExtractionFailed(false);
       setAttemptedExtraction(true);
       toast.info("Extracting account data...");
-      
-      // Always reset image URL to ensure we get fresh extraction for the current report
-      resetCurrentReportImage();
       
       // Stage 1: Get the table image - this now always gets the latest image
       const tableImageUrl = await extractCreditAccountsTableImage(report);

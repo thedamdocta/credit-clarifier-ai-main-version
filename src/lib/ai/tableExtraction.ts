@@ -18,9 +18,19 @@ export async function extractTableFromImage(imageUrl: string) {
   try {
     console.log('Extracting table from image:', imageUrl);
     
+    if (!imageUrl) {
+      console.error('No image URL provided for extraction');
+      toast.error("No image provided for table extraction");
+      return null;
+    }
+    
     // Generate a unique timestamp to avoid browser caching
     const timestamp = Date.now();
-    const uniqueImageUrl = `${imageUrl}?t=${timestamp}`;
+    const uniqueImageUrl = imageUrl.includes('?') ? 
+      `${imageUrl}&t=${timestamp}` : 
+      `${imageUrl}?t=${timestamp}`;
+    
+    console.log('Using unique image URL for extraction:', uniqueImageUrl);
     
     // Always use the original image directly - no preprocessing
     const imageToProcess = uniqueImageUrl;
@@ -55,7 +65,6 @@ export async function extractTableFromImage(imageUrl: string) {
       console.error('Text-based extraction failed:', textError);
     }
     
-    // If all extraction methods fail, return null instead of hardcoded data
     console.log('All extraction methods failed, returning null');
     toast.error("Could not extract data from image - you may need to manually enter values");
     

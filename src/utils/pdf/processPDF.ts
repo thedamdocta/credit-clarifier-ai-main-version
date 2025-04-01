@@ -1,6 +1,6 @@
 
 import { toast } from "sonner";
-import { extractTextFromPDF } from "./extractText";
+import { extractTextFromPDF, setCurrentPDFData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
 import { resetCurrentReportImage } from "./extractText";
@@ -23,6 +23,10 @@ export const processPDFDocument = async (
     
     // Reset any cached image data from previous uploads
     resetCurrentReportImage();
+    
+    // Store this file as the current PDF being processed
+    // This is important for image extraction later
+    const uniqueReportId = setCurrentPDFData(file);
     
     // Add a unique identifier to the file name to ensure uniqueness
     const uniqueIdForFile = `${file.name}-${Date.now()}`;
@@ -59,7 +63,7 @@ export const processPDFDocument = async (
           
           // Add unique timestamp to report to avoid caching issues
           if (parsedReport) {
-            parsedReport.reportId = `${parsedReport.reportId || 'report'}-${Date.now()}`;
+            parsedReport.reportId = uniqueReportId;
           }
           
           completeProgressTracking();

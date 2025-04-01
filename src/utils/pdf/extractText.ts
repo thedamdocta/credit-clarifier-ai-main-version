@@ -25,25 +25,39 @@ export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   return extractedText;
 };
 
-// Global storage for tracking the current report's image
-let currentReportImageCache: {
+// Global storage for tracking the current PDF file
+let currentPDFData: {
   imageUrl: string | null;
   timestamp: number;
+  uploadedFile: File | null;
   reportId: string | null;
 } = {
   imageUrl: null,
   timestamp: 0,
+  uploadedFile: null,
   reportId: null
+};
+
+// Store the most recent uploaded file data
+export const setCurrentPDFData = (file: File) => {
+  console.log('Setting current PDF file:', file.name);
+  currentPDFData = {
+    imageUrl: null, // Will be set when image is extracted
+    timestamp: Date.now(),
+    uploadedFile: file,
+    reportId: `report-${Date.now()}-${file.name.replace(/\W/g, '')}`
+  };
+  
+  return currentPDFData.reportId;
 };
 
 // Reset the current image URL when processing a new report
 export const resetCurrentReportImage = () => {
   console.log('Resetting current report image URL to null');
-  currentReportImageCache = {
-    imageUrl: null,
-    timestamp: Date.now(), // Update timestamp to indicate a fresh reset
-    reportId: null
-  };
+  if (currentPDFData.imageUrl) {
+    currentPDFData.imageUrl = null;
+    currentPDFData.timestamp = Date.now(); // Update timestamp to indicate a fresh reset
+  }
 };
 
 // Extract credit account table as image for two-stage processing
@@ -53,30 +67,49 @@ export const extractCreditAccountsTableImage = async (report: CreditReport | nul
     const reportId = report?.reportId || `report-${Date.now()}`;
     
     console.log(`Finding image for report extraction, report ID: ${reportId}`);
-    console.log(`Current cache state: `, currentReportImageCache);
+    console.log(`Current cache state: `, currentPDFData);
     
-    // If we have a new report, reset the cache
-    if (reportId !== currentReportImageCache.reportId) {
-      resetCurrentReportImage();
-      currentReportImageCache.reportId = reportId;
+    // Check if we have an image URL already cached for this upload
+    if (currentPDFData.imageUrl) {
+      console.log('Using cached image URL with timestamp:', currentPDFData.timestamp);
+      
+      // Add a cache-busting timestamp to ensure we get a fresh image
+      const cachedUrl = currentPDFData.imageUrl;
+      const cacheBustedUrl = cachedUrl.includes('?') ? 
+        `${cachedUrl}&t=${Date.now()}` : 
+        `${cachedUrl}?t=${Date.now()}`;
+        
+      return cacheBustedUrl;
     }
     
-    // Generate a unique timestamp
-    const timestamp = Date.now();
+    // If we have an uploadedImage from a user upload (in production this would be from the most recent PDF page)
+    const uploadedImage = document.querySelector('img[src^="/lovable-uploads/"]');
     
-    // For testing, we can use whatever the most recently uploaded image is
-    // In production, this should be replaced with proper image extraction
-    const uploadTimestamp = timestamp;
+    if (uploadedImage) {
+      const imgSrc = uploadedImage.getAttribute('src');
+      if (imgSrc) {
+        console.log('Found uploaded image:', imgSrc);
+        currentPDFData.imageUrl = imgSrc;
+        
+        // Add cache-busting timestamp
+        const cacheBustedUrl = imgSrc.includes('?') ? 
+          `${imgSrc}&t=${Date.now()}` : 
+          `${imgSrc}?t=${Date.now()}`;
+          
+        return cacheBustedUrl;
+      }
+    }
     
-    // Get the most recently uploaded file - this should ideally come from the actual upload
-    const mostRecentImage = `/lovable-uploads/c83137d2-c8b3-4b75-aff8-aafc9b96cceb.png?t=${uploadTimestamp}`;
+    // If no image is found, check for the most recent file upload in the form
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      console.log('Found file input with files, but no uploaded image is available yet');
+      // In a real implementation, we would process this file to extract the image
+    }
     
-    // Update the cache with the new image URL
-    currentReportImageCache.imageUrl = mostRecentImage;
-    currentReportImageCache.timestamp = timestamp;
-    
-    console.log('Set current report image URL to:', currentReportImageCache.imageUrl);
-    return currentReportImageCache.imageUrl;
+    console.log('No suitable image found for extraction');
+    toast.error("No suitable table image found");
+    return null;
   } catch (error) {
     console.error('Error extracting table image:', error);
     return null;
