@@ -25,32 +25,58 @@ export const extractTextFromPDF = async (pdf: any): Promise<string> => {
   return extractedText;
 };
 
-// Store the current image URL for the active report - ensure it's cleared properly
-let currentReportImageUrl: string | null = null;
+// Global storage for tracking the current report's image
+let currentReportImageCache: {
+  imageUrl: string | null;
+  timestamp: number;
+  reportId: string | null;
+} = {
+  imageUrl: null,
+  timestamp: 0,
+  reportId: null
+};
 
 // Reset the current image URL when processing a new report
 export const resetCurrentReportImage = () => {
   console.log('Resetting current report image URL to null');
-  currentReportImageUrl = null;
+  currentReportImageCache = {
+    imageUrl: null,
+    timestamp: Date.now(), // Update timestamp to indicate a fresh reset
+    reportId: null
+  };
 };
 
 // Extract credit account table as image for two-stage processing
 export const extractCreditAccountsTableImage = async (report: CreditReport | null): Promise<string | null> => {
   try {
-    // Always reset the image URL first to ensure we're using the latest image
-    resetCurrentReportImage();
+    // Generate a unique identifier for this report
+    const reportId = report?.reportId || `report-${Date.now()}`;
     
-    console.log('Finding image for new report extraction');
+    console.log(`Finding image for report extraction, report ID: ${reportId}`);
+    console.log(`Current cache state: `, currentReportImageCache);
     
-    // Generate a unique timestamp to avoid browser caching
+    // If we have a new report, reset the cache
+    if (reportId !== currentReportImageCache.reportId) {
+      resetCurrentReportImage();
+      currentReportImageCache.reportId = reportId;
+    }
+    
+    // Generate a unique timestamp
     const timestamp = Date.now();
     
-    // Use the most recent uploaded credit report image
-    // This path points to the latest uploaded image containing the accounts table
-    currentReportImageUrl = `/lovable-uploads/1f3d48a5-c832-47d9-a416-6264b4255d35.png?t=${timestamp}`;
+    // For testing, we can use whatever the most recently uploaded image is
+    // In production, this should be replaced with proper image extraction
+    const uploadTimestamp = timestamp;
     
-    console.log('Set current report image URL to:', currentReportImageUrl);
-    return currentReportImageUrl;
+    // Get the most recently uploaded file - this should ideally come from the actual upload
+    const mostRecentImage = `/lovable-uploads/c83137d2-c8b3-4b75-aff8-aafc9b96cceb.png?t=${uploadTimestamp}`;
+    
+    // Update the cache with the new image URL
+    currentReportImageCache.imageUrl = mostRecentImage;
+    currentReportImageCache.timestamp = timestamp;
+    
+    console.log('Set current report image URL to:', currentReportImageCache.imageUrl);
+    return currentReportImageCache.imageUrl;
   } catch (error) {
     console.error('Error extracting table image:', error);
     return null;

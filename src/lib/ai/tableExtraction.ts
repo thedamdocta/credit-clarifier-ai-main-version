@@ -4,10 +4,10 @@ import { pipeline } from '@huggingface/transformers';
 import { toast } from "sonner";
 import { extractTableWithTesseract, convertTesseractTableToAppFormat } from './table';
 import { processImageWithEnhancedOCR } from './ocrExtraction';
-import { preprocessImageForOCR } from './table/imagePreprocessing';
+import { preprocessImageForOCR } from './imagePreprocessing';
 
 // Configuration parameters
-const USE_SIMULATION = true; // Set to true to use simulation for debugging
+const USE_SIMULATION = false; // Set to false to use real extraction
 
 /**
  * Two-stage extraction approach:
@@ -18,8 +18,12 @@ export async function extractTableFromImage(imageUrl: string) {
   try {
     console.log('Extracting table from image:', imageUrl);
     
+    // Generate a unique timestamp to avoid browser caching
+    const timestamp = Date.now();
+    const uniqueImageUrl = `${imageUrl}?t=${timestamp}`;
+    
     // Always use the original image directly - no preprocessing
-    const imageToProcess = imageUrl;
+    const imageToProcess = uniqueImageUrl;
     
     // Try multiple extraction methods in sequence
     let extractionResult = null;
@@ -51,80 +55,16 @@ export async function extractTableFromImage(imageUrl: string) {
       console.error('Text-based extraction failed:', textError);
     }
     
-    // Method 3: Use fallback data that accurately represents the current uploaded image
-    console.log('All extraction methods failed, using fallback data for current image');
-    toast.warning("Could not extract data from image - using example data matching your image");
+    // If all extraction methods fail, return null instead of hardcoded data
+    console.log('All extraction methods failed, returning null');
+    toast.error("Could not extract data from image - you may need to manually enter values");
     
-    // Use simulation data that matches the uploaded image (second image)
-    return getImageMatchingFallbackData();
+    return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
-    // Use fallback data when all else fails
-    return getImageMatchingFallbackData();
+    toast.error("Error processing the image");
+    return null;
   }
-}
-
-/**
- * Provide fallback data that exactly matches the second uploaded image
- * with original formatting preserved
- */
-function getImageMatchingFallbackData() {
-  // Return data that exactly matches the second image without calculations
-  return {
-    headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
-    rows: [
-      {
-        'Account Type': 'Revolving',
-        'Open': '10',
-        'With Balance': '9', 
-        'Total Balance': '$16,355',
-        'Available': '$8,345',
-        'Credit Limit': '$24,700',
-        'Debt-to-Credit': '66.0%',
-        'Payment': '$627'
-      },
-      {
-        'Account Type': 'Mortgage',
-        'Open': '',
-        'With Balance': '',
-        'Total Balance': '',
-        'Available': '',
-        'Credit Limit': '',
-        'Debt-to-Credit': '',
-        'Payment': ''
-      },
-      {
-        'Account Type': 'Installment',
-        'Open': '2',
-        'With Balance': '2',
-        'Total Balance': '$204,150',
-        'Available': '$15,455',
-        'Credit Limit': '$219,605',
-        'Debt-to-Credit': '93.0%',
-        'Payment': '$498'
-      },
-      {
-        'Account Type': 'Other',
-        'Open': '0',
-        'With Balance': '0',
-        'Total Balance': '$0',
-        'Available': '$0',
-        'Credit Limit': '$0',
-        'Debt-to-Credit': '0.0%',
-        'Payment': '$0'
-      },
-      {
-        'Account Type': 'Total',
-        'Open': '12',
-        'With Balance': '11',
-        'Total Balance': '$220,505',
-        'Available': '$23,800',
-        'Credit Limit': '$244,305',
-        'Debt-to-Credit': '66.0%',
-        'Payment': '$1,125'
-      }
-    ]
-  };
 }
 
 /**

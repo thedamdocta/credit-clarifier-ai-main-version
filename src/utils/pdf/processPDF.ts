@@ -24,6 +24,10 @@ export const processPDFDocument = async (
     // Reset any cached image data from previous uploads
     resetCurrentReportImage();
     
+    // Add a unique identifier to the file name to ensure uniqueness
+    const uniqueIdForFile = `${file.name}-${Date.now()}`;
+    console.log(`Processing PDF document with unique ID: ${uniqueIdForFile}`);
+    
     // Setup progress tracking
     const { 
       clearProgressTracking, 
@@ -50,8 +54,13 @@ export const processPDFDocument = async (
         const extractedText = await extractTextFromPDF(pdf);
         
         try {
-          // Parse the extracted text with a clean state
+          // Parse the extracted text with a clean state - ensure unique report ID
           const parsedReport = await parsePDFContent(extractedText, useAI);
+          
+          // Add unique timestamp to report to avoid caching issues
+          if (parsedReport) {
+            parsedReport.reportId = `${parsedReport.reportId || 'report'}-${Date.now()}`;
+          }
           
           completeProgressTracking();
           

@@ -18,9 +18,16 @@ export async function preprocessImageForOCR(imageUrl: string): Promise<string | 
       return null;
     }
     
+    // Add cache-busting parameter to ensure we get the latest version of the image
+    const cacheBustUrl = imageUrl.includes('?') ? 
+      `${imageUrl}&cacheBust=${Date.now()}` : 
+      `${imageUrl}?cacheBust=${Date.now()}`;
+    
+    console.log('Using cache-busted image URL:', cacheBustUrl);
+    
     // Return the original image URL without any modifications
-    // This ensures the OCR process sees the exact image as uploaded
-    return imageUrl;
+    // Just add a cache-busting parameter
+    return cacheBustUrl;
   } catch (error) {
     console.error('Error in image preprocessing:', error);
     return null;
@@ -35,17 +42,25 @@ export async function getImageDimensions(imageUrl: string): Promise<{width: numb
   try {
     return new Promise((resolve, reject) => {
       const img = new Image();
+      img.crossOrigin = "anonymous"; // Add cross-origin attribute for CORS issues
+      
       img.onload = () => {
         resolve({
           width: img.width,
           height: img.height
         });
       };
-      img.onerror = () => {
-        console.error('Failed to load image for dimension calculation');
+      img.onerror = (e) => {
+        console.error('Failed to load image for dimension calculation:', e);
         reject(null);
       };
-      img.src = imageUrl;
+      
+      // Add cache-busting parameter
+      const cacheBustUrl = imageUrl.includes('?') ? 
+        `${imageUrl}&cacheBust=${Date.now()}` : 
+        `${imageUrl}?cacheBust=${Date.now()}`;
+      
+      img.src = cacheBustUrl;
     });
   } catch (error) {
     console.error('Error getting image dimensions:', error);

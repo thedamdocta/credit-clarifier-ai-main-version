@@ -1,13 +1,13 @@
 
 import { pipeline } from '@huggingface/transformers';
-import { preprocessImageForOCR } from './table/imagePreprocessing';
+import { preprocessImageForOCR } from './imagePreprocessing';
 
 // Lazily loaded OCR pipeline
 let ocrPipelinePromise: Promise<any> | null = null;
 
 // Model configuration
 const OCR_MODEL = 'Xenova/trocr-base-handwritten';
-const USE_SIMULATION = true; // Set to false when ready to use actual model
+const USE_SIMULATION = true; // For development purposes only
 
 /**
  * Enhanced two-stage OCR processing:
@@ -25,9 +25,12 @@ export async function extractTextFromImageWithOCR(imageUrl: string): Promise<str
   try {
     console.log('Starting OCR on image:', imageUrl);
     
+    // Add a cache-busting parameter to ensure we're using the latest image
+    const cacheBustUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    
     // Stage 1: Preprocess the image for better OCR results
-    const processedImageUrl = await preprocessImageForOCR(imageUrl);
-    const imageToProcess = processedImageUrl || imageUrl;
+    const processedImageUrl = await preprocessImageForOCR(cacheBustUrl);
+    const imageToProcess = processedImageUrl || cacheBustUrl;
     
     // Initialize the OCR pipeline
     if (!ocrPipelinePromise) {
@@ -62,17 +65,20 @@ export async function processImageWithEnhancedOCR(imageUrl: string): Promise<str
   try {
     console.log('Starting enhanced OCR processing for', imageUrl);
     
+    // Add a timestamp to ensure we're using the latest image
+    const uniqueUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}unique=${Date.now()}`;
+    
     if (USE_SIMULATION) {
       await new Promise(resolve => setTimeout(resolve, 800)); // Simulate longer processing time
       return "Enhanced OCR simulation with improved table structure detection and character recognition.";
     }
     
     // Stage 1: Extract all text from the image
-    const basicText = await extractTextFromImageWithOCR(imageUrl);
+    const basicText = await extractTextFromImageWithOCR(uniqueUrl);
     if (!basicText) return null;
     
     // Stage 2: Apply template matching to organize text into structured format
-    const structuredText = await applyTemplateMatching(basicText, imageUrl);
+    const structuredText = await applyTemplateMatching(basicText, uniqueUrl);
     
     return structuredText;
   } catch (error) {
@@ -124,6 +130,9 @@ export async function extractTextFromImageRegion(
   // 3. Return the extracted text
   
   console.log(`Extracting text from region (${region.x}, ${region.y}, ${region.width}, ${region.height})`);
+  
+  // Add a timestamp to ensure we're using the latest image
+  const uniqueUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}unique=${Date.now()}`;
   
   // Simulation for development purposes
   if (USE_SIMULATION) {

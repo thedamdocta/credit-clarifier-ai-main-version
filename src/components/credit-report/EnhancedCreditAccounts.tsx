@@ -36,6 +36,8 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       const reportIdentifier = `${report.bureau || 'Unknown'}-${Date.now()}`;
       console.log('New report detected, resetting extraction state:', reportIdentifier);
       
+      // Reset states for new report
+      setAccountSummaries([]);
       setAttemptedExtraction(false);
       setExtractionFailed(false);
       
@@ -125,15 +127,21 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         } else {
           toast.error("Failed to extract valid account data");
           setExtractionFailed(true);
+          // Create empty account summaries with just the account types
+          createOrderedAccountSummaries([]);
         }
       } else {
         toast.error("Could not process table structure");
         setExtractionFailed(true);
+        // Create empty account summaries with just the account types
+        createOrderedAccountSummaries([]);
       }
     } catch (error) {
       console.error("Error during extraction:", error);
       toast.error("Data extraction failed");
       setExtractionFailed(true);
+      // Create empty account summaries with just the account types
+      createOrderedAccountSummaries([]);
     } finally {
       setIsProcessing(false);
     }

@@ -30,8 +30,13 @@ export function parseCurrencyValue(value: string | undefined): string | null {
   // Special handling for zero values
   if (value === '0') return '$0';
   
-  // Just return the original value as is
-  return value;
+  // Ensure the value has a dollar sign
+  if (value.startsWith('$')) {
+    return value;
+  } else {
+    // Add dollar sign if it doesn't have one
+    return `$${value}`;
+  }
 }
 
 /**
@@ -45,6 +50,11 @@ export function parsePercentageValue(value: string | undefined): string | null {
   // Special case for zero values
   if (value === '0' || value === '0%') return '0.0%';
   
-  // Just return the original value as is
-  return value;
+  // Ensure the value has a percentage sign
+  if (value.endsWith('%')) {
+    return value;
+  } else {
+    // Add percentage sign if it doesn't have one
+    return `${value}%`;
+  }
 }
