@@ -20,11 +20,14 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   const getProgressMessage = () => {
     if (progress < 10) return "Initializing PDF reader...";
     if (progress < 20) return "Reading PDF file...";
-    if (progress < 35) return "Processing PDF document...";
-    if (progress < 45) return "Extracting page images...";
-    if (progress < 60) return "Extracting text content...";
-    if (progress < 80) return "Analyzing credit data...";
-    if (progress < 95) return "Finalizing report extraction...";
+    if (progress < 30) return "Processing PDF document...";
+    if (progress < 40) return "Extracting page images...";
+    if (progress < 50) return "Reading document text...";
+    if (progress < 60) return "Processing text content...";
+    if (progress < 70) return "Analyzing document structure...";
+    if (progress < 80) return "Extracting credit data...";
+    if (progress < 90) return "Finalizing report extraction...";
+    if (progress < 100) return "Completing process...";
     return "PDF processed successfully!";
   };
 
@@ -42,7 +45,8 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
         {progress < 100 ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            <span>{getProgressMessage()} {Math.round(progress)}%</span>
+            <span>{getProgressMessage()}</span>
+            <span className="ml-1 text-xs font-mono">({Math.round(progress)}%)</span>
           </>
         ) : (
           <span>PDF processed successfully!</span>

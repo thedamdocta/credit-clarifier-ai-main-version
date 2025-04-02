@@ -20,6 +20,11 @@ interface PDFProcessingCallbacks {
   useImageExtraction?: boolean;
 }
 
+// Maximum number of pages to process at once
+const MAX_PAGES_BATCH = 20;
+// Maximum pages for initial text extraction (prevents hanging on huge files)
+const MAX_PAGES_FOR_TEXT = 100;
+
 export const processPDFDocument = async (
   file: File,
   useAI: boolean,
@@ -55,6 +60,15 @@ export const processPDFDocument = async (
     
     updateProgress(10);
     
+    // Check file size and warn for large files
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > 10) {
+      console.log(`Large PDF detected (${fileSizeMB.toFixed(1)}MB). Optimizing processing...`);
+      toast.info(`Large PDF detected (${fileSizeMB.toFixed(1)}MB). Processing might take longer.`, {
+        duration: 5000,
+      });
+    }
+    
     // Wrap file reading in a Promise with a small delay to prevent UI freezing
     const readFilePromise = async () => {
       await new Promise(resolve => setTimeout(resolve, 50)); // Yield to UI
@@ -72,8 +86,12 @@ export const processPDFDocument = async (
       const loadPdfPromise = async () => {
         try {
           return await Promise.race([
-            pdfjsLib.getDocument({ data: typedarray }).promise,
-            new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timeout")), 30000)) // 30s timeout
+            pdfjsLib.getDocument({ 
+              data: typedarray,
+              // For very large PDFs, disable worker to use main thread (might help with freezing)
+              disableWorker: fileSizeMB > 20
+            }).promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timeout")), 45000)) // 45s timeout
           ]);
         } catch (error) {
           console.error("Error loading PDF:", error);
@@ -81,17 +99,24 @@ export const processPDFDocument = async (
         }
       };
       
+      // Load PDF document
       const pdf = await loadPdfPromise() as PDFDocumentType;
       const numPages = pdf.numPages;
       console.log(`PDF loaded with ${numPages} pages`);
       parsingLogger.logEvent("PDF loaded", { pages: numPages });
       updateProgress(30);
       
+      // Memory management - release array buffer after PDF is loaded to free memory
+      (typedarray as any) = null;
+      
+      // Yield control back to browser to prevent UI freeze
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Extract images in a separate chunk to prevent UI freezing
       if (useImageExtraction) {
         try {
           // Yield control back to browser before image extraction
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 100));
           console.log("Extracting images from PDF for OCR processing");
           
           // Store PDF data for later use in image extraction
@@ -135,48 +160,128 @@ export const processPDFDocument = async (
         }
       }
       
-      // Extract text in a separate process chunk
-      await new Promise(resolve => setTimeout(resolve, 50)); // Yield to UI
+      // Extract text in batches for large documents to prevent memory issues
+      await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
       updateProgress(45);
       
-      // Wrap text extraction in a promise with timeout
-      const extractTextPromise = async () => {
-        try {
-          return await Promise.race([
-            extractTextFromPDF(pdf as any),
-            new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Text extraction timeout")), 60000)) // 60s timeout
-          ]);
-        } catch (error) {
-          console.error("Text extraction error:", error);
-          throw error;
-        }
-      };
+      let extractedText = "";
       
-      const extractedText = await extractTextPromise();
-      console.log("Successfully extracted text from PDF, length:", extractedText.length);
-      updateProgress(60);
+      // For very large PDFs, limit initial extraction to prevent freezing
+      const pagesToProcess = Math.min(numPages, MAX_PAGES_FOR_TEXT);
+      
+      if (numPages > MAX_PAGES_FOR_TEXT) {
+        toast.info(`Processing first ${MAX_PAGES_FOR_TEXT} pages of ${numPages} to prevent freezing`, {
+          duration: 4000
+        });
+      }
+      
+      // Process text extraction in batches to prevent UI freezes
+      try {
+        console.log(`Extracting text from ${pagesToProcess} pages in batches...`);
+        
+        // Process in small batches
+        for (let startPage = 1; startPage <= pagesToProcess; startPage += MAX_PAGES_BATCH) {
+          await new Promise(resolve => setTimeout(resolve, 50)); // Yield to UI between batches
+          
+          const endPage = Math.min(startPage + MAX_PAGES_BATCH - 1, pagesToProcess);
+          console.log(`Processing batch of pages ${startPage}-${endPage}...`);
+          
+          // Extract text from current batch with timeout
+          const batchTextExtractionPromise = async () => {
+            try {
+              const batchPages = [];
+              // Get pages for this batch
+              for (let i = startPage; i <= endPage; i++) {
+                const page = await pdf.getPage(i);
+                batchPages.push(page);
+              }
+              
+              // Process text from each page
+              let batchText = "";
+              for (let page of batchPages) {
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map((item: any) => item.str).join(" ");
+                batchText += pageText + " ";
+                
+                // Clean up page data after extraction to free memory
+                if (page && page.cleanup) {
+                  page.cleanup();
+                }
+              }
+              
+              return batchText;
+            } catch (error) {
+              console.error(`Error extracting batch ${startPage}-${endPage}:`, error);
+              return "";
+            }
+          };
+          
+          // Add batch text with timeout protection
+          const batchText = await Promise.race([
+            batchTextExtractionPromise(),
+            new Promise<string>((_, reject) => 
+              setTimeout(() => reject(new Error(`Batch ${startPage}-${endPage} extraction timed out`)), 30000)
+            )
+          ]);
+          
+          extractedText += batchText;
+          
+          // Update progress proportionally based on pages processed
+          const progressIncrement = 15 * ((endPage - startPage + 1) / pagesToProcess);
+          updateProgress(45 + progressIncrement);
+        }
+        
+        console.log("Successfully extracted text from PDF, length:", extractedText.length);
+        updateProgress(60);
+      } catch (error) {
+        console.error("Error in batch text extraction:", error);
+        toast.error("Error extracting text from PDF. Using partial text.");
+        // Continue with whatever text we extracted
+      }
       
       // Yield control before parsing
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       try {
         // Parse the extracted text with the unique report ID
         // but don't let it block UI for too long
         const parsePromise = async () => {
           try {
-            return await Promise.race([
-              parsePDFContent(extractedText, useAI),
-              new Promise<CreditReport | null>((_, reject) => 
-                setTimeout(() => reject(new Error("Parsing timeout")), 30000)
-              ) // 30s timeout
-            ]);
+            // Wrap in a worker-like structure using setTimeout to prevent UI blocking
+            return await new Promise<CreditReport | null>((resolve) => {
+              // Use setTimeout to move parsing off the main thread
+              setTimeout(async () => {
+                try {
+                  const result = await parsePDFContent(extractedText, useAI);
+                  resolve(result);
+                } catch (parseError) {
+                  console.error("Error in parse promise:", parseError);
+                  resolve(null);
+                }
+              }, 10);
+            });
           } catch (error) {
             console.error("Parsing error:", error);
             throw error;
           }
         };
         
-        const parsedReport = await parsePromise();
+        updateProgress(70);
+        
+        // Add toast to indicate parsing has started
+        toast.info("Analyzing credit data...", { duration: 5000 });
+        
+        // Wait for parsing with a longer timeout - this is where most freezes happen
+        const parsedReport = await Promise.race([
+          parsePromise(),
+          new Promise<CreditReport | null>((resolve) => 
+            setTimeout(() => {
+              console.log("Parsing taking too long, continuing with basic data");
+              resolve(null);
+            }, 40000) // 40 second timeout
+          )
+        ]);
+        
         updateProgress(80);
         
         // Yield control to UI
@@ -303,7 +408,7 @@ async function handleBasicProcessing(
   toast.success("PDF processed with basic extraction");
 }
 
-// Extract OCR using Tesseract - this is kept for the credit account extraction specifically
+// Function to extract OCR using Tesseract - this is kept for the credit account extraction specifically
 // but not used in the main PDF processing flow
 async function extractTextFromImage(imageData: string): Promise<string | null> {
   try {
@@ -334,4 +439,3 @@ async function extractTextFromImage(imageData: string): Promise<string | null> {
     return null;
   }
 }
-

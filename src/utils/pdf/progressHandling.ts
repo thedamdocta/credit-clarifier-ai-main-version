@@ -12,19 +12,28 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   
   // Function to update progress directly
   const updateProgress = (value: number) => {
-    setUploadProgress(value);
+    // Ensure value is within proper bounds
+    const safeValue = Math.max(0, Math.min(value, 100));
+    setUploadProgress(safeValue);
   };
   
   // Start progress interval for better UX - with less frequent updates to reduce UI load
   progressInterval = setInterval(() => {
     setUploadProgress((prev) => {
       // Only increment if not already complete and less aggressively
-      if (prev >= 95) return prev;
-      const increment = prev < 50 ? 2 : 1; // Slower increments as we progress
+      if (prev >= 90) return prev;
+      
+      // Slow down as we approach higher percentages to avoid false completion
+      let increment;
+      if (prev < 30) increment = 0.7;
+      else if (prev < 50) increment = 0.5;
+      else if (prev < 70) increment = 0.3;
+      else increment = 0.1;
+      
       const newProgress = prev + increment;
-      return newProgress > 95 ? 95 : newProgress;
+      return newProgress > 90 ? 90 : newProgress;
     });
-  }, 400); // Less frequent updates (400ms instead of 100ms)
+  }, 600); // Less frequent updates (600ms instead of 400ms)
   
   // Function to clear the progress interval
   const clearProgressTracking = () => {
@@ -42,7 +51,7 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
     // Reset progress after a delay
     setTimeout(() => {
       setUploadProgress(0);
-    }, 1500); // Give more time to see completion
+    }, 2000); // Give more time to see completion
   };
   
   // Function to handle errors in progress tracking
