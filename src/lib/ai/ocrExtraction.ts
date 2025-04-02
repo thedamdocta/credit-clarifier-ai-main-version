@@ -6,7 +6,7 @@ import { preprocessImageForOCR } from './imagePreprocessing';
 let ocrPipelinePromise: Promise<any> | null = null;
 
 // Model configuration
-const OCR_MODEL = 'Xenova/trocr-base-handwritten';
+const OCR_MODEL = 'microsoft/trocr-base-printed';
 const USE_SIMULATION = true; // For development purposes only
 
 /**
@@ -106,8 +106,17 @@ async function applyTemplateMatching(extractedText: string, imageUrl: string): P
   // If we found at least some of the expected row headers, we can try to extract the table
   if (revolving || mortgage || installment || total) {
     console.log('Found table structure indicators');
-    // In a real implementation, we would now extract columns of data
-    // by looking at spatial relationships in the original image
+    
+    // Special handling for the credit report table in the image
+    // Look for patterns like "Installment 2 2 $31,533 -$4,447 $27,086 116.0% $543"
+    const installmentPattern = /installment\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%)\s+\$?([\d,]+)/i;
+    const installmentMatch = extractedText.match(installmentPattern);
+    
+    if (installmentMatch) {
+      console.log('Found specific installment row pattern');
+      // In a real implementation, we would use this to enhance the extraction
+      // by storing these specific values
+    }
     
     return extractedText;
   }

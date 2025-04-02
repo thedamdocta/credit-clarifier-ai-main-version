@@ -1,43 +1,45 @@
 
-import { ExtractedTableData, FormattedTableData } from './types';
+import { ExtractedTableData, ExtractedTable, FormattedTableData } from './types';
 
 /**
- * Convert raw table data to the format expected by the application
+ * Format extracted table data for display
  */
-export function convertTesseractTableToAppFormat(tableData: ExtractedTableData): FormattedTableData {
-  // Map the detected headers to the expected application format
-  const headerMap: Record<string, string> = {
-    'account type': 'Account Type',
-    'open': 'Open',
-    'with balance': 'With Balance',
-    'total balance': 'Total Balance',
-    'available': 'Available',
-    'credit limit': 'Credit Limit',
-    'debt-to-credit': 'Debt-to-Credit',
-    'payment': 'Payment'
-  };
+export function formatTableData(tableData: ExtractedTableData): FormattedTableData {
+  if (!tableData || !tableData.headers || !tableData.rows) {
+    return { headers: [], rows: [] };
+  }
   
-  // Normalize headers
-  const normalizedHeaders = tableData.headers.map(header => {
-    const lowerHeader = header.toLowerCase();
-    for (const [key, value] of Object.entries(headerMap)) {
-      if (lowerHeader.includes(key)) return value;
-    }
-    return header;
-  });
-  
-  // Convert rows to objects with header keys
+  const headers = tableData.headers.map(header => header.trim());
   const rows = tableData.rows.map(row => {
-    const rowObj: Record<string, string> = {};
-    row.forEach((cell, index) => {
-      const header = normalizedHeaders[index] || `Column${index}`;
-      rowObj[header] = cell;
+    const rowObject: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      rowObject[header] = row[index]?.trim() || '';
     });
-    return rowObj;
+    return rowObject;
   });
   
-  return {
-    headers: normalizedHeaders,
-    rows
-  };
+  return { headers, rows };
+}
+
+/**
+ * Convert table data to CSV format
+ */
+export function tableToCSV(tableData: ExtractedTableData): string {
+  if (!tableData || !tableData.headers || !tableData.rows) {
+    return '';
+  }
+  
+  const headers = tableData.headers.join(',');
+  const rows = tableData.rows.map(row => row.join(','));
+  return [headers, ...rows].join('\n');
+}
+
+/**
+ * Format table data for display in a specific format
+ */
+export function formatTableForDisplay(tableData: ExtractedTable): FormattedTableData {
+  const headers = tableData.headers;
+  const rows = tableData.rows;
+  
+  return { headers, rows: rows.map(row => ({ ...row })) };
 }
