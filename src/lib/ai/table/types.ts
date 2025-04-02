@@ -1,20 +1,28 @@
 
 /**
- * Types related to table extraction functionality
+ * Types for table extraction functionality
  */
 
-// Interface for structured table data
 export interface ExtractedTableData {
   headers: string[];
   rows: string[][];
-  confidence: number;
-  text?: string; // Store the raw OCR text to help with pattern matching
-  imageUrl?: string; // Store the source image URL for debugging
+  confidence?: number;
+  text?: string;
+  imageUrl?: string;
 }
 
-// Interface for formatted table data ready for use in the app
-export interface FormattedTableData {
+/**
+ * Structure for a processed table row
+ */
+export interface TableRow {
+  [column: string]: string;
+}
+
+/**
+ * Complete table structure with headers and rows
+ */
+export interface ExtractedTable {
   headers: string[];
-  rows: Record<string, string>[];
-  imageUrl?: string; // Add image URL to formatted data as well
+  rows: TableRow[];
+  imageUrl?: string;
 }
