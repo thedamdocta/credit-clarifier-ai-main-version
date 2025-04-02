@@ -5,6 +5,13 @@ import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
 import { convertPDFPageToImage } from "./pdfToImage";
 import { parsingLogger } from "@/utils/parsingLogger";
+import { CreditReport } from "@/lib/types/creditReport";
+
+// Define PDF document type based on PDF.js types
+interface PDFDocumentType {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<any>;
+}
 
 interface PDFProcessingCallbacks {
   setCurrentFile: (file: File) => void;
@@ -74,7 +81,7 @@ export const processPDFDocument = async (
         }
       };
       
-      const pdf = await loadPdfPromise();
+      const pdf = await loadPdfPromise() as PDFDocumentType;
       const numPages = pdf.numPages;
       console.log(`PDF loaded with ${numPages} pages`);
       parsingLogger.logEvent("PDF loaded", { pages: numPages });
@@ -98,7 +105,7 @@ export const processPDFDocument = async (
             try {
               return await Promise.race([
                 convertPDFPageToImage(pdf, 1),
-                new Promise(resolve => setTimeout(() => {
+                new Promise<string | null>(resolve => setTimeout(() => {
                   console.log("Image extraction taking too long, continuing process");
                   resolve(null);
                 }, 10000)) // 10s timeout for image extraction
@@ -136,8 +143,8 @@ export const processPDFDocument = async (
       const extractTextPromise = async () => {
         try {
           return await Promise.race([
-            extractTextFromPDF(pdf),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Text extraction timeout")), 60000)) // 60s timeout
+            extractTextFromPDF(pdf as any),
+            new Promise<string>((_, reject) => setTimeout(() => reject(new Error("Text extraction timeout")), 60000)) // 60s timeout
           ]);
         } catch (error) {
           console.error("Text extraction error:", error);
@@ -159,7 +166,9 @@ export const processPDFDocument = async (
           try {
             return await Promise.race([
               parsePDFContent(extractedText, useAI),
-              new Promise((_, reject) => setTimeout(() => reject(new Error("Parsing timeout")), 30000)) // 30s timeout
+              new Promise<CreditReport | null>((_, reject) => 
+                setTimeout(() => reject(new Error("Parsing timeout")), 30000)
+              ) // 30s timeout
             ]);
           } catch (error) {
             console.error("Parsing error:", error);
@@ -266,7 +275,7 @@ async function handleBasicProcessing(
   // Add small delay to prevent UI freezing
   await new Promise(resolve => setTimeout(resolve, 50));
   
-  const basicReport = { 
+  const basicReport: CreditReport = { 
     reportId: reportId,
     fileName: file.name,
     rawText: extractedText,
@@ -325,3 +334,4 @@ async function extractTextFromImage(imageData: string): Promise<string | null> {
     return null;
   }
 }
+

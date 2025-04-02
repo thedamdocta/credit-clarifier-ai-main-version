@@ -1,14 +1,11 @@
 
-// Global type extensions for the application
-
+// Global type definitions
 interface Window {
-  currentPdf: any;
-  currentPdfPageImages: string[];
+  currentPdf?: any;
+  currentPdfPageImages?: string[];
   currentPdfData?: {
     reportId: string;
     fileName: string;
     extractedText: string;
   };
 }
-
-// Add any other global type extensions here
