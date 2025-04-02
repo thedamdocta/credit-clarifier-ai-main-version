@@ -384,6 +384,67 @@ async function extractTextFromTable(imageUrl: string): Promise<string | null> {
 /**
  * Convert extracted table data to AccountSummary objects
  * Enhanced to better handle the specific data formats in credit reports
+ * Now with AI-powered cell processing capability
+ */
+export async function convertTableToAccountSummariesWithAI(tableData: any): Promise<AccountSummary[]> {
+  const summaries: AccountSummary[] = [];
+  
+  if (!tableData || !tableData.rows || tableData.rows.length === 0) {
+    return summaries;
+  }
+  
+  // Import the AI integration functions
+  const { enhanceTableWithAI } = await import('./table/aiTableIntegration');
+  
+  try {
+    // First enhance the entire table with AI
+    console.log('Enhancing table data with AI before conversion to account summaries...');
+    const enhancedTableData = await enhanceTableWithAI(tableData);
+    
+    // Now process each row in the enhanced table
+    for (const row of enhancedTableData.rows) {
+      // Extract account type
+      const accountType = row['Account Type'];
+      if (!accountType) continue;
+      
+      // Use parseCellValueWithAI for better accuracy
+      const { parseCellValueWithAI } = await import('./table/valueParser');
+      
+      // Create an account summary object with all required properties
+      const summary: AccountSummary = {
+        accountType: accountType,
+        totalAccounts: null,
+        open: await parseCellValueWithAI(row['Open'], 'numeric', 'Open'),
+        closed: null,
+        balance: null,
+        withBalance: await parseCellValueWithAI(row['With Balance'], 'numeric', 'With Balance'),
+        totalBalance: await parseCellValueWithAI(row['Total Balance'], 'currency', 'Total Balance'),
+        available: await parseCellValueWithAI(row['Available'], 'currency', 'Available'),
+        creditLimit: await parseCellValueWithAI(row['Credit Limit'], 'currency', 'Credit Limit'),
+        debtToCredit: await parseCellValueWithAI(row['Debt-to-Credit'], 'percentage', 'Debt-to-Credit'),
+        payment: await parseCellValueWithAI(row['Payment'], 'currency', 'Payment')
+      };
+      
+      // Special handling for Total row remains the same
+      if (accountType.toLowerCase() === 'total') {
+        console.log('Processing Total row with AI enhancement:', row);
+      }
+      
+      summaries.push(summary);
+    }
+    
+    return summaries;
+  } catch (error) {
+    console.error('Error in AI-enhanced conversion:', error);
+    
+    // Fall back to the original synchronous method
+    return convertTableToAccountSummaries(tableData);
+  }
+}
+
+/**
+ * Convert extracted table data to AccountSummary objects
+ * Enhanced to better handle the specific data formats in credit reports
  */
 export function convertTableToAccountSummaries(tableData: any): AccountSummary[] {
   const summaries: AccountSummary[] = [];

@@ -1,8 +1,9 @@
-
 /**
  * Value parsing utilities for extracted table data
  * These functions help convert raw OCR text into properly formatted values
+ * Enhanced with AI-powered cell processing capabilities
  */
+import { processTableCellWithAI, CellType } from './aiCellProcessor';
 
 /**
  * Parse a numeric value from OCR text
@@ -194,8 +195,40 @@ export function parsePercentageValue(value: string | null): string | null {
 }
 
 /**
- * Enhanced cell-specific value parser that combines type detection with parsing
+ * Enhanced cell-specific value parser that combines type detection with parsing and AI
  * This helps with accurate extraction based on both column type and content patterns
+ * With optional AI enhancement for difficult cells
+ */
+export async function parseCellValueWithAI(
+  value: string | null, 
+  columnType: CellType, 
+  columnName: string
+): Promise<string | null> {
+  if (value === null || value === undefined || value === '') return null;
+  
+  try {
+    // Use AI to process the cell
+    const aiResult = await processTableCellWithAI(value, columnType, columnName);
+    
+    // If AI processing was successful and has good confidence, use the AI result
+    if (aiResult.processed && aiResult.confidence > 0.7 && aiResult.value) {
+      console.log(`AI processed cell [${columnName}] from "${value}" to "${aiResult.value}" with confidence ${aiResult.confidence}`);
+      return aiResult.value;
+    }
+    
+    // Otherwise fall back to rule-based parsing
+    console.log(`Falling back to rule-based parsing for [${columnName}] with value "${value}"`);
+    return parseCellValue(value, columnType);
+  } catch (error) {
+    console.error('Error in AI-enhanced cell parsing:', error);
+    // Fallback to traditional rule-based parsing
+    return parseCellValue(value, columnType);
+  }
+}
+
+/**
+ * Synchronous cell-specific value parser (no AI)
+ * This function uses regex and rules to parse cell values
  */
 export function parseCellValue(value: string | null, columnType: 'numeric' | 'currency' | 'percentage' | 'text'): string | null {
   if (value === null || value === undefined || value === '') return null;
