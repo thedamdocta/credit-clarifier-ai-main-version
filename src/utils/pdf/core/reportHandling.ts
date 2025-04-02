@@ -38,6 +38,7 @@ export const processExtractedText = async (
     const parsedReport: CreditReport = {
       reportId: uniqueReportId,
       bureau: "Unknown",
+      reportDate: new Date().toLocaleDateString(), // Adding the required reportDate property
       personalInfo: {
         name: "Unknown",
         addresses: ["Unknown"],
