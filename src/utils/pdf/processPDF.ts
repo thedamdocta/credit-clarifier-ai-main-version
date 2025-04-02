@@ -18,7 +18,7 @@ export const processPDFDocument = async (
   useAI: boolean,
   callbacks: PDFProcessingCallbacks
 ) => {
-  const { setCurrentFile, onPDFUploaded, useImageExtraction = true } = callbacks; // Enable image extraction by default
+  const { setCurrentFile, onPDFUploaded, useImageExtraction = true } = callbacks;
   
   try {
     setCurrentFile(file);
@@ -37,115 +37,129 @@ export const processPDFDocument = async (
       updateProgress
     } = setupProgressTracking(callbacks);
     
-    // Load the PDF.js library dynamically
+    // Load the PDF.js library dynamically with a small delay to allow UI to update
+    await new Promise(resolve => setTimeout(resolve, 50));
+    updateProgress(5);
+    
     const pdfjsLib = await import("pdfjs-dist");
     pdfjsLib.GlobalWorkerOptions.workerSrc = 
       `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     
-    // Read the PDF file
-    const fileReader = new FileReader();
+    updateProgress(10);
     
-    fileReader.onload = async function() {
-      const typedarray = new Uint8Array(this.result as ArrayBuffer);
+    // Read the PDF file
+    const typedarray = await readFileAsArrayBuffer(file);
+    updateProgress(20);
+    
+    try {
+      // Load the PDF document with a small delay to prevent UI blocking
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+      const numPages = pdf.numPages;
+      console.log(`PDF loaded with ${numPages} pages`);
+      parsingLogger.logEvent("PDF loaded", { pages: numPages });
+      updateProgress(30);
+      
+      // Extract images if enabled (for later OCR processing)
+      if (useImageExtraction) {
+        try {
+          // Add small delay to allow UI to update
+          await new Promise(resolve => setTimeout(resolve, 50));
+          console.log("Extracting images from PDF for OCR processing");
+          // Store PDF data for later use in image extraction
+          window.currentPdf = pdf;
+          
+          // Try to convert the first page to an image for better extraction
+          updateProgress(35);
+          const firstPageImage = await convertPDFPageToImage(pdf, 1);
+          updateProgress(40);
+          
+          if (firstPageImage) {
+            console.log("Successfully extracted first page as image");
+            parsingLogger.logEvent("PDF first page extracted as image", { 
+              imageLength: firstPageImage.length,
+              preview: firstPageImage.substring(0, 50) + '...'
+            });
+            
+            // Store image data for later use
+            window.currentPdfPageImages = [firstPageImage];
+          }
+        } catch (error) {
+          console.error("Error extracting images from PDF:", error);
+        }
+      }
+      
+      // Add small delay to allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+      updateProgress(45);
+      
+      // Use standard text extraction for the main content
+      const extractedText = await extractTextFromPDF(pdf);
+      console.log("Successfully extracted text from PDF, length:", extractedText.length);
+      updateProgress(60);
+      
+      // Add small delay to allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       try {
-        // Load the PDF document
-        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-        const numPages = pdf.numPages;
-        console.log(`PDF loaded with ${numPages} pages`);
-        parsingLogger.logEvent("PDF loaded", { pages: numPages });
-        updateProgress(10);
+        // Parse the extracted text with the unique report ID
+        const parsedReport = await parsePDFContent(extractedText, useAI);
+        updateProgress(80);
         
-        // Extract images if enabled (for later OCR processing)
-        if (useImageExtraction) {
-          try {
-            console.log("Extracting images from PDF for OCR processing");
-            // Store PDF data for later use in image extraction
-            window.currentPdf = pdf;
-            
-            // Try to convert the first page to an image for better extraction
-            const firstPageImage = await convertPDFPageToImage(pdf, 1);
-            if (firstPageImage) {
-              console.log("Successfully extracted first page as image");
-              parsingLogger.logEvent("PDF first page extracted as image", { 
-                imageLength: firstPageImage.length,
-                preview: firstPageImage.substring(0, 50) + '...'
-              });
-              
-              // Store image data for later use
-              window.currentPdfPageImages = [firstPageImage];
-            }
-          } catch (error) {
-            console.error("Error extracting images from PDF:", error);
-          }
-        }
+        // Add small delay to allow UI to update
+        await new Promise(resolve => setTimeout(resolve, 50));
         
-        // Use standard text extraction for the main content
-        const extractedText = await extractTextFromPDF(pdf);
-        console.log("Successfully extracted text from PDF, length:", extractedText.length);
-        updateProgress(60);
-        
-        try {
-          // Parse the extracted text with the unique report ID
-          const parsedReport = await parsePDFContent(extractedText, useAI);
+        // Ensure the report has a unique ID and filename
+        if (parsedReport) {
+          parsedReport.reportId = uniqueReportId;
+          parsedReport.fileName = file.name;
+          parsedReport.rawText = extractedText; // Store the raw text for later use
           
-          // Ensure the report has a unique ID and filename
-          if (parsedReport) {
-            parsedReport.reportId = uniqueReportId;
-            parsedReport.fileName = file.name;
-            parsedReport.rawText = extractedText; // Store the raw text for later use
-            
-            // Store this parsed data in our cache to prevent overriding with sample data
-            setExtractedReportData(parsedReport);
-            
-            // Create a global reference to this PDF for better extraction
-            window.currentPdfData = {
-              reportId: uniqueReportId,
-              fileName: file.name,
-              extractedText: extractedText.substring(0, 1000) // Store preview
-            };
-            
-            // Make sure state is updated before completing processing
-            setTimeout(() => {
-              completeProgressTracking();
-              
-              // Pass the extracted text, file, and parsed report to the parent component
-              onPDFUploaded(file, extractedText, parsedReport);
-              
-              toast.success("PDF successfully processed!");
-              parsingLogger.logEvent("PDF processing complete", { 
-                reportId: uniqueReportId,
-                bureau: parsedReport.bureau,
-                accountSummaries: parsedReport.accountSummaries ? parsedReport.accountSummaries.length : 0
-              });
-            }, 500);
-          } else {
-            handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
-            completeProgressTracking();
-          }
+          // Store this parsed data in our cache to prevent overriding with sample data
+          setExtractedReportData(parsedReport);
           
-        } catch (error) {
-          console.error("Error parsing PDF content:", error);
-          parsingLogger.logEvent("PDF parsing error", { error: String(error) });
-          // Fall back to basic processing
-          handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+          // Create a global reference to this PDF for better extraction
+          window.currentPdfData = {
+            reportId: uniqueReportId,
+            fileName: file.name,
+            extractedText: extractedText.substring(0, 1000) // Store preview
+          };
+          
+          // Make sure state is updated before completing processing
+          await new Promise(resolve => setTimeout(resolve, 50));
+          updateProgress(90);
+          
+          // Complete processing
+          completeProgressTracking();
+          
+          // Pass the extracted text, file, and parsed report to the parent component
+          onPDFUploaded(file, extractedText, parsedReport);
+          
+          toast.success("PDF successfully processed!");
+          parsingLogger.logEvent("PDF processing complete", { 
+            reportId: uniqueReportId,
+            bureau: parsedReport.bureau,
+            accountSummaries: parsedReport.accountSummaries ? parsedReport.accountSummaries.length : 0
+          });
+        } else {
+          await handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
           completeProgressTracking();
         }
         
       } catch (error) {
-        console.error("Error processing PDF:", error);
-        parsingLogger.logEvent("PDF processing error", { error: String(error) });
-        toast.error("Failed to process PDF. Please try another file.");
-        clearProgressTracking();
+        console.error("Error parsing PDF content:", error);
+        parsingLogger.logEvent("PDF parsing error", { error: String(error) });
+        // Fall back to basic processing
+        await handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+        completeProgressTracking();
       }
-    };
-
-    fileReader.onerror = () => {
-      toast.error("Error reading the file.");
-      handleProgressError("File reader error");
-    };
-
-    fileReader.readAsArrayBuffer(file);
+      
+    } catch (error) {
+      console.error("Error processing PDF:", error);
+      parsingLogger.logEvent("PDF processing error", { error: String(error) });
+      toast.error("Failed to process PDF. Please try another file.");
+      clearProgressTracking();
+    }
   } catch (error) {
     console.error("Error in PDF processing:", error);
     parsingLogger.logEvent("PDF processing error", { error: String(error) });
@@ -153,6 +167,61 @@ export const processPDFDocument = async (
     callbacks.setUploadProgress(0);
   }
 };
+
+// Helper function to read file as ArrayBuffer with Promise
+async function readFileAsArrayBuffer(file: File): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader();
+    
+    fileReader.onload = function() {
+      resolve(new Uint8Array(this.result as ArrayBuffer));
+    };
+    
+    fileReader.onerror = () => {
+      reject(new Error("Error reading the file."));
+    };
+    
+    fileReader.readAsArrayBuffer(file);
+  });
+}
+
+// Extract basic processing into a separate function for better readability
+async function handleBasicProcessing(
+  reportId: string, 
+  file: File, 
+  extractedText: string, 
+  onPDFUploaded: (file: File, text: string, parsedReport?: any) => void
+) {
+  // Add small delay to prevent UI freezing
+  await new Promise(resolve => setTimeout(resolve, 50));
+  
+  const basicReport = { 
+    reportId: reportId,
+    fileName: file.name,
+    rawText: extractedText,
+    bureau: 'Unknown' as const,
+    reportDate: new Date().toISOString().split('T')[0],
+    personalInfo: { name: 'Unknown', addresses: [] },
+    accounts: [],
+    inquiries: [],
+    publicRecords: [],
+    collections: [],
+    creditScores: []
+  };
+  
+  // Store in global for easier access
+  window.currentPdfData = {
+    reportId: reportId,
+    fileName: file.name,
+    extractedText: extractedText.substring(0, 1000)
+  };
+  
+  // Store this parsed data in our cache
+  setExtractedReportData(basicReport);
+  
+  onPDFUploaded(file, extractedText, basicReport);
+  toast.success("PDF processed with basic extraction");
+}
 
 // Extract OCR using Tesseract - this is kept for the credit account extraction specifically
 // but not used in the main PDF processing flow
@@ -184,34 +253,4 @@ async function extractTextFromImage(imageData: string): Promise<string | null> {
     console.error("OCR extraction error:", error);
     return null;
   }
-}
-
-// Extract basic processing into a separate function for better readability
-function handleBasicProcessing(reportId: string, file: File, extractedText: string, onPDFUploaded: (file: File, text: string, parsedReport?: any) => void) {
-  const basicReport = { 
-    reportId: reportId,
-    fileName: file.name,
-    rawText: extractedText,
-    bureau: 'Unknown' as const,
-    reportDate: new Date().toISOString().split('T')[0],
-    personalInfo: { name: 'Unknown', addresses: [] },
-    accounts: [],
-    inquiries: [],
-    publicRecords: [],
-    collections: [],
-    creditScores: []
-  };
-  
-  // Store in global for easier access
-  window.currentPdfData = {
-    reportId: reportId,
-    fileName: file.name,
-    extractedText: extractedText.substring(0, 1000)
-  };
-  
-  // Store this parsed data in our cache
-  setExtractedReportData(basicReport);
-  
-  onPDFUploaded(file, extractedText, basicReport);
-  toast.success("PDF processed with basic extraction");
 }

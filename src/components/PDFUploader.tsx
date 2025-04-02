@@ -10,11 +10,12 @@ interface PDFUploaderProps {
   isProcessing: boolean;
 }
 
-const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }) => {
+const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: parentIsProcessing }) => {
   const {
     isDragging,
     uploadProgress,
     currentFile,
+    isProcessing: localIsProcessing,
     fileInputRef,
     handleDragOver,
     handleDragLeave,
@@ -23,16 +24,20 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
     triggerFileInput
   } = usePDFUpload({ 
     onPDFUploaded, 
-    useAI: true, // Enable AI-powered extraction
-    useImageExtraction: true // Explicitly enable image extraction
+    useAI: true,
+    useImageExtraction: true
   });
+  
+  // Combine both processing states
+  const combinedIsProcessing = parentIsProcessing || localIsProcessing;
 
   return (
     <div className="w-full max-w-3xl mx-auto">
       <div
         className={cn(
-          "pdf-drop-area flex flex-col items-center justify-center",
-          isDragging && "active"
+          "pdf-drop-area flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg",
+          isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300",
+          combinedIsProcessing && "opacity-50 cursor-not-allowed"
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -44,7 +49,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
           onChange={handleFileInputChange}
           accept=".pdf"
           className="hidden"
-          disabled={isProcessing}
+          disabled={combinedIsProcessing}
         />
         
         {currentFile && uploadProgress > 0 ? (
@@ -55,7 +60,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
         ) : (
           <PDFUploadPlaceholder 
             triggerFileInput={triggerFileInput} 
-            isProcessing={isProcessing}
+            isProcessing={combinedIsProcessing}
           />
         )}
       </div>
