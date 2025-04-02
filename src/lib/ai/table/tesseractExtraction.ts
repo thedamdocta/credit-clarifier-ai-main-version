@@ -1,3 +1,4 @@
+
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
@@ -54,15 +55,15 @@ export async function extractTableWithTesseract(
     await worker.initialize('eng');
     
     // Set page segmentation mode to detect tables and organized text
+    // Only use supported parameters in Tesseract.js v4
     await worker.setParameters({
       tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Auto detect orientation and script detection
       preserve_interword_spaces: '1', // Preserve spaces between words
       tessjs_create_hocr: '1', // Create HOCR output for better structure understanding
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy
-      tessedit_write_images: '1', // Write images to output to help with debugging
-      tessedit_ocr_engine_mode: '3', // Use LSTM neural network mode for better accuracy
       textord_tabfind_find_tables: '1', // Enable table finding logic
       textord_tablefind_recognize_tables: '1', // Enable table recognition
+      tessedit_ocr_engine_mode: '3', // Use LSTM neural network mode for better accuracy
     });
     
     // Try both URL and Image object for best compatibility
@@ -123,6 +124,7 @@ export async function extractTableWithTesseract(
     if (tableData) {
       tableData.matchScore = tableScore;
       tableData.isTargetTable = isLikelyTargetTable;
+      tableData.text = result.data.text; // Add the recognized text for reference
     }
     
     await worker.terminate();

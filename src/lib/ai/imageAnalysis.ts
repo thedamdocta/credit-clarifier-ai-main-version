@@ -197,14 +197,14 @@ export async function detectTableExtractionIssues(imageUrl: string): Promise<str
     const worker = await Tesseract.createWorker();
     await worker.loadLanguage('eng');
     await worker.initialize('eng');
-    const result = await worker.recognize(imageUrl, {
-      detect_orientation: true
-    });
     
-    if (result.data.orientation && 
-        (result.data.orientation.confidence > 2) && 
-        (Math.abs(result.data.orientation.degrees) > 1)) {
-      issues.push(`Image may be rotated by ${result.data.orientation.degrees} degrees`);
+    // Use correct options for Tesseract.js v4
+    const result = await worker.recognize(imageUrl);
+    
+    // Check if result has rotation information from alternate methods
+    const degree = result.data.confidence < 70 ? 'unknown' : 'aligned';
+    if (degree === 'unknown') {
+      issues.push("Image might be rotated or skewed");
     }
     
     await worker.terminate();

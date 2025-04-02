@@ -1,3 +1,4 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
@@ -62,6 +63,7 @@ export async function extractTableFromImage(
       console.log('Successfully extracted table with Tesseract:', extractedTable);
       
       // Check specifically if the text contains credit account table keywords
+      // Ensure we handle cases where text might be undefined
       const textLower = extractedTable.text ? extractedTable.text.toLowerCase() : '';
       const hasTableKeywords = 
         (textLower.includes('revolving') || textLower.includes('mortgage') || textLower.includes('installment')) && 

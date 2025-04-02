@@ -10,6 +10,7 @@ export interface ExtractedTableData {
   confidence: number;
   matchScore?: number;
   isTargetTable?: boolean;
+  text?: string; // Add text property that's being referenced
 }
 
 // Interface for formatted table data ready for use in the app
@@ -18,4 +19,3 @@ export interface FormattedTableData {
   rows: Record<string, string>[];
   matchScore?: number;
 }
-

@@ -17,7 +17,7 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     
     // Calculate desired dimensions (higher resolution for better OCR)
     // Use an even higher scale factor for better quality
-    const scale = 3.5; // Increased from 3.0 for better detail
+    const scale = 4.0; // Increased from 3.5 for even better detail
     const viewport = page.getViewport({ scale: scale });
     
     // Create a canvas element
@@ -52,8 +52,8 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     await page.render(renderContext).promise;
     console.log(`Rendered page ${pageNum} to canvas with dimensions ${canvas.width}x${canvas.height}`);
     
-    // Apply image enhancement for better OCR before converting to data URL
-    applyImageEnhancement(context, canvas.width, canvas.height);
+    // Apply enhanced image processing for better OCR
+    enhanceImageForOCR(context, canvas.width, canvas.height);
     
     // Convert the canvas to a data URL (PNG format for better quality)
     const imageData = canvas.toDataURL('image/png', 1.0);
@@ -75,7 +75,7 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
  * @param width Width of the image
  * @param height Height of the image
  */
-function applyImageEnhancement(
+function enhanceImageForOCR(
   context: CanvasRenderingContext2D, 
   width: number, 
   height: number
@@ -85,18 +85,24 @@ function applyImageEnhancement(
     const imageData = context.getImageData(0, 0, width, height);
     const data = imageData.data;
     
-    // Enhance contrast for better OCR readability
+    // Enhance contrast and apply adaptive thresholding for better OCR readability
     for (let i = 0; i < data.length; i += 4) {
       // Calculate grayscale value
       const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
       
-      // Apply threshold to increase contrast
-      // This makes the text more distinct from the background
-      let value = avg > 180 ? 255 : avg < 100 ? 0 : avg;
-      
-      // For values in the middle range, enhance contrast
-      if (value > 0 && value < 255) {
-        value = Math.min(255, value * 1.2); // Boost mid-tones
+      // Apply thresholding specifically optimized for text and numbers
+      // This makes text and numbers more distinct from the background
+      let value;
+      if (avg > 180) {
+        // Definitely background - make it pure white
+        value = 255;
+      } else if (avg < 120) {
+        // Definitely text/numbers - make it pure black
+        value = 0;
+      } else {
+        // For the middle range values, enhance contrast even more
+        // for better table structure detection
+        value = avg < 150 ? 0 : 255;
       }
       
       // Apply the new value to RGB channels
@@ -109,7 +115,7 @@ function applyImageEnhancement(
     // Put the modified data back
     context.putImageData(imageData, 0, 0);
     
-    console.log("Applied image enhancement for better OCR");
+    console.log("Applied enhanced image processing for better OCR");
   } catch (error) {
     console.error("Error applying image enhancement:", error);
     // Continue with original image if enhancement fails
@@ -161,6 +167,9 @@ export async function extractRegionFromPDFPage(
       region.x, region.y, region.width, region.height,
       0, 0, region.width, region.height
     );
+    
+    // Apply additional enhancement for the specific region
+    enhanceImageForOCR(ctx, canvas.width, canvas.height);
     
     // Convert the region to a data URL
     return canvas.toDataURL('image/png', 1.0);
