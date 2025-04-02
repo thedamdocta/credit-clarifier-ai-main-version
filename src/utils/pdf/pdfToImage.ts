@@ -1,6 +1,4 @@
 
-import { parsingLogger } from "@/utils/parsingLogger";
-
 /**
  * Utility for converting PDF pages to images for better text extraction
  * Used specifically for the credit account table extraction
@@ -20,7 +18,7 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     const page = await pdf.getPage(pageNum);
     
     // Calculate desired dimensions (higher resolution for better OCR)
-    const viewport = page.getViewport({ scale: 4.0 }); // Increased scale for better detail and text clarity
+    const viewport = page.getViewport({ scale: 3.0 }); // Increased scale for better detail and text clarity
     
     // Create a canvas element
     const canvas = document.createElement('canvas');
@@ -39,9 +37,6 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     context.fillStyle = 'white';
     context.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Enhance the settings for better text extraction
-    context.imageSmoothingEnabled = false; // Sharper text edges
-    
     // Render the PDF page to the canvas with enhanced settings
     const renderContext = {
       canvasContext: context,
@@ -57,10 +52,6 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     // Using PNG for lossless quality which is better for OCR
     const imageData = canvas.toDataURL('image/png', 1.0); // Use maximum quality
     console.log(`Successfully converted page ${pageNum} to image, data URL length: ${imageData.length}`);
-    
-    // Log the extracted image for debugging
-    parsingLogger.logEvent('table_image_extracted', { imageUrlLength: imageData.length });
-    
     return imageData;
   } catch (error) {
     console.error(`Error converting page ${pageNum} to image:`, error);

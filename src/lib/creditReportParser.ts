@@ -13,14 +13,13 @@ import { parsingLogger } from '@/utils/parsingLogger';
 export * from './types/creditReport';
 
 export const parseCreditReport = async (text: string, useAIFirst = true): Promise<CreditReport> => {
-  // Generate a unique ID for this parsing operation
-  const reportId = `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  parsingLogger.logEvent('parsing_started', { reportId, textLength: text.length });
+  const reportId = parsingLogger.startParsing();
+  parsingLogger.logTextExtraction(text.length);
   
   try {
     // Identify bureau first to determine parsing approach
     const bureau = identifyBureau(text);
-    parsingLogger.logEvent('bureau_identification', { bureau, method: 'traditional' });
+    parsingLogger.logBureauIdentification(bureau, 'traditional');
     console.log(`Identified bureau: ${bureau}`);
     
     // If AI-first approach is enabled, try that first
@@ -33,31 +32,23 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
         
         // Get focused summary extraction
         const summaryData = await extractReportSummaryWithAI(text);
-        parsingLogger.logEvent('summary_extraction', { 
-          success: true,
+        parsingLogger.logSummaryExtraction(true, { 
           fieldsExtracted: Object.keys(summaryData).length 
         });
         
         // Extract personal information using AI
         const personalInfo = aiResults.personalInfo || await extractPersonalInfo(text);
-        parsingLogger.logEvent('personal_info_extraction', {
-          success: true,
+        parsingLogger.logPersonalInfoExtraction(true, {
           nameFound: personalInfo.name !== 'Not Found',
           addressesFound: personalInfo.addresses.length
         });
         
         // Extract accounts and scores with traditional methods
         const accounts = extractAccounts(text);
-        parsingLogger.logEvent('accounts_extraction', { 
-          success: accounts.length > 0,
-          accountCount: accounts.length 
-        });
+        parsingLogger.logAccountsExtraction(accounts.length);
         
         const creditScores = extractCreditScores(text);
-        parsingLogger.logEvent('credit_scores_extraction', { 
-          success: creditScores.length > 0,
-          scoreCount: creditScores.length 
-        });
+        parsingLogger.logCreditScoresExtraction(creditScores.length);
         
         // Initialize a combined report
         let combinedReport: CreditReport = {
@@ -84,15 +75,9 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
         }
         
         // Track the report in the logger
-        parsingLogger.logEvent('report_tracking', { reportId, bureau });
+        parsingLogger.trackReport(combinedReport);
         
-        parsingLogger.logEvent('parsing_completed', { 
-          reportId, 
-          bureau, 
-          textLength: text.length,
-          accountsFound: accounts.length,
-          scoresFound: creditScores.length
-        });
+        parsingLogger.completeParsing();
         console.log("AI-first parsing complete");
         return combinedReport;
       } catch (error) {
@@ -105,23 +90,16 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
     // Traditional parsing approach (used as fallback or if AI-first is disabled)
     const reportDate = extractDate(text);
     const personalInfo = await extractPersonalInfo(text);
-    parsingLogger.logEvent('personal_info_extraction', {
-      success: true,
+    parsingLogger.logPersonalInfoExtraction(true, {
       nameFound: personalInfo.name !== 'Not Found',
       addressesFound: personalInfo.addresses.length
     });
     
     const accounts = extractAccounts(text);
-    parsingLogger.logEvent('accounts_extraction', { 
-      success: accounts.length > 0,
-      accountCount: accounts.length 
-    });
+    parsingLogger.logAccountsExtraction(accounts.length);
     
     const creditScores = extractCreditScores(text);
-    parsingLogger.logEvent('credit_scores_extraction', { 
-      success: creditScores.length > 0,
-      scoreCount: creditScores.length 
-    });
+    parsingLogger.logCreditScoresExtraction(creditScores.length);
     
     // Initialize report with basic information
     let initialReport: CreditReport = {
@@ -146,39 +124,22 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
     }
     
     // Track the report in the logger
-    parsingLogger.logEvent('report_tracking', { reportId, bureau });
+    parsingLogger.trackReport(initialReport);
     
     try {
       const enhancedReport = await enhanceCreditReportWithAI(text, initialReport);
-      parsingLogger.logEvent('parsing_completed', { 
-        reportId, 
-        bureau, 
-        textLength: text.length,
-        accountsFound: accounts.length,
-        scoresFound: creditScores.length
-      });
+      parsingLogger.completeParsing();
       return enhancedReport;
     } catch (error) {
       parsingLogger.logError('report-enhancement', error);
       console.error("Error enhancing report with AI:", error);
-      parsingLogger.logEvent('parsing_completed', { 
-        reportId, 
-        bureau, 
-        textLength: text.length,
-        accountsFound: accounts.length,
-        scoresFound: creditScores.length,
-        error: true
-      });
+      parsingLogger.completeParsing();
       return initialReport;
     }
   } catch (error) {
     parsingLogger.logError('parsing', error);
     console.error("Critical error in credit report parsing:", error);
-    parsingLogger.logEvent('parsing_completed', { 
-      reportId, 
-      error: true,
-      errorMessage: String(error)
-    });
+    parsingLogger.completeParsing();
     
     // Return a minimal report with error information
     return {

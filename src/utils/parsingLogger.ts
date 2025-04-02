@@ -1,208 +1,159 @@
 
-// Create this new file to store parsing logs
-const parsingLogs: any[] = [];
-let parsingSummary: any = {
-  reportId: null,
-  bureau: null,
-  textLength: 0,
-  durationMs: 0,
-  errors: 0
-};
+// Simple class for logging parsing activities
 
-export const parsingLogger = {
-  startParsing(): string {
-    const reportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'parsing_started',
-      reportId,
-      success: true
+class ParsingLogger {
+  private logs: any[] = [];
+  private parsingStartTime: number = 0;
+  private reportId: string = '';
+  private textLength: number = 0;
+  private bureau: string = '';
+  private errorsCount: number = 0;
+  private currentReport: any = null;
+
+  startParsing() {
+    this.parsingStartTime = Date.now();
+    this.reportId = `report-${Math.random().toString(36).substring(2, 9)}`;
+    this.logs = [];
+    this.errorsCount = 0;
+    this.currentReport = null;
+    
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'start',
+      details: { reportId: this.reportId }
     });
-    parsingSummary.reportId = reportId;
-    parsingSummary.errors = 0;
-    return reportId;
-  },
-  
-  logEvent(stage: string, details?: any) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage,
-      details,
-    });
-  },
-  
-  logError(stage: string, error: any) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage,
-      error: error.toString(),
-      details: { stack: error.stack },
-      success: false
-    });
-    parsingSummary.errors++;
-  },
-  
-  logSuccess(stage: string, details?: any) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage,
-      details,
-      success: true
-    });
-  },
-  
+    
+    return this.reportId;
+  }
+
   logTextExtraction(textLength: number) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'text_extraction',
-      details: { textLength },
-      success: true
+    this.textLength = textLength;
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'text-extraction',
+      details: { chars: textLength }
     });
-    parsingSummary.textLength = textLength;
-  },
-  
-  logBureauIdentification(bureau: string, method: string) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'bureau_identification',
-      details: { bureau, method },
-      success: true
+  }
+
+  logBureauIdentification(bureau: string, method: 'traditional' | 'ai') {
+    this.bureau = bureau;
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'bureau-identification',
+      details: { bureau, method }
     });
-    parsingSummary.bureau = bureau;
-  },
-  
-  logSummaryExtraction(success: boolean, details?: any) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'summary_extraction',
-      details,
-      success
-    });
-  },
-  
+  }
+
   logPersonalInfoExtraction(success: boolean, details?: any) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'personal_info_extraction',
-      details,
-      success
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'personal-info-extraction',
+      success,
+      details
     });
-  },
-  
-  logAccountsExtraction(accountCount: number) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'accounts_extraction',
-      details: { accountCount },
-      success: accountCount > 0
+  }
+
+  logSummaryExtraction(success: boolean, details?: any) {
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'report-summary',
+      success,
+      details
     });
-  },
-  
-  logCreditScoresExtraction(scoreCount: number) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'credit_scores_extraction',
-      details: { scoreCount },
-      success: scoreCount > 0
+  }
+
+  logAccountsExtraction(count: number, details?: any) {
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'accounts-extraction',
+      details: { count, ...(details || {}) }
     });
-  },
+  }
   
-  logReportExtraction(reportId: string, bureau: string, textLength: number, durationMs: number) {
-    parsingSummary = {
-      reportId,
-      bureau,
-      textLength,
-      durationMs,
-      errors: parsingSummary.errors
-    };
+  logAccountSummariesExtraction(accountSummaries: any[]) {
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'account-summaries-extraction',
+      details: { 
+        count: accountSummaries.length,
+        summaries: accountSummaries 
+      }
+    });
     
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'report_extracted',
-      details: {
-        reportId,
-        bureau,
-        textLength,
-        durationMs
-      },
-      success: true
+    // Update the current report with account summaries if it exists
+    if (this.currentReport) {
+      this.currentReport.accountSummaries = accountSummaries;
+      
+      // Log the updated report
+      this.logs.push({
+        timestamp: Date.now(),
+        stage: 'report-update',
+        report: this.currentReport
+      });
+    }
+  }
+
+  logCreditScoresExtraction(count: number) {
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'credit-scores-extraction',
+      details: { count }
     });
-  },
-  
-  logAccountSummariesExtraction(summaries: any[]) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'account_summaries_extracted',
-      details: {
-        count: summaries.length,
-      },
-      summaries: summaries,
-      success: true
+  }
+
+  logError(stage: string, error: any) {
+    this.errorsCount++;
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'error',
+      details: { stage },
+      error: error?.message || String(error)
     });
-  },
+  }
   
-  logExtractedReport(report: any) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'final_report',
-      report: report,
-      success: true
-    });
-  },
-  
-  logTableImageExtracted(imageUrl: string) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'table_image_extracted',
-      tableImageUrl: imageUrl,
-      success: true
-    });
-  },
-  
+  // Track the current report being processed
   trackReport(report: any) {
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'report_tracking',
-      report: report,
-      success: true
+    this.currentReport = report;
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'report-tracking',
+      report
     });
-  },
+  }
   
+  // Add the logEvent method directly to the class
+  logEvent(message: string, details?: any) {
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'general',
+      message,
+      details
+    });
+  }
+
   completeParsing() {
-    const startTime = parsingSummary.startTime || Date.now() - 5000;
-    const endTime = Date.now();
-    const durationMs = endTime - startTime;
-    
-    parsingLogs.push({
-      timestamp: new Date(),
-      stage: 'parsing_completed',
-      details: {
-        reportId: parsingSummary.reportId,
-        durationMs,
-        errors: parsingSummary.errors
-      },
-      success: parsingSummary.errors === 0
+    const duration = Date.now() - this.parsingStartTime;
+    this.logs.push({
+      timestamp: Date.now(),
+      stage: 'complete',
+      details: { durationMs: duration }
     });
-    
-    parsingSummary.durationMs = durationMs;
-  },
-  
+  }
+
   getLogs() {
-    return [...parsingLogs];
-  },
-  
+    return this.logs;
+  }
+
   getSummary() {
-    return { ...parsingSummary };
-  },
-  
-  clearLogs() {
-    parsingLogs.length = 0;
-    parsingSummary = {
-      reportId: null,
-      bureau: null,
-      textLength: 0,
-      durationMs: 0,
-      errors: 0
+    return {
+      reportId: this.reportId,
+      textLength: this.textLength,
+      bureau: this.bureau,
+      durationMs: Date.now() - this.parsingStartTime,
+      errors: this.errorsCount
     };
   }
-};
+}
+
+// Create a singleton instance
+export const parsingLogger = new ParsingLogger();

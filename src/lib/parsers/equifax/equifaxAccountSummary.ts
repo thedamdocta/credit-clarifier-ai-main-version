@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -354,73 +355,19 @@ function processAccountLineWithColumnAwareness(
         console.log(`[${accountSummary.accountType}] Set ${key} to extracted value`, accountSummary[key]);
       }
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
-      // Enhanced handling for dollar values, especially negative ones
-      let dollarValue = extractDollarValue(cellContent);
-      
-      // Special handling for negative values (like -$4,447)
-      if (dollarValue === null && cellContent.includes('-')) {
-        // Try harder to extract negative dollar amounts
-        const negMatch = cellContent.match(/-\$?(\d[\d,.]*)/);
-        if (negMatch) {
-          dollarValue = `-$${negMatch[1]}`;
-        }
-      }
-      
+      const dollarValue = extractDollarValue(cellContent);
       if (dollarValue !== null) {
-        // For available and credit limit, negative values are meaningful and should be kept
-        if (key === 'available' || key === 'creditLimit') {
-          accountSummary[key] = dollarValue;
+        // Fix negative values that should be positive (like -$440 should be $440)
+        if (dollarValue.includes('-')) {
+          accountSummary[key] = dollarValue.replace('-$', '$').replace('-', '');
         } else {
-          // For other fields, negative values might be OCR errors
-          if (dollarValue.includes('-')) {
-            accountSummary[key] = dollarValue.replace('-$', '$').replace('-', '');
-          } else {
-            accountSummary[key] = dollarValue;
-          }
+          accountSummary[key] = dollarValue;
         }
       }
     } else if (key === 'debtToCredit') {
-      // Enhanced handling for percentage values like 116.0%
-      let percentValue = extractPercentageValue(cellContent);
-      
-      // Special handling for 3-digit percentages often misread
-      if (percentValue === null && cellContent.includes('1')) {
-        // Try to extract high percentage values specifically
-        const highMatch = cellContent.match(/(\d{3})(%|0?)/);
-        if (highMatch) {
-          const num = parseInt(highMatch[1], 10);
-          percentValue = `${(num / 10).toFixed(1)}%`;
-        }
-      }
-      
+      const percentValue = extractPercentageValue(cellContent);
       if (percentValue !== null) {
         accountSummary[key] = percentValue;
-      }
-    }
-  }
-  
-  // Additional post-processing for the row
-  // For total row, the debt-to-credit may be 0.0% instead of null
-  if (accountSummary.accountType === 'Total' && !accountSummary.debtToCredit) {
-    accountSummary.debtToCredit = '0.0%';
-  }
-  
-  // For the installment row, check for specific patterns in the full line
-  if (accountSummary.accountType === 'Installment') {
-    // Look for high percentage values that may be missed
-    if (!accountSummary.debtToCredit || accountSummary.debtToCredit === '0.0%') {
-      const highPercentMatch = line.match(/1(\d{2})\.?0?%/);
-      if (highPercentMatch) {
-        const percentValue = parseInt(highPercentMatch[1], 10);
-        accountSummary.debtToCredit = `1${percentValue}.0%`;
-      }
-    }
-    
-    // Look for negative dollar amounts like -$4,447
-    if (!accountSummary.available) {
-      const negativeMatch = line.match(/-\$([0-9,]+)/);
-      if (negativeMatch) {
-        accountSummary.available = `-$${negativeMatch[1]}`;
       }
     }
   }
@@ -435,3 +382,4 @@ function processAccountLineWithColumnAwareness(
     payment: accountSummary.payment
   });
 }
+

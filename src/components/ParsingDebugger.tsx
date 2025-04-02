@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { parsingLogger } from "@/utils/parsingLogger";
-import { Bug, Code, Table, Image as ImageIcon } from "lucide-react";
+import { Bug, Code, Table } from "lucide-react";
 import CreditAccounts from "@/components/credit-report/CreditAccounts";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +19,6 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
   const [summary, setSummary] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(isVisible);
   const [debugReport, setDebugReport] = useState<CreditReport | null>(null);
-  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   
   useEffect(() => {
     // Update logs every second while parsing is in progress
@@ -32,12 +32,6 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
         const reportLog = currentLogs.find(log => log.report);
         if (reportLog && reportLog.report) {
           setDebugReport(reportLog.report);
-        }
-        
-        // Check for table image URL in logs
-        const tableImageLog = currentLogs.find(log => log.tableImageUrl);
-        if (tableImageLog && tableImageLog.tableImageUrl) {
-          setTableImageUrl(tableImageLog.tableImageUrl);
         }
       }
     }, 1000);
@@ -123,10 +117,6 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
           <TabsTrigger value="accounts" className="flex items-center">
             <Table className="h-4 w-4 mr-2" />
             Account Table
-          </TabsTrigger>
-          <TabsTrigger value="image" className="flex items-center">
-            <ImageIcon className="h-4 w-4 mr-2" />
-            Table Image
           </TabsTrigger>
           <TabsTrigger value="logs">Raw Logs</TabsTrigger>
         </TabsList>
@@ -256,27 +246,6 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
             ) : (
               <div className="text-center py-4 text-muted-foreground">
                 No account summary data available yet
-              </div>
-            )}
-          </CardContent>
-        </TabsContent>
-        
-        <TabsContent value="image">
-          <CardContent className="pt-4">
-            <div className="text-xs text-muted-foreground mb-2">
-              Extracted Table Image
-            </div>
-            {tableImageUrl ? (
-              <div className="border rounded-md overflow-hidden">
-                <img 
-                  src={tableImageUrl} 
-                  alt="Extracted Table" 
-                  className="max-w-full h-auto"
-                />
-              </div>
-            ) : (
-              <div className="text-center p-8 text-muted-foreground border rounded-md">
-                No table image available yet
               </div>
             )}
           </CardContent>
