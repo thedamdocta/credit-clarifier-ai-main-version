@@ -35,6 +35,7 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
         const imageLog = currentLogs.find(log => log.details && log.details.tableImageUrl);
         if (imageLog && imageLog.details && imageLog.details.tableImageUrl) {
           setTableImageUrl(imageLog.details.tableImageUrl);
+          console.log("Parser debugger: Found table image URL:", imageLog.details.tableImageUrl.substring(0, 50) + "...");
         }
         
         const extractionLog = currentLogs.find(log => 
@@ -44,6 +45,7 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
             extractionLog.details.extractionResult && 
             extractionLog.details.extractionResult.imageUrl) {
           setTableImageUrl(extractionLog.details.extractionResult.imageUrl);
+          console.log("Parser debugger: Found extraction result image URL");
         }
       }
     }, 1000);

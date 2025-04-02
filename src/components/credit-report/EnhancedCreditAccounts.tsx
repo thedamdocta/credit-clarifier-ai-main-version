@@ -8,7 +8,7 @@ import CreditAccountsTable from "./accounts/CreditAccountsTable";
 import { extractTableFromImage, convertTableToAccountSummaries, createSimulatedTableData } from "@/lib/ai/tableExtraction";
 import { toast } from "sonner";
 import { extractCreditAccountsTableImage, resetCurrentReportImage, getExtractedReportData } from "@/utils/pdf/extractText";
-import { Loader2, RefreshCw, AlertCircle, Upload, Info } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle, Upload, Info, Image } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -414,6 +414,18 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
               </Button>
             </AlertDescription>
           </Alert>
+        )}
+        
+        {tableImageUrl && showDebugInfo && (
+          <div className="mb-4 border rounded-md p-2">
+            <p className="text-xs mb-1 text-muted-foreground flex items-center">
+              <Image className="h-4 w-4 mr-1" />
+              Extracted Table Image:
+            </p>
+            <AspectRatio ratio={16/9} className="bg-muted">
+              <img src={tableImageUrl} alt="Extracted table" className="rounded-md object-contain w-full h-full" />
+            </AspectRatio>
+          </div>
         )}
         
         {showDebugInfo && (

@@ -23,7 +23,8 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
     triggerFileInput
   } = usePDFUpload({ 
     onPDFUploaded, 
-    useAI: true // Enable AI-powered extraction
+    useAI: true, // Enable AI-powered extraction
+    useImageExtraction: true // Explicitly enable image extraction
   });
 
   return (

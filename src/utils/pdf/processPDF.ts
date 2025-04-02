@@ -4,6 +4,7 @@ import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from ".
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
 import { convertPDFPageToImage } from "./pdfToImage";
+import { parsingLogger } from "@/utils/parsingLogger";
 
 interface PDFProcessingCallbacks {
   setCurrentFile: (file: File) => void;
@@ -17,11 +18,12 @@ export const processPDFDocument = async (
   useAI: boolean,
   callbacks: PDFProcessingCallbacks
 ) => {
-  const { setCurrentFile, onPDFUploaded, useImageExtraction = false } = callbacks;
+  const { setCurrentFile, onPDFUploaded, useImageExtraction = true } = callbacks; // Enable image extraction by default
   
   try {
     setCurrentFile(file);
     console.log(`Processing PDF document with file: ${file.name}, using image extraction: ${useImageExtraction}`);
+    parsingLogger.logEvent("PDF processing started", { fileName: file.name, size: file.size });
     
     // Store this file as the current PDF being processed with a unique ID
     const uniqueReportId = setCurrentPDFData(file);
@@ -51,7 +53,32 @@ export const processPDFDocument = async (
         const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
         const numPages = pdf.numPages;
         console.log(`PDF loaded with ${numPages} pages`);
+        parsingLogger.logEvent("PDF loaded", { pages: numPages });
         updateProgress(10);
+        
+        // Extract images if enabled (for later OCR processing)
+        if (useImageExtraction) {
+          try {
+            console.log("Extracting images from PDF for OCR processing");
+            // Store PDF data for later use in image extraction
+            window.currentPdf = pdf;
+            
+            // Try to convert the first page to an image for better extraction
+            const firstPageImage = await convertPDFPageToImage(pdf, 1);
+            if (firstPageImage) {
+              console.log("Successfully extracted first page as image");
+              parsingLogger.logEvent("PDF first page extracted as image", { 
+                imageLength: firstPageImage.length,
+                preview: firstPageImage.substring(0, 50) + '...'
+              });
+              
+              // Store image data for later use
+              window.currentPdfPageImages = [firstPageImage];
+            }
+          } catch (error) {
+            console.error("Error extracting images from PDF:", error);
+          }
+        }
         
         // Use standard text extraction for the main content
         const extractedText = await extractTextFromPDF(pdf);
@@ -86,6 +113,11 @@ export const processPDFDocument = async (
               onPDFUploaded(file, extractedText, parsedReport);
               
               toast.success("PDF successfully processed!");
+              parsingLogger.logEvent("PDF processing complete", { 
+                reportId: uniqueReportId,
+                bureau: parsedReport.bureau,
+                accountSummaries: parsedReport.accountSummaries ? parsedReport.accountSummaries.length : 0
+              });
             }, 500);
           } else {
             handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
@@ -94,6 +126,7 @@ export const processPDFDocument = async (
           
         } catch (error) {
           console.error("Error parsing PDF content:", error);
+          parsingLogger.logEvent("PDF parsing error", { error: String(error) });
           // Fall back to basic processing
           handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
           completeProgressTracking();
@@ -101,6 +134,7 @@ export const processPDFDocument = async (
         
       } catch (error) {
         console.error("Error processing PDF:", error);
+        parsingLogger.logEvent("PDF processing error", { error: String(error) });
         toast.error("Failed to process PDF. Please try another file.");
         clearProgressTracking();
       }
@@ -114,6 +148,7 @@ export const processPDFDocument = async (
     fileReader.readAsArrayBuffer(file);
   } catch (error) {
     console.error("Error in PDF processing:", error);
+    parsingLogger.logEvent("PDF processing error", { error: String(error) });
     toast.error("An error occurred while processing the PDF.");
     callbacks.setUploadProgress(0);
   }
