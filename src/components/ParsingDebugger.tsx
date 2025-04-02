@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,9 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { Bug, Code, Table, Image } from "lucide-react";
-import CreditAccounts from "@/components/credit-report/CreditAccounts";
-import { CreditReport } from "@/lib/types/creditReport";
 import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CreditReport } from "@/lib/types/creditReport";
 
 interface ParsingDebuggerProps {
   isVisible?: boolean;
