@@ -1,81 +1,27 @@
 
-import { extractEntities, NEREntity } from './textAnalysis';
-import { extractNameWithAI } from './personalInfoExtraction';
-import { shouldSkipAI } from './modelPipelines';
+// Stub implementations to prevent AI model loading
 
-// Enhanced SSN extraction using NLP
 export const extractSSNWithAI = async (text: string): Promise<string | undefined> => {
-  try {
-    // First try regex-based approach (for speed)
-    const ssnMatch = text.match(/ssn:?\s*(?:xxx-xx-|[*]{5}|[*]{3}-[*]{2}-)(\d{4})/i);
-    if (ssnMatch && ssnMatch[1]) {
-      console.log("SSN extracted using regex");
-      return `XXX-XX-${ssnMatch[1]}`;
-    }
-    
-    // Skip AI processing if we've had previous failures
-    if (shouldSkipAI()) {
-      console.log("Skipping AI-based SSN extraction due to previous AI failures");
-      return undefined;
-    }
-    
-    // Use NER to find potential SSN-like patterns
-    console.log("Attempting AI-based SSN extraction");
-    const entities = await extractEntities(text);
-    
-    // Look for ID numbers (which might be SSNs)
-    for (const entity of entities) {
-      if (entity.entity.includes('ID') || entity.word.match(/\d{3}-\d{2}-\d{4}/)) {
-        const possibleSSN = entity.word;
-        // Mask the SSN for privacy
-        if (possibleSSN.match(/\d{3}-\d{2}-\d{4}/)) {
-          console.log("SSN extracted using AI");
-          return `XXX-XX-${possibleSSN.slice(-4)}`;
-        }
-      }
-    }
-    
-    return undefined;
-  } catch (error) {
-    console.error('Error extracting SSN with AI:', error);
-    return undefined;
+  console.log("AI extraction disabled, using regex fallback only");
+  // Only use regex fallback
+  const ssnMatch = text.match(/ssn:?\s*(?:xxx-xx-|[*]{5}|[*]{3}-[*]{2}-)(\d{4})/i);
+  if (ssnMatch && ssnMatch[1]) {
+    return `XXX-XX-${ssnMatch[1]}`;
   }
+  return undefined;
 };
 
-// Re-export extractNameWithAI for backward compatibility
-export { extractNameWithAI };
+export const extractNameWithAI = async (text: string): Promise<string | undefined> => {
+  console.log("AI name extraction disabled");
+  return undefined;
+};
 
-// Extract bureau information using AI
 export const identifyBureauWithAI = async (text: string): Promise<'Equifax' | 'Experian' | 'TransUnion' | 'Unknown'> => {
-  try {
-    // Try simple text matching first (much faster)
-    const lowerText = text.toLowerCase();
-    if (lowerText.includes('equifax')) return 'Equifax';
-    if (lowerText.includes('experian')) return 'Experian';
-    if (lowerText.includes('transunion')) return 'TransUnion';
-    
-    // Skip AI processing if we've had previous failures
-    if (shouldSkipAI()) {
-      console.log("Skipping AI-based bureau identification due to previous AI failures");
-      return 'Unknown';
-    }
-    
-    console.log("Attempting AI-based bureau identification");
-    const entities = await extractEntities(text);
-    
-    // Look for organization entities that might match credit bureaus
-    const orgEntities = entities.filter(e => e.entity === 'B-ORG' || e.entity === 'I-ORG');
-    
-    for (const entity of orgEntities) {
-      const word = entity.word.toLowerCase();
-      if (word.includes('equifax')) return 'Equifax';
-      if (word.includes('experian')) return 'Experian';
-      if (word.includes('transunion')) return 'TransUnion';
-    }
-    
-    return 'Unknown';
-  } catch (error) {
-    console.error('Error identifying bureau with AI:', error);
-    return 'Unknown';
-  }
+  console.log("AI bureau identification disabled, using text matching only");
+  // Only use simple text matching
+  const lowerText = text.toLowerCase();
+  if (lowerText.includes('equifax')) return 'Equifax';
+  if (lowerText.includes('experian')) return 'Experian';
+  if (lowerText.includes('transunion')) return 'TransUnion';
+  return 'Unknown';
 };
