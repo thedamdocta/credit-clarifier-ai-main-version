@@ -1,12 +1,12 @@
-
 // PDF text extraction functionality
 import { ProgressCallbacks } from '../progressHandling';
 
 // Optimized batch size for better performance while preventing UI freezing
-const MAX_PAGES_BATCH = 20; // Increased from 15 to 20 for better throughput
-const SUB_BATCH_SIZE = 5; // Increased from 3 to 5 to process more pages at once
+// Adjust batch sizes based on performance testing
+const MAX_PAGES_BATCH = 10; // Reduced from 20 to 10 for better UI responsiveness
+const SUB_BATCH_SIZE = 3; // Reduced from 5 to 3 for more frequent yields to the UI
 
-// Maximum pages to process for very large documents - increased to 300 to handle medium-large PDFs
+// Maximum pages to process for very large documents - keep at 300
 const MAX_PAGES_TO_PROCESS = 300;
 
 // Extract text from PDF document in smaller batches to prevent UI freezing
@@ -26,9 +26,9 @@ export async function extractTextInBatches(
   
   // Track start time to detect long-running extractions
   const startTime = Date.now();
-  const timeoutDuration = 120000; // Increased from 60s to 120s for larger documents
+  const timeoutDuration = 180000; // 3 minutes timeout for extraction
   
-  // Process in smaller batches
+  // Process in smaller batches with more frequent UI yields
   for (let startPage = 1; startPage <= actualPagesToProcess; startPage += MAX_PAGES_BATCH) {
     // Check if extraction is taking too long
     if (Date.now() - startTime > timeoutDuration) {
@@ -36,8 +36,8 @@ export async function extractTextInBatches(
       break; // Exit the loop and return what we have so far
     }
     
-    // Yield to UI between batches
-    await new Promise(resolve => setTimeout(resolve, 10));
+    // Yield to UI between batches - CRITICAL for preventing "page unresponsive" dialogs
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     const endPage = Math.min(startPage + MAX_PAGES_BATCH - 1, actualPagesToProcess);
     console.log(`Processing batch of pages ${startPage}-${endPage}...`);
@@ -75,6 +75,7 @@ export async function extractTextInBatches(
 }
 
 // Helper function to extract text from a batch of pages with better memory management
+// and more frequent yields to the UI thread
 async function extractBatchText(pdf: any, startPage: number, endPage: number): Promise<string> {
   try {
     // Process pages in even smaller sub-batches to prevent memory issues
@@ -83,23 +84,39 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
     for (let i = startPage; i <= endPage; i += SUB_BATCH_SIZE) {
       const subEndPage = Math.min(i + SUB_BATCH_SIZE - 1, endPage);
       
+      // Yield to UI thread before processing sub-batch
+      await new Promise(resolve => setTimeout(resolve, 20));
+      
       // Get pages for this sub-batch
       for (let j = i; j <= subEndPage; j++) {
         try {
           const page = await pdf.getPage(j);
           
           try {
-            // Extract and immediately process text to free memory
+            // Extract text, but yield to UI thread first
+            await new Promise(resolve => setTimeout(resolve, 0));
+            
             const textContent = await page.getTextContent({
-              normalizeWhitespace: true, // Better text formatting
-              disableCombineTextItems: false // Combine text for better results
+              normalizeWhitespace: true,
+              disableCombineTextItems: false
             });
             
-            const pageText = textContent.items
-              .map((item: any) => item.str)
-              .join(" ");
+            // Process a smaller chunk at a time
+            const texts: string[] = [];
+            const chunkSize = 50; // Process 50 items at a time
+            
+            for (let k = 0; k < textContent.items.length; k += chunkSize) {
+              const chunk = textContent.items.slice(k, k + chunkSize);
+              const chunkText = chunk.map((item: any) => item.str).join(" ");
+              texts.push(chunkText);
               
-            batchText += pageText + " ";
+              // Yield to UI every chunk to prevent freezing
+              if (k % (chunkSize * 2) === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+              }
+            }
+            
+            batchText += texts.join(" ") + " ";
             
             // Clean up page data immediately after extraction
             if (page && typeof page.cleanup === 'function') {
@@ -118,7 +135,7 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
         }
         
         // Yield to UI every page to prevent freezing
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
     
@@ -133,8 +150,8 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
 export function determinePageCountForProcessing(pdf: any, showToast: (message: string) => void): number {
   const numPages = pdf.numPages;
   
-  // For extremely large documents, limit the page count but increased from 200 to 300
-  if (numPages > 300) {
+  // For extremely large documents, limit page count
+  if (numPages > MAX_PAGES_TO_PROCESS) {
     console.log(`Document has ${numPages} pages, limiting processing to ${MAX_PAGES_TO_PROCESS} pages for performance`);
     showToast(`Large document detected (${numPages} pages). Processing first ${MAX_PAGES_TO_PROCESS} pages.`);
     return MAX_PAGES_TO_PROCESS;

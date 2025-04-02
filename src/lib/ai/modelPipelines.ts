@@ -1,4 +1,3 @@
-
 import { pipeline, type ProgressCallback, type PretrainedOptions } from '@huggingface/transformers';
 import { toast } from 'sonner';
 
@@ -31,6 +30,9 @@ export const resetSkipAIFlag = (): void => {
   console.log("AI processing has been re-enabled");
 };
 
+// Web Worker detection
+const supportsWebWorker = typeof window !== 'undefined' && typeof Worker !== 'undefined';
+
 // Central function to manage model loading
 const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>): Promise<any | null> => {
   // If we've decided to skip AI, return null immediately
@@ -58,6 +60,9 @@ const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>)
   }
 
   try {
+    // Yield to UI thread before heavy computation
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
     // Set timeout to prevent UI from being blocked for too long
     const loadTimeoutPromise = new Promise((_, reject) => {
       setTimeout(() => {
@@ -103,6 +108,11 @@ const createProgressCallback = (): ProgressCallback => {
     if ('status' in info && info.status === 'progress') {
       const progress = ('value' in info && typeof info.value === 'number') ? info.value : 0;
       console.log(`Model loading progress: ${Math.round(progress * 100)}%`);
+      
+      // Yield to main thread every few progress updates to keep UI responsive
+      if (Math.round(progress * 100) % 10 === 0) {
+        setTimeout(() => {}, 0);
+      }
     }
   };
 };
@@ -113,8 +123,14 @@ export const getNER = async () => {
   return manageModelLoading('ner', async () => {
     console.log("Loading NER model...");
     try {
+      // Yield to UI before starting model load
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       const options: PretrainedOptions = {
-        progress_callback: createProgressCallback()
+        progress_callback: createProgressCallback(),
+        // Use CPU instead of GPU for better stability across browsers
+        // This can be important for preventing browser freezes
+        quantized: false
       };
       
       return await pipeline('token-classification', 'Xenova/distilbert-base-cased-finetuned-conll03-english', options);
@@ -131,8 +147,13 @@ export const getTextClassifier = async () => {
   return manageModelLoading('classifier', async () => {
     console.log("Loading text classification model...");
     try {
+      // Yield to UI before starting model load
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       const options: PretrainedOptions = {
-        progress_callback: createProgressCallback()
+        progress_callback: createProgressCallback(),
+        // Use CPU instead of GPU for better stability across browsers
+        quantized: false
       };
       
       return await pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', options);

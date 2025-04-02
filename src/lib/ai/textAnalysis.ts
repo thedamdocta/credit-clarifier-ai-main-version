@@ -1,4 +1,3 @@
-
 import { getNER } from './modelPipelines';
 
 // Renamed to NEREntity to avoid conflicts
@@ -22,6 +21,9 @@ export async function extractEntities(text: string): Promise<NEREntity[]> {
     console.log(`Extracting entities from text (${textToProcess.length} chars)`);
     const startTime = performance.now();
     
+    // Yield to UI thread before heavy AI processing
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
     const ner = await getNER();
     
     // If the model failed to load, return empty results
@@ -29,6 +31,9 @@ export async function extractEntities(text: string): Promise<NEREntity[]> {
       console.log("NER model not available, skipping entity extraction");
       return [];
     }
+    
+    // Yield again to keep UI responsive
+    await new Promise(resolve => setTimeout(resolve, 0));
     
     // Process the text with the NER model
     const results = await ner(textToProcess, {
