@@ -1,4 +1,3 @@
-
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
@@ -61,8 +60,6 @@ export async function extractTableWithTesseract(
       preserve_interword_spaces: '1', // Preserve spaces between words
       tessjs_create_hocr: '1', // Create HOCR output for better structure understanding
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy
-      textord_tabfind_find_tables: '1', // Enable table finding logic
-      textord_tablefind_recognize_tables: '1', // Enable table recognition
       tessedit_ocr_engine_mode: '3', // Use LSTM neural network mode for better accuracy
     });
     

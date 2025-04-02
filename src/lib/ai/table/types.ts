@@ -10,7 +10,7 @@ export interface ExtractedTableData {
   confidence: number;
   matchScore?: number;
   isTargetTable?: boolean;
-  text?: string; // Add text property that's being referenced
+  text?: string; // Text property for reference and keyword searching
 }
 
 // Interface for formatted table data ready for use in the app
