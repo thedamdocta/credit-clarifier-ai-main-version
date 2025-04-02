@@ -416,15 +416,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           </Alert>
         )}
         
-        {tableImageUrl && showDebugInfo && (
-          <div className="mb-4 border rounded-md p-2">
-            <p className="text-xs mb-1 text-muted-foreground">Extracted Table Image:</p>
-            <AspectRatio ratio={16/9} className="bg-muted">
-              <img src={tableImageUrl} alt="Extracted table" className="rounded-md object-cover w-full h-full" />
-            </AspectRatio>
-          </div>
-        )}
-        
         {showDebugInfo && (
           <div className="mb-4 p-4 border rounded bg-slate-50">
             <p className="text-xs mb-2">Debug: Extraction attempts: {extractionAttempts}</p>
@@ -434,7 +425,10 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
             <p className="text-xs mb-2">Extraction failed: {extractionFailed ? 'Yes' : 'No'}</p>
             <p className="text-xs mb-2">Initial data found: {initialAccountDataFound ? 'Yes' : 'No'}</p>
             <p className="text-xs mb-2">Raw text length: {report.rawText ? report.rawText.length : 0} characters</p>
-            <CreditAccountsDebug accountSummaries={accountSummaries} />
+            <CreditAccountsDebug 
+              accountSummaries={accountSummaries} 
+              tableImageUrl={tableImageUrl}
+            />
           </div>
         )}
         

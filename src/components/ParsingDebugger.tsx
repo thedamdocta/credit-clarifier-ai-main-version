@@ -21,26 +21,22 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
   const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   
   useEffect(() => {
-    // Update logs every second while parsing is in progress
     const intervalId = setInterval(() => {
       const currentLogs = parsingLogger.getLogs();
       if (currentLogs.length > 0) {
         setLogs([...currentLogs]);
         setSummary(parsingLogger.getSummary());
         
-        // Try to extract a report from the logs to display account summaries
         const reportLog = currentLogs.find(log => log.report);
         if (reportLog && reportLog.report) {
           setDebugReport(reportLog.report);
         }
         
-        // Look for table image URL in logs
         const imageLog = currentLogs.find(log => log.details && log.details.tableImageUrl);
         if (imageLog && imageLog.details && imageLog.details.tableImageUrl) {
           setTableImageUrl(imageLog.details.tableImageUrl);
         }
         
-        // Also check for extraction results with image URLs
         const extractionLog = currentLogs.find(log => 
           log.details && log.details.extractionResult && 
           log.details.extractionResult.imageUrl);
@@ -55,7 +51,6 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
     return () => clearInterval(intervalId);
   }, []);
   
-  // Format value function for account summary table cells
   const formatValue = (value: string | number | undefined | null) => {
     if (value === undefined || value === null || value === '') {
       return ""; 
@@ -85,7 +80,6 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
     return value;
   };
 
-  // Utility function to check if a cell value exists
   const hasValue = (value: any): boolean => {
     return value !== undefined && value !== null && value !== '';
   };
