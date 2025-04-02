@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
@@ -385,7 +384,9 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
 // Import the value parsers from our value parser module
 import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from './table/valueParser';
 
-// Keep simulated data function for development purposes only
+/**
+ * Create a default table structure when header detection fails
+ */
 export function createSimulatedTableData(forceUseActualImage: boolean = false) {
   // If we're forcing use of actual image data, don't return simulated data
   if (forceUseActualImage) {
@@ -452,6 +453,7 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
         'Debt-to-Credit': '66.0%',
         'Payment': '$1,125'
       }
-    ]
+    ],
+    imageUrl: null // Add the imageUrl property with a default value of null
   };
 }

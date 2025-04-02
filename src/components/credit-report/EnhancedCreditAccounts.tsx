@@ -12,6 +12,7 @@ import { Loader2, RefreshCw, AlertCircle, Upload, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
+import { parsingLogger } from "@/utils/parsingLogger";
 
 interface EnhancedCreditAccountsProps {
   report: CreditReport;
