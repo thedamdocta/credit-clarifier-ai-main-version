@@ -17,7 +17,7 @@ const CreditReportComponent: React.FC<CreditReportComponentProps> = ({ report })
   return (
     <div className="space-y-6">
       {isLargeReport && (
-        <Alert variant="destructive">
+        <Alert variant="warning">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Large Report Detected</AlertTitle>
           <AlertDescription>

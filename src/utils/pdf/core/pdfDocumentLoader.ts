@@ -14,7 +14,7 @@ export async function readFileAsArrayBuffer(file: File): Promise<Uint8Array> {
     const timeout = setTimeout(() => {
       fileReader.abort();
       reject(new Error("File reading timed out - file may be too large"));
-    }, 30000); // 30 second timeout
+    }, 45000); // Increased from 30s to 45s for larger files
     
     fileReader.onload = function() {
       clearTimeout(timeout);
@@ -49,9 +49,10 @@ export async function loadPdfDocument(
       pdfjsLib.getDocument({ 
         data: typedarray,
         // For very large PDFs, use workerPort: null instead of disableWorker
-        ...(fileSizeMB > 20 ? { workerPort: null } : {})
+        // Increased threshold from 20MB to 30MB
+        ...(fileSizeMB > 30 ? { workerPort: null } : {})
       }).promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timeout")), 45000)) // 45s timeout
+      new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timeout")), 60000)) // Increased from 45s to 60s
     ]);
   } catch (error) {
     console.error("Error loading PDF:", error);

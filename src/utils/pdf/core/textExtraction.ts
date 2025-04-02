@@ -3,11 +3,11 @@
 import { ProgressCallbacks } from '../progressHandling';
 
 // Optimized batch size for better performance while preventing UI freezing
-const MAX_PAGES_BATCH = 10; // Reduced from 25 to 10 for more frequent UI updates
-const SUB_BATCH_SIZE = 3; // Smaller sub-batches to prevent memory issues
+const MAX_PAGES_BATCH = 15; // Increased from 10 to 15 for better throughput
+const SUB_BATCH_SIZE = 3; // Keep this the same to prevent memory issues
 
-// Maximum pages to process for very large documents
-const MAX_PAGES_TO_PROCESS = 100;
+// Maximum pages to process for very large documents - increased to 200 to handle medium-large PDFs
+const MAX_PAGES_TO_PROCESS = 200;
 
 // Extract text from PDF document in smaller batches to prevent UI freezing
 export async function extractTextInBatches(
@@ -26,7 +26,7 @@ export async function extractTextInBatches(
   
   // Track start time to detect long-running extractions
   const startTime = Date.now();
-  const timeoutDuration = 30000; // 30 seconds timeout
+  const timeoutDuration = 60000; // Increased from 30s to 60s for larger documents
   
   // Process in smaller batches
   for (let startPage = 1; startPage <= actualPagesToProcess; startPage += MAX_PAGES_BATCH) {
@@ -133,8 +133,8 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
 export function determinePageCountForProcessing(pdf: any, showToast: (message: string) => void): number {
   const numPages = pdf.numPages;
   
-  // For extremely large documents, limit the page count
-  if (numPages > MAX_PAGES_TO_PROCESS) {
+  // For extremely large documents, limit the page count but increased from 100 to 200
+  if (numPages > 200) {
     console.log(`Document has ${numPages} pages, limiting processing to ${MAX_PAGES_TO_PROCESS} pages for performance`);
     showToast(`Large document detected (${numPages} pages). Processing first ${MAX_PAGES_TO_PROCESS} pages.`);
     return MAX_PAGES_TO_PROCESS;
