@@ -55,7 +55,7 @@ const ParsingDebugger = ({ isVisible = false, onClose }: ParsingDebuggerProps) =
           Monitor credit report parsing process
         </CardDescription>
         
-        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList>
             <TabsTrigger value="events">
               <Code className="h-4 w-4 mr-2" />
@@ -66,100 +66,100 @@ const ParsingDebugger = ({ isVisible = false, onClose }: ParsingDebuggerProps) =
               Data View
             </TabsTrigger>
           </TabsList>
+      
+          <CardContent className="h-[360px] overflow-y-auto pb-0">
+            <TabsContent value="events" className="m-0">
+              {events.length === 0 ? (
+                <div className="text-center p-4 text-muted-foreground">
+                  No parsing events recorded yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {events.map((event, i) => (
+                    <div key={i} className="text-xs border rounded p-2">
+                      <div className="flex justify-between mb-1">
+                        <Badge variant="outline">{event.type}</Badge>
+                        <span className="text-muted-foreground">{new Date(event.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                      <div>{event.message}</div>
+                      {event.data && (
+                        <pre className="text-xs bg-muted p-1 mt-1 overflow-x-auto">
+                          {typeof event.data === 'object' ? JSON.stringify(event.data, null, 2) : event.data}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="data" className="m-0">
+              {!activeReport ? (
+                <div className="text-center p-4 text-muted-foreground">
+                  No report data available.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-medium mb-1">Report Overview</h3>
+                    <UITable>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">Bureau</TableCell>
+                          <TableCell>{activeReport.bureau}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Report Date</TableCell>
+                          <TableCell>{activeReport.reportDate}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Accounts</TableCell>
+                          <TableCell>{activeReport.accounts?.length || 0}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </UITable>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium mb-1">Accounts</h3>
+                    {activeReport.accounts?.length > 0 ? (
+                      <UITable>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {activeReport.accounts.slice(0, 5).map((account, i) => (
+                            <TableRow key={i}>
+                              <TableCell>{account.accountName}</TableCell>
+                              <TableCell>{account.accountType}</TableCell>
+                              <TableCell>{account.status}</TableCell>
+                            </TableRow>
+                          ))}
+                          {activeReport.accounts.length > 5 && (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                + {activeReport.accounts.length - 5} more accounts
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </UITable>
+                    ) : (
+                      <div className="text-center p-2 text-muted-foreground border rounded">
+                        No accounts data available
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+          </CardContent>
         </Tabs>
       </CardHeader>
-      
-      <CardContent className="h-[360px] overflow-y-auto pb-0">
-        <TabsContent value="events" className="m-0">
-          {events.length === 0 ? (
-            <div className="text-center p-4 text-muted-foreground">
-              No parsing events recorded yet.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {events.map((event, i) => (
-                <div key={i} className="text-xs border rounded p-2">
-                  <div className="flex justify-between mb-1">
-                    <Badge variant="outline">{event.type}</Badge>
-                    <span className="text-muted-foreground">{new Date(event.timestamp).toLocaleTimeString()}</span>
-                  </div>
-                  <div>{event.message}</div>
-                  {event.data && (
-                    <pre className="text-xs bg-muted p-1 mt-1 overflow-x-auto">
-                      {typeof event.data === 'object' ? JSON.stringify(event.data, null, 2) : event.data}
-                    </pre>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="data" className="m-0">
-          {!activeReport ? (
-            <div className="text-center p-4 text-muted-foreground">
-              No report data available.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium mb-1">Report Overview</h3>
-                <UITable>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">Bureau</TableCell>
-                      <TableCell>{activeReport.bureau}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Report Date</TableCell>
-                      <TableCell>{activeReport.reportDate}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium">Accounts</TableCell>
-                      <TableCell>{activeReport.accounts?.length || 0}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </UITable>
-              </div>
-              
-              <div>
-                <h3 className="font-medium mb-1">Accounts</h3>
-                {activeReport.accounts?.length > 0 ? (
-                  <UITable>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {activeReport.accounts.slice(0, 5).map((account, i) => (
-                        <TableRow key={i}>
-                          <TableCell>{account.accountName}</TableCell>
-                          <TableCell>{account.accountType}</TableCell>
-                          <TableCell>{account.status}</TableCell>
-                        </TableRow>
-                      ))}
-                      {activeReport.accounts.length > 5 && (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">
-                            + {activeReport.accounts.length - 5} more accounts
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </UITable>
-                ) : (
-                  <div className="text-center p-2 text-muted-foreground border rounded">
-                    No accounts data available
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-      </CardContent>
       
       <CardFooter className="flex justify-between pt-2">
         <div className="text-xs text-muted-foreground">
