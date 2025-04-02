@@ -10,7 +10,7 @@ const MAX_PAGES_FOR_TEXT = 100;
 // Extract text from PDF document in batches to prevent UI freezing
 export async function extractTextInBatches(
   pdf: any, 
-  updateProgress: ProgressCallbacks['updateProgress'],
+  updateProgress: (progress: number) => void,
   pagesToProcess: number
 ): Promise<string> {
   let extractedText = "";

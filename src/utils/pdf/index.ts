@@ -12,3 +12,4 @@ export * from './core/textExtraction';
 export * from './core/reportHandling';
 export * from './core/imageExtraction';
 export * from './core/parsingHandler';
+

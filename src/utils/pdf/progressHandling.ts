@@ -4,6 +4,7 @@ import { toast } from "sonner";
 export interface ProgressCallbacks {
   setCurrentFile: (file: File) => void;
   setUploadProgress: (value: number | ((prev: number) => number)) => void;
+  updateProgress?: (value: number) => void; // Add updateProgress as an optional property
 }
 
 export const setupProgressTracking = (callbacks: ProgressCallbacks) => {

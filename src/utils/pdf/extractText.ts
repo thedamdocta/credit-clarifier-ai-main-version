@@ -17,8 +17,8 @@ let currentPdfData: {
 // Cache for extracted report data - prevents overriding with sample data
 let extractedReportData: any = null;
 
-// Generate and set a unique ID for the current PDF document
-export const setCurrentPDFData = (file: File): string => {
+// Generate and set a unique ID for the current PDF document - exported as setPDFData to avoid naming conflict
+export const setPDFData = (file: File): string => {
   const reportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   currentPdfData = {
     pdfFile: file,
