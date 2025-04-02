@@ -39,7 +39,9 @@ export function usePdfImageExtraction() {
       // Process all pages sequentially
       for (let i = 1; i <= numPages; i++) {
         try {
-          const imageData = await convertPDFPageToImage(pdf, i, false);
+          // Fix the error - convertPDFPageToImage should only receive 2 arguments
+          // Remove the third boolean parameter
+          const imageData = await convertPDFPageToImage(pdf, i);
           if (imageData) {
             images.push(imageData);
           }
