@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
@@ -495,15 +494,7 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
       // Special handling for Installment row which often has specific values
       // This is a more aggressive approach for a commonly important row
       
-      // Hard-code common values for Installment row when missing or clearly wrong
-      // These are specifically for the image shown in the debug view
-      if (!summary.open || summary.open === "0") summary.open = "2";
-      if (!summary.withBalance || summary.withBalance === "0") summary.withBalance = "2";
-      if (!summary.totalBalance || summary.totalBalance === "$0") summary.totalBalance = "$31,159";
-      if (!summary.available || summary.available === "$0") summary.available = "$15,455";
-      if (!summary.creditLimit || summary.creditLimit === "$0") summary.creditLimit = "$31,159";
-      if (!summary.debtToCredit || summary.debtToCredit === "0.0%") summary.debtToCredit = "100.0%";
-      if (!summary.payment || summary.payment === "$0") summary.payment = "$216";
+      // Remove hardcoded values - we should use what's actually in the data
     }
     
     summaries.push(summary);
@@ -518,73 +509,62 @@ import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from './t
 /**
  * Create a default table structure when header detection fails
  */
-export function createSimulatedTableData(forceUseActualImage: boolean = false) {
-  // If we're forcing use of actual image data, don't return simulated data
-  if (forceUseActualImage) {
-    return null;
-  }
-  
-  // Don't use sample data in production environments
-  if (process.env.NODE_ENV !== 'development' && window.location.hostname !== 'localhost') {
-    return null;
-  }
-  
-  console.log('Creating simulated table data');
-  
+export function createSimulatedTableData() {
+  // Create a simple table structure with headers and empty rows
+  // This is only used in development when all other extraction methods fail
   return {
     headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
     rows: [
       {
         'Account Type': 'Revolving',
-        'Open': '10',
-        'With Balance': '9',
-        'Total Balance': '$16,355',
-        'Available': '$8,345',
-        'Credit Limit': '$24,700',
-        'Debt-to-Credit': '66.0%',
-        'Payment': '$627'
+        'Open': '0',
+        'With Balance': '0',
+        'Total Balance': '$0',
+        'Available': '',
+        'Credit Limit': '',
+        'Debt-to-Credit': '',
+        'Payment': ''
       },
       {
         'Account Type': 'Mortgage',
-        'Open': '0',
-        'With Balance': '0',
-        'Total Balance': '$0',
-        'Available': '$0',
-        'Credit Limit': '$0',
-        'Debt-to-Credit': '0.0%',
-        'Payment': '$0'
+        'Open': '',
+        'With Balance': '',
+        'Total Balance': '',
+        'Available': '',
+        'Credit Limit': '',
+        'Debt-to-Credit': '',
+        'Payment': ''
       },
       {
         'Account Type': 'Installment',
-        'Open': '2',
-        'With Balance': '2',
-        'Total Balance': '$204,150',
-        'Available': '$15,455',
-        'Credit Limit': '$219,605',
-        'Debt-to-Credit': '93.0%',
-        'Payment': '$498'
+        'Open': '',
+        'With Balance': '',
+        'Total Balance': '',
+        'Available': '',
+        'Credit Limit': '',
+        'Debt-to-Credit': '',
+        'Payment': ''
       },
       {
         'Account Type': 'Other',
-        'Open': '0',
-        'With Balance': '0',
-        'Total Balance': '$0',
-        'Available': '$0',
-        'Credit Limit': '$0',
-        'Debt-to-Credit': '0.0%',
-        'Payment': '$0'
+        'Open': '',
+        'With Balance': '',
+        'Total Balance': '',
+        'Available': '',
+        'Credit Limit': '',
+        'Debt-to-Credit': '',
+        'Payment': ''
       },
       {
         'Account Type': 'Total',
-        'Open': '12',
-        'With Balance': '11',
-        'Total Balance': '$220,505',
-        'Available': '$23,800',
-        'Credit Limit': '$244,305',
-        'Debt-to-Credit': '66.0%',
-        'Payment': '$1,125'
+        'Open': '',
+        'With Balance': '',
+        'Total Balance': '',
+        'Available': '',
+        'Credit Limit': '',
+        'Debt-to-Credit': '',
+        'Payment': ''
       }
-    ],
-    imageUrl: null // Add the imageUrl property with a default value of null
+    ]
   };
 }

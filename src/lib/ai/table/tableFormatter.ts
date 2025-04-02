@@ -45,7 +45,14 @@ export function formatTableData(tableData: ExtractedTableData): FormattedTableDa
         
         if (headerKey === 'open' || headerKey === 'withBalance') {
           // Count columns - process numeric values
-          rowObject[header] = parseNumericValue(rawValue) || "x";
+          // For Revolving account type, keep zeros
+          if (accountType.toLowerCase() === 'revolving') {
+            rowObject[header] = parseNumericValue(rawValue) || "x";
+          } else {
+            // For other account types, show "x" for zeros
+            const numValue = parseNumericValue(rawValue);
+            rowObject[header] = (numValue === "0") ? "x" : numValue || "x";
+          }
         } 
         else if (headerKey === 'totalBalance' || headerKey === 'available' || 
                 headerKey === 'creditLimit' || headerKey === 'payment') {
