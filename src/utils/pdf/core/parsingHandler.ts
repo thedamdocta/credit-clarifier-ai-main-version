@@ -24,11 +24,11 @@ export async function handleParsing(
     // Add toast to indicate parsing has started
     toast.info("Analyzing credit data...", { duration: 5000 });
     
-    // For extremely large text, increase the threshold from 300KB to 500KB
+    // For extremely large text, increase the threshold from 500KB to 800KB
     let textToProcess = extractedText;
-    if (textToProcess.length > 500000) { // ~500KB
+    if (textToProcess.length > 800000) { // ~800KB
       console.log(`Text is very large (${textToProcess.length} chars), truncating for processing`);
-      textToProcess = textToProcess.substring(0, 500000);
+      textToProcess = textToProcess.substring(0, 800000);
       toast.warning("Document was very large, analyzing first portion only", { duration: 5000 });
     }
     
@@ -42,14 +42,14 @@ export async function handleParsing(
       }
     };
     
-    // Use a timeout for parsing to prevent UI freezing - increased from 25s to 40s
+    // Use a timeout for parsing to prevent UI freezing - increased from 40s to 60s
     const parsedReport = await Promise.race([
       parsePromise(),
       new Promise<CreditReport | null>((resolve) => 
         setTimeout(() => {
           console.log("Parsing taking too long, continuing with basic data");
           resolve(null);
-        }, 40000) // 40s timeout (increased from 25s)
+        }, 60000) // 60s timeout (increased from 40s)
       )
     ]);
     
@@ -64,8 +64,8 @@ export async function handleParsing(
       parsedReport.fileName = file.name;
       
       // Store only a reasonable amount of raw text to prevent memory issues
-      if (extractedText && extractedText.length > 800000) { // Increased from 500KB to 800KB
-        parsedReport.rawText = extractedText.substring(0, 800000) + 
+      if (extractedText && extractedText.length > 1200000) { // Increased from 800KB to 1.2MB
+        parsedReport.rawText = extractedText.substring(0, 1200000) + 
           "\n[Text truncated due to size limitations]";
       } else {
         parsedReport.rawText = extractedText;
@@ -84,8 +84,8 @@ export async function handleParsing(
         window.currentPdfData = {
           reportId: uniqueReportId,
           fileName: file.name,
-          // Only store a preview of text to reduce memory usage - increased from 500 to 1000 chars
-          extractedText: extractedText.substring(0, 1000) 
+          // Only store a preview of text to reduce memory usage - increased from 1000 to 2000 chars
+          extractedText: extractedText.substring(0, 2000) 
         };
       }
       

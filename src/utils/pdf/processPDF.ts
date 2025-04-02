@@ -1,3 +1,4 @@
+
 // Main PDF processing orchestrator that coordinates the different modules
 import { toast } from "sonner";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
@@ -52,8 +53,8 @@ export const processPDFDocument = async (
     // Check file size and warn for large files
     const fileSizeMB = checkFileSizeAndWarn(file);
     
-    // For extremely large files, use very simplified processing - increase threshold to 150MB (from 100MB)
-    if (fileSizeMB > 150) {
+    // For extremely large files, use very simplified processing - increase threshold to 200MB
+    if (fileSizeMB > 200) {
       toast.info("Using simplified processing for this very large file", { duration: 5000 });
       await handleBasicProcessing(uniqueReportId, file, "Very large file - text extraction limited", onPDFUploaded);
       completeProgressTracking();
@@ -62,7 +63,7 @@ export const processPDFDocument = async (
     
     // Create a timeout promise to prevent hanging on file read
     const fileReadTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("File reading timed out")), 45000) // Increased from 30s to 45s
+      setTimeout(() => reject(new Error("File reading timed out")), 60000) // Increased from 45s to 60s
     );
     
     // Wrap file reading in a Promise with a small delay to prevent UI freezing
@@ -87,7 +88,7 @@ export const processPDFDocument = async (
     try {
       // Implement a timeout for loading PDF document to prevent hanging
       const pdfLoadTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("PDF loading timed out")), 60000) // Increased from 40s to 60s
+        setTimeout(() => reject(new Error("PDF loading timed out")), 90000) // Increased from 60s to 90s
       );
       
       // Load PDF document with timeout
@@ -120,7 +121,7 @@ export const processPDFDocument = async (
             setTimeout(() => {
               console.log("Image extraction taking too long, continuing process");
               reject(new Error("Image extraction timed out"));
-            }, 30000) // Increased from 20s to 30s
+            }, 45000) // Increased from 30s to 45s
           );
           
           const firstPageImage = await Promise.race([
@@ -141,10 +142,10 @@ export const processPDFDocument = async (
       await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
       updateProgress(45);
       
-      // Process all pages - with new limit of 200
+      // Process pages with increased limit of 300
       const pagesToProcess = determinePageCountForProcessing(pdf, (message) => {
         // Just log info about the page count, but process all pages
-        if (numPages > 100) { // Lowered from 300 to 100
+        if (numPages > 100) { // Keep threshold at 100
           toast.info(`Processing ${numPages} pages - this may take a while`, { duration: 4000 });
         }
       });
@@ -157,7 +158,7 @@ export const processPDFDocument = async (
           setTimeout(() => {
             console.log("Text extraction taking too long, proceeding with partial text");
             reject(new Error("Text extraction timed out"));
-          }, 120000) // Increased from 60s to 120s (2 minutes) for larger documents
+          }, 180000) // Increased from 120s to 180s (3 minutes) for larger documents
         );
         
         extractedText = await Promise.race([
