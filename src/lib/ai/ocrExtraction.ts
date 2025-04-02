@@ -1,5 +1,5 @@
 
-import { pipeline } from '@huggingface/transformers';
+import { pipeline, type PretrainedOptions } from '@huggingface/transformers';
 import { preprocessImageForOCR, compressImage } from './imagePreprocessing';
 
 // Lazily loaded OCR pipeline
@@ -66,9 +66,17 @@ export async function extractTextFromImage(imageUrl: string): Promise<string | n
     const ocrPromise = async () => {
       if (!ocrPipelinePromise) {
         console.log('Loading OCR model...');
-        ocrPipelinePromise = pipeline('image-to-text', 'onnx-community/caption-it', { 
-          quantized: true // Use quantized model for better performance
-        });
+        
+        // Create options object with proper typing
+        const options: PretrainedOptions = {
+          // Type-safe way to pass custom options
+          ...({} as Record<string, unknown>)
+        };
+        
+        // Add quantized as a custom option
+        (options as any).quantized = true;
+        
+        ocrPipelinePromise = pipeline('image-to-text', 'onnx-community/caption-it', options);
       }
       
       // Get the OCR pipeline

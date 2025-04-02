@@ -1,5 +1,5 @@
 
-import { pipeline } from '@huggingface/transformers';
+import { pipeline, type PretrainedOptions } from '@huggingface/transformers';
 
 // Configuration for AI cell processing - optimized for performance
 const AI_CELL_ENABLED = false;  // Disabled by default for better performance
@@ -25,9 +25,15 @@ let textProcessorPromise: Promise<any> | null = null;
 const getTextProcessor = async () => {
   if (!textProcessorPromise) {
     console.log('Initializing AI text processor for cell processing...');
-    textProcessorPromise = pipeline('text-classification', TEXT_MODEL, {
-      quantized: true // Use quantized model for better performance
-    });
+    const options: PretrainedOptions = {
+      // Type-safe way to pass custom options
+      ...({} as Record<string, unknown>)
+    };
+    
+    // Add quantized as a custom option
+    (options as any).quantized = true;
+    
+    textProcessorPromise = pipeline('text-classification', TEXT_MODEL, options);
   }
   return textProcessorPromise;
 };
