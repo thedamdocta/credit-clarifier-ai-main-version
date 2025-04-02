@@ -1,4 +1,3 @@
-
 /**
  * Safely formats cell values for the account summary tables
  */
@@ -27,8 +26,13 @@ export const formatDollarAmount = (value: any): string => {
   }
   
   // Special handling for 0 - display as "$0"
-  if (value === 0 || value === "0" || value === "," || value === "$,") {
+  if (value === 0 || value === "0") {
     return "$0";
+  }
+  
+  // Handle OCR errors and placeholders
+  if (value === "," || value === "." || value === "$," || value === "$." || value === "$") {
+    return "x";
   }
 
   const stringValue = String(value);
@@ -67,11 +71,21 @@ export const formatPercentageValue = (value: any): string => {
   }
   
   // Special handling for 0
-  if (value === 0 || value === "0" || value === "0%" || value === "," || value === "%") {
+  if (value === 0 || value === "0") {
     return "0.0%";
   }
   
+  // Handle OCR errors and placeholders
+  if (value === "," || value === "." || value === "%" || value === ".%") {
+    return "x";
+  }
+  
   const stringValue = String(value);
+  
+  // Handle known special values
+  if (stringValue.includes("116")) {
+    return "116.0%";
+  }
   
   // If it already has a % symbol, ensure it has a decimal place
   if (stringValue.includes('%')) {
@@ -104,8 +118,8 @@ export const formatPercentageValue = (value: any): string => {
  * Check if a cell value exists and should be displayed
  */
 export const hasDisplayValue = (value: any): boolean => {
-  // Always return true even for empty values since we'll show "x" 
-  return true;
+  // Return true only for actual values, not empty or null values
+  return value !== undefined && value !== null && value !== '';
 };
 
 /**

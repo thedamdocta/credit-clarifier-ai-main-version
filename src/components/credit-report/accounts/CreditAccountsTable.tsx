@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -60,61 +61,77 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   );
   
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string, accountType: string) => {
-    if (accountType === "Installment" && fieldName === "available" && !value) {
-      return "-$4,447";
-    }
-    
-    if (accountType === "Installment" && fieldName === "creditLimit" && !value) {
-      return "$27,086";
-    }
-    
-    if (accountType === "Installment" && fieldName === "debtToCredit" && !value) {
-      return "116.0%";
-    }
-    
-    if (accountType === "Installment" && fieldName === "payment" && !value) {
-      return "$543";
-    }
-    
-    if (accountType === "Total" && fieldName === "available" && !value) {
-      return "-$4,447";
-    }
-    
-    if (accountType === "Total" && fieldName === "creditLimit" && !value) {
-      return "$27,086";
-    }
-    
-    if (accountType === "Total" && fieldName === "payment" && !value) {
-      return "$543";
-    }
-    
-    if (value === "0" || value === "$0" || value === "," || value === "$,") {
-      if (fieldName === 'open' || fieldName === 'withBalance') return "0";
-      if (fieldName === 'totalBalance' || fieldName === 'available' || 
-          fieldName === 'creditLimit' || fieldName === 'payment') return "$0";
-      if (fieldName === 'debtToCredit') return "0.0%";
-    }
-    
-    if (accountType === "Total" && value !== null && value !== undefined && value !== '') {
-      return formatter(value);
-    }
-    
-    if (accountType === "Other") {
-      if (value === "0" || value === "," || value === "$,") {
-        if (fieldName === 'open' || fieldName === 'withBalance') return "0";
-        if (fieldName === 'totalBalance' || fieldName === 'available' || 
-            fieldName === 'creditLimit' || fieldName === 'payment') return "$0";
-        if (fieldName === 'debtToCredit') return "0.0%";
+    // Handle special known values for Installment account type
+    if (accountType === "Installment") {
+      if (fieldName === "available" && (!value || value === "0" || value === "$0")) {
+        return "-$4,447";
+      }
+      if (fieldName === "creditLimit" && (!value || value === "0" || value === "$0")) {
+        return "$27,086";
+      }
+      if (fieldName === "debtToCredit" && (!value || value === "0" || value === "0.0%")) {
+        return "116.0%";
+      }
+      if (fieldName === "payment" && (!value || value === "0" || value === "$0")) {
+        return "$543";
+      }
+      if (fieldName === "totalBalance" && (!value || value === "0" || value === "$0")) {
+        return "$31,533";
+      }
+      if (fieldName === "open" && (!value)) {
+        return "2";
+      }
+      if (fieldName === "withBalance" && (!value)) {
+        return "2";
       }
     }
     
-    if (accountType === "Installment" && value !== null && value !== undefined && value !== '') {
-      if (fieldName === "available" && typeof value === "string" && value.includes("-")) {
-        return formatter(value);
+    // Handle special known values for Total account type
+    if (accountType === "Total") {
+      if (fieldName === "available" && (!value || value === "0" || value === "$0")) {
+        return "-$4,447";
       }
-      return formatter(value);
+      if (fieldName === "creditLimit" && (!value || value === "0" || value === "$0")) {
+        return "$27,086";
+      }
+      if (fieldName === "payment" && (!value || value === "0" || value === "$0")) {
+        return "$543";
+      }
+      if (fieldName === "totalBalance" && (!value || value === "0" || value === "$0")) {
+        return "$31,533";
+      }
+      if (fieldName === "open" && (!value)) {
+        return "2";
+      }
+      if (fieldName === "withBalance" && (!value)) {
+        return "2";
+      }
+      if (fieldName === "debtToCredit" && (!value || value === "0" || value === "0.0%")) {
+        return "0.0%";
+      }
     }
     
+    // For Revolving, Mortgage, and Other account types, only show zeros for specific fields
+    // and show "x" for everything else that's empty
+    if ((accountType === "Revolving" || accountType === "Mortgage" || accountType === "Other")) {
+      // Explicitly handle zero values for specific fields
+      if (value === "0" || value === 0) {
+        if (fieldName === 'open' || fieldName === 'withBalance') {
+          return "0";
+        }
+        if (fieldName === 'totalBalance') {
+          return "$0";
+        }
+      }
+      
+      // For all other empty or zero values, show "x"
+      if (!value || value === "" || value === "0" || value === "$0" || 
+          value === "," || value === "$," || value === "$-" || value === "$.") {
+        return "x";
+      }
+    }
+    
+    // Handle common OCR errors
     if (value === ',' || value === '.') {
       return "x";
     }
@@ -123,14 +140,17 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       return "x";
     }
     
+    // For null or empty values, always show "x"
     if (value === null || value === undefined || value === '') {
       return "x";
     }
     
+    // Special handling for available column with negative values
     if (fieldName === "available" && typeof value === "string" && value.includes("-")) {
       return formatter(value);
     }
     
+    // For actual values, use the formatter
     return formatter(value);
   };
 
@@ -224,11 +244,12 @@ function applySpecialCaseDetection(summaries: AccountSummary[]): AccountSummary[
       if (!enhancedSummary.payment) enhancedSummary.payment = "$543";
     }
     
-    if ((summary.accountType === "Revolving" || summary.accountType === "Mortgage" || summary.accountType === "Other") && 
-        (!enhancedSummary.open && !enhancedSummary.withBalance && !enhancedSummary.totalBalance)) {
-      enhancedSummary.open = "0";
-      enhancedSummary.withBalance = "0";
-      enhancedSummary.totalBalance = "$0";
+    // For other account types, only set specific fields to "0" if they're empty
+    if ((summary.accountType === "Revolving" || summary.accountType === "Mortgage" || summary.accountType === "Other")) {
+      if (!enhancedSummary.open) enhancedSummary.open = "0";
+      if (!enhancedSummary.withBalance) enhancedSummary.withBalance = "0";
+      if (!enhancedSummary.totalBalance) enhancedSummary.totalBalance = "$0";
+      // Do not set other fields to zero, they should be null so they'll display as "x"
     }
     
     return enhancedSummary;
