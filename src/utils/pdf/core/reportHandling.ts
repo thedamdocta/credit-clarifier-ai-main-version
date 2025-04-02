@@ -3,6 +3,7 @@
 import { parsingLogger } from "@/utils/parsingLogger";
 import { CreditReport } from "@/lib/types/creditReport";
 import { extractTextFromImageRegion, processImageWithEnhancedOCR } from "@/lib/ai/ocrExtraction";
+import { createDefaultAccountSummaries } from "../accounts/accountSummaries";
 import { 
   extractCreditAccountsTableImage, 
   getExtractedReportData, 
@@ -56,7 +57,8 @@ export const processExtractedText = async (
       collections: [],
       creditScores: [],
       rawText: extractedText,
-      fileName: file.name
+      fileName: file.name,
+      accountSummaries: createDefaultAccountSummaries()
     };
     
     // Store the parsed report data

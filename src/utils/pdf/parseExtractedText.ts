@@ -79,6 +79,7 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean = fa
     toast.error('There was an error processing the PDF content');
     
     // Return a minimal valid report to avoid TypeScript errors
+    // Adding all required properties that are used in parsingHandler.ts
     const fallbackReport = {
       bureau: 'Unknown' as const,
       reportDate: new Date().toLocaleDateString(),
@@ -92,7 +93,11 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean = fa
       collections: [],
       creditScores: [],
       rawText: extractedText,
-      parsingError: String(error)
+      parsingError: String(error),
+      // Add missing properties that cause TypeScript errors
+      reportId: `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      fileName: 'Failed-Report.pdf',
+      accountSummaries: createDefaultAccountSummaries()
     };
     
     return fallbackReport;

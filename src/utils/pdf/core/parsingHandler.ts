@@ -5,6 +5,7 @@ import { parsePDFContent } from "../parseExtractedText";
 import { CreditReport } from "@/lib/types/creditReport";
 import { setExtractedReportData } from "../extractText";
 import { parsingLogger } from "@/utils/parsingLogger";
+import { createDefaultAccountSummaries } from "../accounts/accountSummaries";
 
 // Function to handle PDF content parsing with worker-like processing
 export async function handleParsing(
@@ -50,9 +51,15 @@ export async function handleParsing(
     await new Promise(resolve => setTimeout(resolve, 50));
     
     if (parsedReport) {
+      // Ensure required properties exist before accessing them
       parsedReport.reportId = uniqueReportId;
       parsedReport.fileName = file.name;
       parsedReport.rawText = extractedText; // Store the raw text for later use
+      
+      // Make sure accountSummaries exists to prevent errors
+      if (!parsedReport.accountSummaries) {
+        parsedReport.accountSummaries = createDefaultAccountSummaries();
+      }
       
       // Store this parsed data in our cache to prevent overriding with sample data
       setExtractedReportData(parsedReport);
@@ -67,7 +74,7 @@ export async function handleParsing(
         };
       }
       
-      // Log successful parsing
+      // Log successful parsing with safe access to accountSummaries
       parsingLogger.logEvent("PDF processing complete", { 
         reportId: uniqueReportId,
         bureau: parsedReport.bureau,
