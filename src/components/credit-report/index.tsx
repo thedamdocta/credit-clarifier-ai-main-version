@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { CreditReport } from '@/lib/types/creditReport';
 import { Separator } from '@/components/ui/separator';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import CreditAccountTable from './CreditAccountTable';
+import SimpleCreditAccountTable from './SimpleCreditAccountTable';
 
 interface CreditReportComponentProps {
   report: CreditReport;
@@ -26,7 +27,7 @@ const CreditReportComponent: React.FC<CreditReportComponentProps> = ({ report })
         </Alert>
       )}
       
-      <CreditAccountTable reportId={report.reportId} />
+      <SimpleCreditAccountTable reportId={report.reportId} />
       <Separator className="my-4" />
       {/* Other credit report components can go here */}
     </div>

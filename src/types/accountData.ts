@@ -1,8 +1,4 @@
 
-/**
- * Type definitions for credit account data
- */
-
 export interface AccountData {
   accountType: string;
   open: string;
