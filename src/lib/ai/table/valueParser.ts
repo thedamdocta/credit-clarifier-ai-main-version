@@ -1,3 +1,4 @@
+
 /**
  * Value parsing utilities for extracted table data
  * These functions help convert raw OCR text into properly formatted values
@@ -20,7 +21,7 @@ export function parseNumericValue(value: string | null): string | null {
   
   // Handle common OCR errors like ',' or '.' instead of number
   if (normalized === ',' || normalized === '.') {
-    return '0';  // Return '0' for these common OCR error values for standalone commas or periods
+    return null;  // Return null for these so they'll display as "x"
   }
 
   // Handle single character OCR errors that should be numbers
@@ -102,12 +103,13 @@ export function parseCurrencyValue(value: string | null): string | null {
   
   // Special handling for empty-looking currency values (like just a comma or period)
   if (normalized === '$,' || normalized === '$.' || normalized === '$-') {
-    return '$0';  // Return '$0' for these common OCR error values
+    return null;  // Return null so it will display as "x"
   }
   
-  // Handle explicit zero values with various formats
+  // Handle explicit zero values with various formats - we'll let the calling code decide
+  // if zeros should be shown as "$0" or as "x"
   if (normalized === '$0' || normalized === '$O' || normalized === '$o' || normalized === '0' || normalized === ',') {
-    return '$0';  // Keep zero values as "$0"
+    return '$0';  
   }
   
   // Enhanced handling for negative values
@@ -180,7 +182,7 @@ export function parsePercentageValue(value: string | null): string | null {
   // Normalize the value
   const normalized = value.toString().trim();
   
-  // Handle explicit zero values
+  // Handle explicit zero values - these may be replaced with "x" by the caller
   if (normalized === '0' || normalized === '0.0' || normalized === '0%' || normalized === '0.0%') {
     return '0.0%';  // Standardize zero values
   }
@@ -321,43 +323,8 @@ export function getHardcodedRowValues(accountType: string, reporting: 'experian'
         payment: "$543"
       };
     }
-    
-    if (accountType.toLowerCase() === 'revolving') {
-      return {
-        open: "0",
-        withBalance: "0",
-        totalBalance: "$0",
-        available: "$0",
-        creditLimit: "$0",
-        debtToCredit: "0.0%",
-        payment: "$0"
-      };
-    }
-    
-    if (accountType.toLowerCase() === 'mortgage') {
-      return {
-        open: "0",
-        withBalance: "0",
-        totalBalance: "$0",
-        available: "$0",
-        creditLimit: "$0",
-        debtToCredit: "0.0%",
-        payment: "$0"
-      };
-    }
-    
-    if (accountType.toLowerCase() === 'other') {
-      return {
-        open: "0",
-        withBalance: "0",
-        totalBalance: "$0",
-        available: "$0", 
-        creditLimit: "$0",
-        debtToCredit: "0.0%",
-        payment: "$0"
-      };
-    }
   }
   
+  // For other account types, don't provide hardcoded values
   return null;
 }

@@ -111,22 +111,35 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       }
     }
     
-    // For Revolving, Mortgage, and Other account types, only show zeros for specific fields
-    // and show "x" for everything else that's empty
-    if ((accountType === "Revolving" || accountType === "Mortgage" || accountType === "Other")) {
-      // Explicitly handle zero values for specific fields
-      if (value === "0" || value === 0) {
-        if (fieldName === 'open' || fieldName === 'withBalance') {
+    // For Revolving account type, only allow real zeros for open and withBalance fields
+    if (accountType === "Revolving") {
+      if (fieldName === 'open' || fieldName === 'withBalance') {
+        if (value === "0" || value === 0) {
           return "0";
-        }
-        if (fieldName === 'totalBalance') {
-          return "$0";
         }
       }
       
-      // For all other empty or zero values, show "x"
+      // For all other fields in Revolving, including zero values, show "x"
       if (!value || value === "" || value === "0" || value === "$0" || 
-          value === "," || value === "$," || value === "$-" || value === "$.") {
+          value === "," || value === "$," || value === "$-" || value === "$." ||
+          value === "0.0%") {
+        return "x";
+      }
+    }
+    
+    // For Mortgage and Other account types, only allow real zeros for open and withBalance fields
+    // and show "x" for everything else that's empty or zero
+    if (accountType === "Mortgage" || accountType === "Other") {
+      if (fieldName === 'open' || fieldName === 'withBalance') {
+        if (value === "0" || value === 0) {
+          return "0";
+        }
+      }
+      
+      // For all other fields or zero values, show "x"
+      if (!value || value === "" || value === "0" || value === "$0" || 
+          value === "," || value === "$," || value === "$-" || value === "$." ||
+          value === "0.0%") {
         return "x";
       }
     }
@@ -245,11 +258,11 @@ function applySpecialCaseDetection(summaries: AccountSummary[]): AccountSummary[
     }
     
     // For other account types, only set specific fields to "0" if they're empty
+    // and only for open and withBalance columns
     if ((summary.accountType === "Revolving" || summary.accountType === "Mortgage" || summary.accountType === "Other")) {
       if (!enhancedSummary.open) enhancedSummary.open = "0";
       if (!enhancedSummary.withBalance) enhancedSummary.withBalance = "0";
-      if (!enhancedSummary.totalBalance) enhancedSummary.totalBalance = "$0";
-      // Do not set other fields to zero, they should be null so they'll display as "x"
+      // Don't set other fields to zero, leave them as null so they'll display as "x"
     }
     
     return enhancedSummary;

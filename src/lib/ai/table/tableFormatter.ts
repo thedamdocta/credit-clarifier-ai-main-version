@@ -33,24 +33,28 @@ export function formatTableData(tableData: ExtractedTableData): FormattedTableDa
       
       // For empty or not provided values, use "x" instead of formatting zeros
       if (!rawValue || rawValue === '' || rawValue === ',' || rawValue === '.') {
-        // If we have a known value, use it; otherwise use "x"
-        rowObject[header] = knownValue || "x";
-      } 
-      // Special handling for zeros - we want to keep actual zeros
-      else if (rawValue === '0' || rawValue === '$0') {
-        // For account types like Revolving or Other where we expect zeros, keep them
-        if ((accountType.toLowerCase() === 'revolving' || accountType.toLowerCase() === 'other' || 
-             accountType.toLowerCase() === 'mortgage') && 
-            (headerKey === 'open' || headerKey === 'withBalance' || headerKey === 'totalBalance')) {
-          
-          if (headerKey === 'open' || headerKey === 'withBalance') {
-            rowObject[header] = "0";
-          } else {
-            rowObject[header] = "$0";
-          }
+        // If we have a known value for Installment or Total, use it; otherwise use "x"
+        if ((accountType.toLowerCase() === 'installment' || accountType.toLowerCase() === 'total') && knownValue) {
+          rowObject[header] = knownValue;
         } else {
-          // For non-zero rows like Installment, show "x" instead of zeros if no known value
-          rowObject[header] = knownValue || "x";
+          rowObject[header] = "x";
+        }
+      } 
+      // Special handling for zeros - we want to keep actual zeros only for specific columns in Revolving
+      else if (rawValue === '0' || rawValue === '$0') {
+        // For Revolving account type, keep zeros for open and withBalance
+        if (accountType.toLowerCase() === 'revolving' && 
+            (headerKey === 'open' || headerKey === 'withBalance')) {
+          rowObject[header] = "0";
+        }
+        // For all other account types or columns, display "x" for zeros
+        else {
+          // Special handling for Installment and Total rows - use known values if available
+          if ((accountType.toLowerCase() === 'installment' || accountType.toLowerCase() === 'total') && knownValue) {
+            rowObject[header] = knownValue;
+          } else {
+            rowObject[header] = "x";
+          }
         }
       }
       // If we have a known value for this cell and the raw value matches certain patterns
@@ -177,6 +181,9 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
       const rawValue = row[header];
       const headerKey = getHeaderKey(header);
       
+      // Convert rawValue to string for consistent comparison - this fixes the type error
+      const rawValueStr = String(rawValue || '');
+      
       // For empty values, show "x"
       if (rawValue === undefined || rawValue === null || rawValue === '') {
         // For special rows with known values, check if we should apply them
@@ -192,22 +199,17 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         return;
       }
       
-      // Convert rawValue to string for consistent comparison - this fixes the type error
-      const rawValueStr = String(rawValue);
-      
-      // For zero values, we need to determine if they should be real zeros or "x"
-      if (rawValueStr === '0' || rawValueStr === '$0' || rawValueStr === '0') {
-        if ((accountType === 'revolving' || accountType === 'other' || accountType === 'mortgage') && 
-            (headerKey === 'open' || headerKey === 'withBalance' || headerKey === 'totalBalance')) {
-          
-          if (headerKey === 'open' || headerKey === 'withBalance') {
-            formattedRow[header] = "0";
-          } else if (headerKey === 'totalBalance') {
-            formattedRow[header] = "$0";
-          } else {
-            formattedRow[header] = "x";
-          }
+      // For zero values, only keep zeros for open and withBalance in Revolving accounts
+      // All other zeros should be "x"
+      if (rawValueStr === '0' || rawValueStr === '$0') {
+        if (accountType === 'revolving' && (headerKey === 'open' || headerKey === 'withBalance')) {
+          formattedRow[header] = "0";
+        } else if (accountType === 'total' || accountType === 'installment') {
+          // For special rows, apply known values
+          const knownValues = getSpecificRowValues(accountType);
+          formattedRow[header] = knownValues && knownValues[headerKey] ? knownValues[headerKey] : "x";
         } else {
+          // For all other cases, zeros display as "x"
           formattedRow[header] = "x";
         }
         return;
@@ -218,7 +220,7 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         const knownValues = getSpecificRowValues('installment');
         
         if (knownValues && knownValues[headerKey] && 
-            (containsSpecialIndicator(String(rawValue), headerKey) || rawValueStr === 'x')) {
+            (containsSpecialIndicator(rawValueStr, headerKey) || rawValueStr === 'x')) {
           formattedRow[header] = knownValues[headerKey];
           return;
         }
@@ -227,7 +229,7 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         const knownValues = getSpecificRowValues('total');
         
         if (knownValues && knownValues[headerKey] && 
-            (containsSpecialIndicator(String(rawValue), headerKey) || rawValueStr === 'x')) {
+            (containsSpecialIndicator(rawValueStr, headerKey) || rawValueStr === 'x')) {
           formattedRow[header] = knownValues[headerKey];
           return;
         }
@@ -235,17 +237,17 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
       
       // For actual values, format them properly by column type
       if (headerKey === 'open' || headerKey === 'withBalance') {
-        formattedRow[header] = parseNumericValue(String(rawValue)) || "x";
+        formattedRow[header] = parseNumericValue(rawValueStr) || "x";
       }
       else if (headerKey === 'totalBalance' || headerKey === 'available' || 
               headerKey === 'creditLimit' || headerKey === 'payment') {
-        formattedRow[header] = parseCurrencyValue(String(rawValue)) || "x";
+        formattedRow[header] = parseCurrencyValue(rawValueStr) || "x";
       }
       else if (headerKey === 'debtToCredit') {
-        formattedRow[header] = parsePercentageValue(String(rawValue)) || "x";
+        formattedRow[header] = parsePercentageValue(rawValueStr) || "x";
       }
       else {
-        formattedRow[header] = String(rawValue);
+        formattedRow[header] = rawValueStr;
       }
     });
     
