@@ -7,12 +7,16 @@ interface AccountExtractionButtonsProps {
   isProcessing: boolean;
   onExtract: () => void;
   onUpload: () => void;
+  onCropTable?: () => void;
+  showCropButton?: boolean;
 }
 
 const AccountExtractionButtons: React.FC<AccountExtractionButtonsProps> = ({
   isProcessing,
   onExtract,
-  onUpload
+  onUpload,
+  onCropTable,
+  showCropButton = false
 }) => {
   return (
     <div className="flex flex-col gap-2 items-end">
@@ -35,6 +39,18 @@ const AccountExtractionButtons: React.FC<AccountExtractionButtonsProps> = ({
             </>
           )}
         </Button>
+        
+        {showCropButton && onCropTable && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCropTable}
+            disabled={isProcessing}
+          >
+            <Crop className="mr-2 h-4 w-4" />
+            Crop Table
+          </Button>
+        )}
         
         <Button
           variant="default"

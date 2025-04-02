@@ -18,10 +18,13 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   }, [file.size]);
 
   const getProgressMessage = () => {
+    if (progress < 10) return "Initializing PDF reader...";
     if (progress < 20) return "Reading PDF file...";
-    if (progress < 50) return "Processing content...";
-    if (progress < 80) return "Analyzing with AI...";
-    if (progress < 100) return "Finalizing extraction...";
+    if (progress < 35) return "Processing PDF document...";
+    if (progress < 45) return "Extracting page images...";
+    if (progress < 60) return "Extracting text content...";
+    if (progress < 80) return "Analyzing credit data...";
+    if (progress < 95) return "Finalizing report extraction...";
     return "PDF processed successfully!";
   };
 

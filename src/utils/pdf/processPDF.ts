@@ -37,41 +37,79 @@ export const processPDFDocument = async (
       updateProgress
     } = setupProgressTracking(callbacks);
     
-    // Load the PDF.js library dynamically with a small delay to allow UI to update
+    // To prevent UI freezing, yield control back to the browser
     await new Promise(resolve => setTimeout(resolve, 50));
     updateProgress(5);
     
+    // Dynamically load PDF.js library
     const pdfjsLib = await import("pdfjs-dist");
     pdfjsLib.GlobalWorkerOptions.workerSrc = 
       `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     
     updateProgress(10);
     
-    // Read the PDF file
-    const typedarray = await readFileAsArrayBuffer(file);
+    // Wrap file reading in a Promise with a small delay to prevent UI freezing
+    const readFilePromise = async () => {
+      await new Promise(resolve => setTimeout(resolve, 50)); // Yield to UI
+      return readFileAsArrayBuffer(file);
+    };
+    
+    const typedarray = await readFilePromise();
     updateProgress(20);
     
     try {
-      // Load the PDF document with a small delay to prevent UI blocking
+      // Add another delay to prevent UI freezing before heavy PDF parsing
       await new Promise(resolve => setTimeout(resolve, 50));
-      const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+      
+      // Wrap the PDF loading in a promise with a timeout
+      const loadPdfPromise = async () => {
+        try {
+          return await Promise.race([
+            pdfjsLib.getDocument({ data: typedarray }).promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timeout")), 30000)) // 30s timeout
+          ]);
+        } catch (error) {
+          console.error("Error loading PDF:", error);
+          throw error;
+        }
+      };
+      
+      const pdf = await loadPdfPromise();
       const numPages = pdf.numPages;
       console.log(`PDF loaded with ${numPages} pages`);
       parsingLogger.logEvent("PDF loaded", { pages: numPages });
       updateProgress(30);
       
-      // Extract images if enabled (for later OCR processing)
+      // Extract images in a separate chunk to prevent UI freezing
       if (useImageExtraction) {
         try {
-          // Add small delay to allow UI to update
+          // Yield control back to browser before image extraction
           await new Promise(resolve => setTimeout(resolve, 50));
           console.log("Extracting images from PDF for OCR processing");
+          
           // Store PDF data for later use in image extraction
           window.currentPdf = pdf;
           
-          // Try to convert the first page to an image for better extraction
+          // Try to convert the first page to an image but don't block
+          // if it takes too long
           updateProgress(35);
-          const firstPageImage = await convertPDFPageToImage(pdf, 1);
+          
+          const imageExtractionPromise = async () => {
+            try {
+              return await Promise.race([
+                convertPDFPageToImage(pdf, 1),
+                new Promise(resolve => setTimeout(() => {
+                  console.log("Image extraction taking too long, continuing process");
+                  resolve(null);
+                }, 10000)) // 10s timeout for image extraction
+              ]);
+            } catch (error) {
+              console.error("Image extraction error:", error);
+              return null;
+            }
+          };
+          
+          const firstPageImage = await imageExtractionPromise();
           updateProgress(40);
           
           if (firstPageImage) {
@@ -86,30 +124,55 @@ export const processPDFDocument = async (
           }
         } catch (error) {
           console.error("Error extracting images from PDF:", error);
+          // Continue without images - non-critical error
         }
       }
       
-      // Add small delay to allow UI to update
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Extract text in a separate process chunk
+      await new Promise(resolve => setTimeout(resolve, 50)); // Yield to UI
       updateProgress(45);
       
-      // Use standard text extraction for the main content
-      const extractedText = await extractTextFromPDF(pdf);
+      // Wrap text extraction in a promise with timeout
+      const extractTextPromise = async () => {
+        try {
+          return await Promise.race([
+            extractTextFromPDF(pdf),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Text extraction timeout")), 60000)) // 60s timeout
+          ]);
+        } catch (error) {
+          console.error("Text extraction error:", error);
+          throw error;
+        }
+      };
+      
+      const extractedText = await extractTextPromise();
       console.log("Successfully extracted text from PDF, length:", extractedText.length);
       updateProgress(60);
       
-      // Add small delay to allow UI to update
+      // Yield control before parsing
       await new Promise(resolve => setTimeout(resolve, 50));
       
       try {
         // Parse the extracted text with the unique report ID
-        const parsedReport = await parsePDFContent(extractedText, useAI);
+        // but don't let it block UI for too long
+        const parsePromise = async () => {
+          try {
+            return await Promise.race([
+              parsePDFContent(extractedText, useAI),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Parsing timeout")), 30000)) // 30s timeout
+            ]);
+          } catch (error) {
+            console.error("Parsing error:", error);
+            throw error;
+          }
+        };
+        
+        const parsedReport = await parsePromise();
         updateProgress(80);
         
-        // Add small delay to allow UI to update
+        // Yield control to UI
         await new Promise(resolve => setTimeout(resolve, 50));
         
-        // Ensure the report has a unique ID and filename
         if (parsedReport) {
           parsedReport.reportId = uniqueReportId;
           parsedReport.fileName = file.name;
@@ -125,9 +188,9 @@ export const processPDFDocument = async (
             extractedText: extractedText.substring(0, 1000) // Store preview
           };
           
-          // Make sure state is updated before completing processing
+          // Final UI yield before completion
           await new Promise(resolve => setTimeout(resolve, 50));
-          updateProgress(90);
+          updateProgress(95);
           
           // Complete processing
           completeProgressTracking();
@@ -168,16 +231,24 @@ export const processPDFDocument = async (
   }
 };
 
-// Helper function to read file as ArrayBuffer with Promise
+// Helper function to read file as ArrayBuffer with Promise - with improved error handling
 async function readFileAsArrayBuffer(file: File): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const fileReader = new FileReader();
     
+    // Add timeout to prevent freezing on large files
+    const timeout = setTimeout(() => {
+      fileReader.abort();
+      reject(new Error("File reading timed out - file may be too large"));
+    }, 30000); // 30 second timeout
+    
     fileReader.onload = function() {
+      clearTimeout(timeout);
       resolve(new Uint8Array(this.result as ArrayBuffer));
     };
     
     fileReader.onerror = () => {
+      clearTimeout(timeout);
       reject(new Error("Error reading the file."));
     };
     
