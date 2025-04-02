@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -50,11 +49,11 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           // For specific account types like "Other", treat zeros explicitly
           if (summary.accountType === "Other" || summary.accountType === "Total") {
             // For "Other" or "Total" rows, preserve "0" values
-            if (summary.open === "0" || summary.open === "," || summary.open === 0) {
+            if (summary.open === "0" || summary.open === "," || summary.open === "0") {
               cleanedSummary.open = "0";
             }
             
-            if (summary.withBalance === "0" || summary.withBalance === "," || summary.withBalance === 0) {
+            if (summary.withBalance === "0" || summary.withBalance === "," || summary.withBalance === "0") {
               cleanedSummary.withBalance = "0";
             }
             
@@ -65,7 +64,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           } else {
             // For regular rows, handle zero values normally
             // Don't treat "0" values as empty, regardless of row type
-            if (summary.open === "0" || summary.open === 0) {
+            if (summary.open === "0") {
               cleanedSummary.open = "0";
             } 
             else if (summary.open === ',' || summary.open === '' || summary.open === null) {
@@ -73,7 +72,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
             }
             
             // Same for withBalance field
-            if (summary.withBalance === "0" || summary.withBalance === 0) {
+            if (summary.withBalance === "0") {
               cleanedSummary.withBalance = "0";
             } 
             else if (summary.withBalance === ',' || summary.withBalance === '' || summary.withBalance === null) {
@@ -81,7 +80,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
             }
             
             // Same for totalBalance field
-            if (summary.totalBalance === "$0" || summary.totalBalance === "0" || summary.totalBalance === 0) {
+            if (summary.totalBalance === "$0" || summary.totalBalance === "0") {
               cleanedSummary.totalBalance = "$0";
             }
             else if (summary.totalBalance === '$,' || summary.totalBalance === '$' || 
@@ -143,7 +142,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string, accountType: string) => {
     // Special handling for zero values
-    if (value === "0" || value === 0 || value === "$0" || value === "," || value === "$,") {
+    if (value === "0" || value === "$0" || value === "," || value === "$,") {
       // Always correctly format zero values
       if (fieldName === 'open' || fieldName === 'withBalance') return "0";
       if (fieldName === 'totalBalance' || fieldName === 'available' || 
@@ -159,7 +158,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     // Special handling for the Other row
     if (accountType === "Other") {
       // For "Other" row, show zeros as "0" not "x"
-      if (value === "0" || value === 0 || value === "," || value === "$,") {
+      if (value === "0" || value === "," || value === "$,") {
         if (fieldName === 'open' || fieldName === 'withBalance') return "0";
         if (fieldName === 'totalBalance' || fieldName === 'available' || 
             fieldName === 'creditLimit' || fieldName === 'payment') return "$0";
