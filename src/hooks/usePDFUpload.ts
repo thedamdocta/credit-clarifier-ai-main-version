@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
 
@@ -14,24 +14,10 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [modelsLoaded, setModelsLoaded] = useState(true); // Always set to true to avoid loading
-  const [modelLoadRetries, setModelLoadRetries] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Maximum file size to process without warning (in MB)
-  const MAX_RECOMMENDED_FILE_SIZE = 50;
 
   const processPDF = async (file: File) => {
     try {
-      // Check file size before proceeding
-      const fileSizeMB = file.size / (1024 * 1024);
-      if (fileSizeMB > MAX_RECOMMENDED_FILE_SIZE) {
-        toast.warning(
-          `This file is ${Math.round(fileSizeMB)}MB, which may take longer to process. Please be patient.`,
-          { duration: 6000 }
-        );
-      }
-      
       setIsProcessing(true);
       
       // Show initial upload started toast
@@ -43,8 +29,8 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
       // This gives the UI a chance to update with the loading indicators
       setTimeout(async () => {
         try {
-          // Process the PDF file with enhanced image extraction
-          await processPDFDocument(file, false, {  // Always set useAI to false
+          // Process the PDF file
+          await processPDFDocument(file, false, {
             setCurrentFile,
             setUploadProgress,
             onPDFUploaded,
@@ -119,7 +105,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
     uploadProgress,
     currentFile,
     isProcessing,
-    modelsLoaded,
+    modelsLoaded: true, // Always set to true
     fileInputRef,
     handleDragOver,
     handleDragLeave,

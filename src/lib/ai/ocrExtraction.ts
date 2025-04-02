@@ -5,19 +5,19 @@ import { preprocessImageForOCR, compressImage } from './imagePreprocessing';
 // Lazily loaded OCR pipeline
 let ocrPipelinePromise: Promise<any> | null = null;
 
-// Disable AI features if they're causing performance issues
-const USE_SIMULATION = true; // For development purposes only
-const COMPRESS_IMAGES = true; // Enable image compression for better performance
+// Disable AI features for better performance
+const USE_SIMULATION = true;
+const COMPRESS_IMAGES = true;
 
 /**
  * Extract text from an image using OCR
- * Optimized version with better compression and performance
+ * Optimized for better performance
  */
 export async function extractTextFromImage(imageUrl: string): Promise<string | null> {
   if (USE_SIMULATION) {
     // Simulate OCR processing for development
     console.log('Simulating OCR processing for', imageUrl);
-    await new Promise(resolve => setTimeout(resolve, 200)); // Reduced simulation time
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     // Return simulated text that mimics credit report table data
     return `
@@ -51,18 +51,10 @@ export async function extractTextFromImage(imageUrl: string): Promise<string | n
       if (compressedImage) {
         console.log('Using compressed image for OCR');
         imageToProcess = compressedImage;
-      } else {
-        // Fall back to basic preprocessing
-        const processedImageUrl = await preprocessImageForOCR(cacheBustUrl);
-        imageToProcess = processedImageUrl || cacheBustUrl;
       }
-    } else {
-      // Use standard preprocessing without compression
-      const processedImageUrl = await preprocessImageForOCR(cacheBustUrl);
-      imageToProcess = processedImageUrl || cacheBustUrl;
     }
     
-    // Initialize the OCR pipeline with timeout - reduced from 15s to 10s
+    // Initialize the OCR pipeline
     const ocrPromise = async () => {
       if (!ocrPipelinePromise) {
         console.log('Loading OCR model...');
@@ -86,7 +78,7 @@ export async function extractTextFromImage(imageUrl: string): Promise<string | n
       return await ocrPipeline(imageToProcess);
     };
     
-    // Add timeout to prevent hanging - reduced from 15s to 10s
+    // Process with reasonable timeout
     const result = await Promise.race([
       ocrPromise(),
       new Promise((_, reject) => 
@@ -108,24 +100,7 @@ export async function extractTextFromImage(imageUrl: string): Promise<string | n
 
 /**
  * Enhanced OCR specifically optimized for table detection
- * With performance improvements
  */
 export async function extractTableTextFromImage(imageUrl: string): Promise<string | null> {
-  try {
-    // For table extraction, we want to optimize OCR for structured data
-    // With added compression for better performance
-    if (COMPRESS_IMAGES) {
-      const compressedImage = await compressImage(imageUrl, 0.7, 1024);
-      if (compressedImage) {
-        console.log('Using compressed image for table OCR');
-        return extractTextFromImage(compressedImage);
-      }
-    }
-    
-    // Fall back to standard extraction
-    return extractTextFromImage(imageUrl);
-  } catch (error) {
-    console.error('Error in table OCR processing:', error);
-    return null;
-  }
+  return extractTextFromImage(imageUrl);
 }

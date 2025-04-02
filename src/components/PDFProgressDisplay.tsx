@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+
+import React from "react";
 import { Progress } from "@/components/ui/progress";
-import { File, Loader2, AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { File, Loader2 } from "lucide-react";
 
 interface PDFProgressDisplayProps {
   file: File;
@@ -12,35 +12,10 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   file,
   progress
 }) => {
-  const [showLongProcessingWarning, setShowLongProcessingWarning] = useState(false);
-  const [processingTime, setProcessingTime] = useState(0);
-  
   const formattedFileSize = React.useMemo(() => {
     const sizeInKB = Math.round(file.size / 1024);
     return sizeInKB > 1024 ? `${(sizeInKB / 1024).toFixed(2)} MB` : `${sizeInKB} KB`;
   }, [file.size]);
-
-  // Track processing time and show warning for long-running processes
-  useEffect(() => {
-    if (progress > 0 && progress < 100) {
-      const timer = setInterval(() => {
-        setProcessingTime(prev => prev + 1);
-      }, 1000);
-      
-      return () => clearInterval(timer);
-    } else {
-      setProcessingTime(0);
-    }
-  }, [progress]);
-  
-  // Show warning for long-running processes
-  useEffect(() => {
-    if (processingTime > 30 && progress > 20 && progress < 90) {
-      setShowLongProcessingWarning(true);
-    } else {
-      setShowLongProcessingWarning(false);
-    }
-  }, [processingTime, progress]);
 
   const getProgressMessage = () => {
     if (progress < 10) return "Initializing PDF reader...";
@@ -63,11 +38,6 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
         <div className="flex-1">
           <p className="text-sm font-medium">{file.name}</p>
           <p className="text-xs text-muted-foreground">{formattedFileSize}</p>
-          {processingTime > 0 && progress < 100 && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Processing time: {processingTime}s
-            </p>
-          )}
         </div>
       </div>
       
@@ -84,15 +54,6 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
           <span>PDF processed successfully!</span>
         )}
       </div>
-      
-      {showLongProcessingWarning && (
-        <Alert className="bg-amber-50 mt-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Processing large documents can take several minutes. Please be patient.
-          </AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 };

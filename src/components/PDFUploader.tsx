@@ -1,15 +1,14 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePDFUpload } from "@/hooks/usePDFUpload";
 import PDFUploadPlaceholder from "./PDFUploadPlaceholder";
 import PDFProgressDisplay from "./PDFProgressDisplay";
 import ExtractionProcessLog from "./credit-report/ExtractionProcessLog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Info, CheckCircle, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Settings } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -18,10 +17,6 @@ interface PDFUploaderProps {
 
 const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: parentIsProcessing }) => {
   const [showProcessLog, setShowProcessLog] = useState(false);
-  const [showStartupInfo, setShowStartupInfo] = useState(false);
-  const [modelsReady, setModelsReady] = useState(true); // Always set to true
-  const [hasShownLargeFileWarning, setHasShownLargeFileWarning] = useState(false);
-  const [useAI, setUseAI] = useState(false); // Always disabled
   const [showSettings, setShowSettings] = useState(false);
   const [useImageExtraction, setUseImageExtraction] = useState(true);
   
@@ -38,7 +33,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
     triggerFileInput
   } = usePDFUpload({ 
     onPDFUploaded, 
-    useAI: false, // Always pass false
+    useAI: false,
     useImageExtraction
   });
   
@@ -49,32 +44,8 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
   React.useEffect(() => {
     if (combinedIsProcessing) {
       setShowProcessLog(true);
-      
-      // Show large file warning if current file is large
-      if (currentFile && currentFile.size > 15 * 1024 * 1024 && !hasShownLargeFileWarning) {
-        setHasShownLargeFileWarning(true);
-      }
-    } else {
-      // Reset large file warning status when not processing
-      setHasShownLargeFileWarning(false);
     }
-  }, [combinedIsProcessing, currentFile]);
-
-  // Function to determine if we should show the large file warning
-  const shouldShowLargeFileWarning = () => {
-    return (
-      combinedIsProcessing && 
-      uploadProgress >= 40 && 
-      uploadProgress < 95 && 
-      currentFile && 
-      currentFile.size > 15 * 1024 * 1024
-    );
-  };
-
-  // Toggle performance mode
-  const togglePerformanceMode = (checked: boolean) => {
-    // Do nothing - AI is always disabled
-  };
+  }, [combinedIsProcessing]);
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
@@ -145,15 +116,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
           />
         )}
       </div>
-      
-      {shouldShowLargeFileWarning() && (
-        <Alert variant="warning" className="bg-amber-50 border-amber-200">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <AlertDescription className="text-amber-800">
-            This is a large PDF file. Processing may take several minutes.
-          </AlertDescription>
-        </Alert>
-      )}
       
       {/* Always show process log when processing is active, or if it was previously shown */}
       <ExtractionProcessLog isVisible={combinedIsProcessing || showProcessLog} />
