@@ -21,7 +21,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
       setCurrentFile,
       setUploadProgress,
       onPDFUploaded,
-      useImageExtraction: false // Disable global image extraction
+      useImageExtraction: true // Enable image extraction for tables
     });
   };
 

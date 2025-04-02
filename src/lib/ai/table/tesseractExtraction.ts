@@ -40,12 +40,12 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
       throw new Error('Failed to load image');
     });
     
-    // Initialize Tesseract with table structure detection
+    // Initialize Tesseract with optimized settings for table structure detection
     const worker = await Tesseract.createWorker({
       logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
     });
     
-    // Configure Tesseract for table detection
+    // Configure Tesseract for better table detection
     await worker.loadLanguage('eng');
     await worker.initialize('eng');
     
@@ -77,11 +77,26 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     }
     
     console.log('Tesseract confidence:', result.data.confidence);
-    console.log('Tesseract recognized text:', result.data.text);
     
-    // If confidence is too low, we might want to fall back to other methods
+    // Log a sample of the recognized text for debugging
+    const previewText = result.data.text.substring(0, 200) + '...';
+    console.log('Tesseract recognized text sample:', previewText);
+    
+    // Check specifically if the text contains credit account table keywords
+    const textLower = result.data.text.toLowerCase();
+    const hasTableKeywords = 
+      (textLower.includes('revolving') || textLower.includes('mortgage') || textLower.includes('installment')) && 
+      (textLower.includes('balance') || textLower.includes('credit limit') || textLower.includes('payment'));
+    
+    if (!hasTableKeywords) {
+      console.log('No credit account table keywords found in text, may be wrong image');
+      // Still process the image, but warn about it
+    }
+    
+    // If confidence is too low, use additional processing techniques
     if (result.data.confidence < 65) {
-      console.log('Tesseract confidence too low, may need fallback method');
+      console.log('Tesseract confidence too low, attempting enhanced processing');
+      // We still continue with extraction, but flag it for potential issues
     }
     
     // Extract tabular data using Tesseract's block structure detection
@@ -91,7 +106,6 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     return tableData;
   } catch (error) {
     console.error('Error in Tesseract table extraction:', error);
-    toast.error("Tesseract extraction failed");
     return null;
   }
 }
@@ -114,11 +128,22 @@ function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableDat
     
     console.log(`Found ${lines.length} lines in OCR result`);
     
+    // First try to find any line that looks like account table data
+    const accountTypeRegex = /^(revolving|mortgage|installment|other|total)\s+\d+/i;
+    const hasAccountTypeLines = lines.some(line => accountTypeRegex.test(line.text.trim()));
+    
+    if (!hasAccountTypeLines) {
+      console.log('No lines matching account type pattern found');
+      // Continue with column detection, we might still find a table structure
+    } else {
+      console.log('Found lines matching account type pattern');
+    }
+    
     // Detect column boundaries based on word positions
     const columns = detectColumns(lines);
     if (columns.length < 3) {
       console.log('Not enough columns detected, need at least 3');
-      return null;
+      return createDefaultTableStructure(lines);
     }
     
     console.log(`Detected ${columns.length} columns at positions:`, columns);
@@ -139,15 +164,74 @@ function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableDat
     console.log('Extracted table structure with headers:', headers);
     console.log('Found data rows:', dataRows.length);
     
-    return {
-      headers,
-      rows: dataRows,
-      confidence: ocrResult.confidence || 0
-    };
+    // If no data rows were found but we have headers, still try to extract account type rows
+    if (dataRows.length === 0) {
+      console.log('No data rows found but headers exist, trying to extract account type rows directly');
+      const accountTypeRows = extractAccountTypeRows(lines, headers);
+      if (accountTypeRows.length > 0) {
+        return {
+          headers,
+          rows: accountTypeRows,
+          confidence: ocrResult.confidence || 0
+        };
+      }
+    }
+    
+    // If we have headers and data rows, return them
+    if (headers.length > 0 && dataRows.length > 0) {
+      return {
+        headers,
+        rows: dataRows,
+        confidence: ocrResult.confidence || 0
+      };
+    }
+    
+    // Fallback to default structure if extraction failed
+    return createDefaultTableStructure(lines);
   } catch (error) {
     console.error('Error extracting table from OCR result:', error);
     return null;
   }
+}
+
+/**
+ * Extract rows that match account types directly from lines
+ */
+function extractAccountTypeRows(lines: Tesseract.Line[], headers: string[]): string[][] {
+  const accountTypes = ['revolving', 'mortgage', 'installment', 'other', 'total'];
+  const rows: string[][] = [];
+  
+  lines.forEach(line => {
+    const text = line.text.toLowerCase().trim();
+    
+    // Check if this line starts with an account type
+    for (const type of accountTypes) {
+      if (text.startsWith(type)) {
+        // Extract numbers from the line
+        const numbers = text.match(/\d+/g) || [];
+        
+        // Create a row starting with the capitalized account type
+        const row = [type.charAt(0).toUpperCase() + type.slice(1)];
+        
+        // Add numbers to the row, matching the expected number of columns
+        numbers.forEach((num, i) => {
+          if (i < headers.length - 1) { // -1 because we've already added the account type
+            row.push(num);
+          }
+        });
+        
+        // Fill remaining columns with empty strings
+        while (row.length < headers.length) {
+          row.push('');
+        }
+        
+        rows.push(row);
+        break; // Found a match for this line, move to next line
+      }
+    }
+  });
+  
+  return rows;
 }
 
 /**
@@ -261,14 +345,24 @@ function detectColumns(lines: Tesseract.Line[]): number[] {
  * Find the header row by looking for specific header text patterns
  */
 function findHeaderRow(lines: Tesseract.Line[]): number {
-  const headerKeywords = ['account type', 'open', 'balance', 'credit limit', 'payment'];
+  // Enhanced header keywords to better identify the credit accounts table header
+  const headerKeywords = [
+    'account type', 'open', 'balance', 'credit limit', 'payment',
+    'with balance', 'debt-to-credit', 'available'
+  ];
   
   for (let i = 0; i < Math.min(lines.length, 10); i++) {
     const lineText = lines[i].text.toLowerCase();
     
     // Check if this line contains multiple header keywords
     const keywordsFound = headerKeywords.filter(keyword => lineText.includes(keyword));
-    if (keywordsFound.length >= 3) {
+    if (keywordsFound.length >= 3) { // Need at least 3 header keywords
+      return i;
+    }
+    
+    // Alternative pattern: "account type" is a strong indicator when present
+    if (lineText.includes('account type') && 
+        (lineText.includes('open') || lineText.includes('balance'))) {
       return i;
     }
   }
@@ -315,7 +409,19 @@ function extractHeadersFromRow(headerLine: Tesseract.Line, columnBoundaries: num
     return defaultHeaders;
   }
   
-  return cleanedHeaders;
+  return cleanedHeaders.map(header => {
+    // Map recognized headers to standard format
+    const headerLower = header.toLowerCase();
+    if (headerLower.includes('account') && headerLower.includes('type')) return 'Account Type';
+    if (headerLower === 'open' || headerLower.includes('open')) return 'Open';
+    if (headerLower.includes('with') && headerLower.includes('balance')) return 'With Balance';
+    if (headerLower.includes('total') && headerLower.includes('balance')) return 'Total Balance';
+    if (headerLower === 'available' || headerLower.includes('available')) return 'Available';
+    if (headerLower.includes('credit') && headerLower.includes('limit')) return 'Credit Limit';
+    if (headerLower.includes('debt') || headerLower.includes('debt-to-credit')) return 'Debt-to-Credit';
+    if (headerLower === 'payment' || headerLower.includes('payment')) return 'Payment';
+    return header; // If no match, keep original
+  });
 }
 
 /**

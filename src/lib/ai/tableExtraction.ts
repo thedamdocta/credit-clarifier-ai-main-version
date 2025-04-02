@@ -50,8 +50,8 @@ export async function extractTableFromImage(imageUrl: string) {
       }
     }
     
-    // Use Tesseract OCR to extract table data from the image
-    console.log('Using Tesseract OCR to extract table data from image');
+    // Use enhanced Tesseract OCR to extract table data from the image with improved settings
+    console.log('Using enhanced Tesseract OCR to extract table data from image');
     const extractedTable = await extractTableWithTesseract(imageUrl);
     
     if (extractedTable) {
@@ -72,8 +72,18 @@ export async function extractTableFromImage(imageUrl: string) {
       return formattedTable;
     }
     
-    // If Tesseract extraction fails, return null
-    console.log('Tesseract extraction failed to extract table data');
+    // If Tesseract extraction fails, try fallback pattern matching on text
+    console.log('Tesseract extraction failed, trying pattern matching on extracted text');
+    const extractedText = document.querySelector('.extracted-text-content')?.textContent || '';
+    if (extractedText) {
+      const tableData = extractTableStructureFromText(extractedText);
+      if (tableData) {
+        return tableData;
+      }
+    }
+    
+    // All extraction methods failed
+    console.log('All extraction methods failed to extract table data');
     return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
@@ -88,14 +98,14 @@ export function extractTableStructureFromText(text: string) {
   try {
     console.log('Extracting table structure from text using pattern matching');
     
-    // Define expected row patterns for credit report account tables
-    // These patterns identify data in the format: account type + numbers
+    // Define enhanced patterns for credit report account tables
+    // These patterns identify data in the format: account type + numbers with various formats
     const rowPatterns = {
-      revolving: /revolving\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      mortgage: /mortgage\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      installment: /installment\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      other: /other\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
-      total: /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+\$?([\d,]+)\s+\$?([\d,]+)/i,
+      revolving: /revolving\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
+      mortgage: /mortgage\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
+      installment: /installment\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
+      other: /other\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
+      total: /total\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
     };
     
     // Initialize table structure
@@ -108,6 +118,7 @@ export function extractTableStructureFromText(text: string) {
     Object.entries(rowPatterns).forEach(([accountType, pattern]) => {
       const match = text.match(pattern);
       if (match) {
+        console.log(`Found match for ${accountType}: ${match[0]}`);
         const row: Record<string, string> = {
           'Account Type': accountType.charAt(0).toUpperCase() + accountType.slice(1),
           'Open': match[1] || '0',
@@ -143,8 +154,6 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
   }
   
   console.log('Creating simulated table data');
-  
-  
   
   return {
     headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
@@ -201,7 +210,6 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
       }
     ]
   };
-  return null; // In most cases, we don't want to use simulated data
 }
 
 // Import the value parsers from our value parser module

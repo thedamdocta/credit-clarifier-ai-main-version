@@ -7,7 +7,7 @@ let currentPdfData: {
   parsedReport?: any;
   fileName?: string;
   extractedText?: string;
-  tableImageUrl?: string; // Added to store table image URL
+  tableImageUrl?: string; 
 } = {};
 
 // Import the function for PDF to image conversion
@@ -107,60 +107,80 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
     const extractedText = currentPdfData.extractedText || "";
     
     // Use the extracted text to help locate the account table page
-    const tableKeywords = ['account type', 'open', 'with balance', 'total balance', 'revolving', 'mortgage', 'installment'];
-    const lines = extractedText.split('\n');
+    // Enhanced list of keywords to better identify the credit accounts table
+    const tableKeywords = [
+      'account type', 'revolving', 'mortgage', 'installment', 'total balance', 
+      'credit limit', 'payment', 'debt-to-credit', 'with balance', 'open',
+      'credit accounts', 'account summary', 'summary of accounts'
+    ];
     
-    // For each line, check if it contains the table keywords
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].toLowerCase();
-      let score = 0;
-      
-      tableKeywords.forEach(keyword => {
-        if (line.includes(keyword)) {
-          score += 1;
-        }
-      });
-      
-      if (score >= 3) {
-        console.log(`Found likely table line: "${line}" with score ${score}`);
-        
-        // We found a line that likely contains the table header
-        // Now we need to convert this page to an image
-        // Since we don't know which page this line is from, we'll have to try each page
-        break;
-      }
-    }
-    
-    // If we couldn't determine the page from text, scan all pages
-    // Start from page 2, as it's often on the second page
-    for (let i = 2; i <= Math.min(numPages, 5); i++) {
+    // Process each page to find the one with the account table
+    for (let i = 1; i <= numPages; i++) {
       try {
-        console.log(`Attempting to extract table image from page ${i}`);
-        const imageData = await convertPDFPageToImage(pdfDocument, i);
+        // Get the page text content
+        const page = await pdfDocument.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
         
-        if (imageData) {
-          // Store this image URL
-          currentPdfData.tableImageUrl = imageData;
-          return imageData;
+        // Count occurrences of table keywords
+        let score = 0;
+        tableKeywords.forEach(keyword => {
+          const regex = new RegExp(keyword, 'gi');
+          const matches = pageText.match(regex);
+          if (matches) {
+            score += matches.length;
+          }
+        });
+        
+        // Extra score for specific patterns that strongly indicate the account table
+        if (/(revolving|mortgage|installment).*?\d+.*?balance/i.test(pageText)) {
+          score += 10; // Boost score for typical table content
+        }
+        
+        // Look for tabular structure with account types and numbers
+        if (/revolving.*?\d+.*?mortgage.*?\d+.*?installment.*?\d+/i.test(pageText)) {
+          score += 15; // Very strong indicator of the account table
+        }
+        
+        console.log(`Page ${i} score: ${score} for credit account table detection`);
+        
+        // Update best page if this one has a higher score
+        if (score > highestScore) {
+          highestScore = score;
+          bestPage = i;
         }
       } catch (error) {
-        console.error(`Error extracting image from page ${i}:`, error);
+        console.error(`Error processing page ${i} for table detection:`, error);
       }
     }
     
-    // If all attempts fail, try page 1
+    console.log(`Best page for credit account table: ${bestPage} with score ${highestScore}`);
+    
+    // If no good page was found, return null
+    if (highestScore < 2) {
+      console.log("No good page found for credit account table extraction");
+      return null;
+    }
+    
+    // Extract the image of the best page
     try {
-      console.log("Attempting to extract table image from page 1 as fallback");
-      const imageData = await convertPDFPageToImage(pdfDocument, 1);
-      if (imageData) {
-        currentPdfData.tableImageUrl = imageData;
-        return imageData;
+      const pageImage = await convertPDFPageToImage(pdfDocument, bestPage);
+      
+      if (!pageImage) {
+        console.error("Failed to convert page to image for table extraction");
+        return null;
       }
+      
+      console.log(`Successfully extracted image for page ${bestPage}`);
+      
+      // Store the image URL in the current PDF data
+      currentPdfData.tableImageUrl = pageImage;
+      
+      return pageImage;
     } catch (error) {
-      console.error("Error extracting image from page 1:", error);
+      console.error("Error extracting table image:", error);
+      return null;
     }
-    
-    return null;
   } catch (error) {
     console.error("Error extracting credit accounts table image:", error);
     return null;
