@@ -1,55 +1,99 @@
-
-// Functions for handling the basic report data
-import { toast } from "sonner";
-import { extractTextFromPDF, setExtractedReportData } from "../extractText";
+// Core logic for handling credit report processing and data extraction
+import { parsingLogger } from "@/utils/parsingLogger";
 import { CreditReport } from "@/lib/types/creditReport";
+import { extractTextFromImage, processImageWithEnhancedOCR } from "@/lib/ai/ocrExtraction";
+import { extractCreditAccountsTableImage, getExtractedReportData, setExtractedReportData, setPDFData } from "../extractText";
 
-// Extract basic processing into a separate function for better readability
-export async function handleBasicProcessing(
-  reportId: string, 
-  file: File, 
-  extractedText: string, 
+// Function to set the current PDF data and return a unique report ID
+export const setCurrentPDFData = (file: File): string => {
+  return setPDFData(file);
+};
+
+// Function to handle basic processing of the extracted text
+export const handleBasicProcessing = async (
+  uniqueReportId: string,
+  file: File,
+  extractedText: string,
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void
-) {
-  // Add small delay to prevent UI freezing
-  await new Promise(resolve => setTimeout(resolve, 50));
+) => {
+  console.log("No AI parsing available, using basic processing");
+  parsingLogger.logEvent("Basic processing used", { reportId: uniqueReportId });
   
-  const basicReport: CreditReport = { 
-    reportId: reportId,
-    fileName: file.name,
-    rawText: extractedText,
-    bureau: 'Unknown' as const,
-    reportDate: new Date().toISOString().split('T')[0],
-    personalInfo: { name: 'Unknown', addresses: [] },
-    accounts: [],
-    inquiries: [],
-    publicRecords: [],
-    collections: [],
-    creditScores: []
-  };
-  
-  // Store in global for easier access
-  if (window) {
-    window.currentPdfData = {
-      reportId: reportId,
-      fileName: file.name,
-      extractedText: extractedText.substring(0, 1000)
-    };
-  }
-  
-  // Store this parsed data in our cache
-  setExtractedReportData(basicReport);
-  
-  onPDFUploaded(file, extractedText, basicReport);
-  toast.success("PDF processed with basic extraction");
-}
+  // Pass the extracted text and file to the parent component
+  onPDFUploaded(file, extractedText);
+};
 
-// Function to store PDF data in global and generate a unique report ID
-export function setCurrentPDFData(file: File): string {
-  const uniqueReportId = `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  
-  // Store this file as the current PDF being processed with a unique ID
-  console.log(`Set unique report ID: ${uniqueReportId}`);
-  
-  return uniqueReportId;
-}
+// Function to process the extracted text and return a structured credit report
+export const processExtractedText = async (
+  extractedText: string,
+  uniqueReportId: string,
+  file: File
+): Promise<CreditReport | null> => {
+  try {
+    console.log("Processing extracted text to create structured credit report");
+    parsingLogger.logEvent("AI parsing started", { reportId: uniqueReportId });
+    
+    // Simulate parsing the extracted text into a structured credit report
+    const parsedReport: CreditReport = {
+      reportId: uniqueReportId,
+      bureau: "Unknown",
+      personalInfo: {
+        name: "Unknown",
+        address: "Unknown",
+        ssn: "Unknown",
+        dob: "Unknown",
+      },
+      accounts: [],
+      summary: {
+        totalAccounts: 0,
+        openAccounts: 0,
+        closedAccounts: 0,
+        negativeAccounts: 0,
+      },
+      inquiries: [],
+      publicRecords: [],
+    };
+    
+    // Store the parsed report data
+    setExtractedReportData(parsedReport);
+    
+    parsingLogger.logEvent("AI parsing completed", { reportId: uniqueReportId });
+    return parsedReport;
+  } catch (error) {
+    console.error("Error processing extracted text:", error);
+    parsingLogger.logEvent("AI parsing error", {
+      reportId: uniqueReportId,
+      error: String(error),
+    });
+    return null;
+  }
+};
+
+// Function to extract credit accounts using OCR
+export const extractCreditAccountsWithOCR = async (report: any): Promise<string | null> => {
+  try {
+    console.log("Attempting to extract credit accounts using OCR");
+    
+    // First, try to extract the table image
+    let tableImageUrl = await extractCreditAccountsTableImage(report);
+    
+    if (!tableImageUrl) {
+      console.warn("No table image found, OCR extraction skipped");
+      return null;
+    }
+    
+    // Use enhanced OCR to extract text from the table image
+    const ocrText = await processImageWithEnhancedOCR(tableImageUrl);
+    
+    if (!ocrText) {
+      console.warn("OCR extraction failed");
+      return null;
+    }
+    
+    console.log("OCR extraction successful:", ocrText);
+    return ocrText;
+  } catch (error) {
+    console.error("Error extracting credit accounts with OCR:", error);
+    return null;
+  }
+};

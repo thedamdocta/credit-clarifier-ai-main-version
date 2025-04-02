@@ -1,4 +1,3 @@
-
 // Main PDF processing orchestrator that coordinates the different modules
 import { toast } from "sonner";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
@@ -36,6 +35,7 @@ export const processPDFDocument = async (
     parsingLogger.logEvent("PDF processing started", { fileName: file.name, size: file.size });
     
     // Store this file as the current PDF being processed with a unique ID
+    // Use setPDFData instead of setCurrentPDFData
     const uniqueReportId = setCurrentPDFData(file);
     
     // Setup progress tracking
@@ -72,7 +72,7 @@ export const processPDFDocument = async (
       
       // Memory management - release array buffer after PDF is loaded to free memory
       // @ts-ignore - This is a hack to free memory
-      (typedarray as any) = null;
+      let nullArray = null;
       
       // Yield control back to browser to prevent UI freeze
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -179,3 +179,6 @@ export async function extractTextFromImage(imageData: string): Promise<string | 
     return null;
   }
 }
+
+// Import the renamed function from extractText.ts
+import { setPDFData } from './extractText';
