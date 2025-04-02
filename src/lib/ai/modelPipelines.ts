@@ -130,7 +130,6 @@ export const getNER = async () => {
         progress_callback: createProgressCallback(),
         // Use CPU instead of GPU for better stability across browsers
         // This can be important for preventing browser freezes
-        quantized: false
       };
       
       return await pipeline('token-classification', 'Xenova/distilbert-base-cased-finetuned-conll03-english', options);
@@ -153,7 +152,6 @@ export const getTextClassifier = async () => {
       const options: PretrainedOptions = {
         progress_callback: createProgressCallback(),
         // Use CPU instead of GPU for better stability across browsers
-        quantized: false
       };
       
       return await pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', options);
