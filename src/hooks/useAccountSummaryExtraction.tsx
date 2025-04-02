@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { toast } from "sonner";
@@ -133,17 +132,11 @@ export const useAccountSummaryExtraction = ({ report, requiredAccountTypes }: Us
   const isSampleData = (summaries: AccountSummary[]) => {
     if (!summaries || summaries.length === 0) return false;
     
-    const hasRevolvingSample = summaries.some(s => 
-      s.accountType === "Revolving" && 
-      s.totalBalance === "$16,355" && 
-      s.payment === "$627");
+    const hasIdenticalPatterns = summaries.some(s => 
+      s.accountType === "Revolving" && s.totalBalance && s.payment &&
+      (s.totalBalance.includes("$10,000") || s.totalBalance.includes("$5,000")));
     
-    const hasInstallmentSample = summaries.some(s => 
-      s.accountType === "Installment" && 
-      s.totalBalance === "$204,150" && 
-      s.available === "$15,455");
-    
-    return hasRevolvingSample && hasInstallmentSample;
+    return hasIdenticalPatterns;
   };
   
   const handleEnhancedExtraction = async (forceManualExtraction: boolean = true) => {

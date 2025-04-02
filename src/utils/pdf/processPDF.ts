@@ -53,8 +53,8 @@ export const processPDFDocument = async (
     // Check file size and warn for large files
     const fileSizeMB = checkFileSizeAndWarn(file);
     
-    // For very large files, use simplified processing
-    if (fileSizeMB > 30) {
+    // For very large files, use simplified processing - increase threshold from 30 to 50MB
+    if (fileSizeMB > 50) {
       toast.info("Using simplified processing for this large file", { duration: 5000 });
       await handleBasicProcessing(uniqueReportId, file, "Large file - text extraction skipped", onPDFUploaded);
       completeProgressTracking();
@@ -67,8 +67,8 @@ export const processPDFDocument = async (
       return readFileAsArrayBuffer(file);
     };
     
-    // Use a function scope for the typedarray to allow better memory management
-    let typedarray: Uint8Array | null = await readFilePromise();
+    // Use let instead of const for the typedarray to allow memory management
+    let typedarray = await readFilePromise();
     updateProgress(20);
     
     try {
@@ -80,11 +80,10 @@ export const processPDFDocument = async (
       updateProgress(30);
       
       // Memory management - release array buffer after PDF is loaded to free memory
-      // Instead of reassigning, set to null to help garbage collection
       typedarray = null;
       
-      // Limit processing for very large documents
-      if (numPages > 100) {
+      // Limit processing for very large documents - increase page threshold from 100 to 150
+      if (numPages > 150) {
         toast.info("This document has many pages. Using simplified processing.", { duration: 6000 });
         const basicText = `Large document with ${numPages} pages - using simplified processing`;
         await handleBasicProcessing(uniqueReportId, file, basicText, onPDFUploaded);
@@ -93,7 +92,8 @@ export const processPDFDocument = async (
       }
       
       // Extract images in a separate chunk to prevent UI freezing
-      if (useImageExtraction && numPages < 50) {
+      // Increase the page count threshold from 50 to 80 pages
+      if (useImageExtraction && numPages < 80) {
         // Yield control back to browser before image extraction
         await new Promise(resolve => setTimeout(resolve, 100));
         
@@ -107,7 +107,7 @@ export const processPDFDocument = async (
       await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
       updateProgress(45);
       
-      // Determine how many pages to process (limit for very large PDFs)
+      // Determine how many pages to process (using less restrictive limits)
       const pagesToProcess = determinePageCountForProcessing(pdf, (message) => {
         toast.info(message, { duration: 4000 });
       });
