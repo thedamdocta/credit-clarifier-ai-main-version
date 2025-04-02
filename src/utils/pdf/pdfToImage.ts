@@ -1,6 +1,7 @@
 
 /**
  * Utility for converting PDF pages to images for better text extraction
+ * Used specifically for the credit account table extraction
  */
 
 /**

@@ -9,6 +9,11 @@ export interface ProgressCallbacks {
 export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   const { setUploadProgress } = callbacks;
   
+  // Function to update progress directly
+  const updateProgress = (value: number) => {
+    setUploadProgress(value);
+  };
+  
   // Start progress interval for better UX
   const progressInterval = setInterval(() => {
     setUploadProgress((prev) => {
@@ -42,9 +47,9 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   };
   
   return {
+    updateProgress,
     clearProgressTracking,
     completeProgressTracking,
     handleProgressError
   };
 };
-

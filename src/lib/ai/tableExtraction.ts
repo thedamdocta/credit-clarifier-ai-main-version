@@ -1,18 +1,25 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
+import { extractTableWithTesseract } from './table/tesseractExtraction';
 
 /**
- * Extract table data from text directly
+ * Extract table data from an image
+ * Uses Tesseract OCR to extract table structure from the image
  */
 export async function extractTableFromImage(imageUrl: string) {
   try {
-    console.log('Direct text extraction requested');
+    console.log('Starting table extraction from image:', imageUrl);
     
-    // IMPROVED: Check if we already have extracted data from a real file
+    if (!imageUrl) {
+      console.log('No image URL provided for table extraction');
+      return null;
+    }
+    
+    // First check if we already have extracted data from a real file
     const extractedData = getExtractedReportData();
     if (extractedData && extractedData.accountSummaries && extractedData.accountSummaries.length > 0) {
       console.log('Using pre-extracted account data from actual report:', extractedData.reportId);
-      console.log('Found account summaries:', extractedData.accountSummaries);
       
       // Check if there's any real data in the account summaries
       const hasRealData = extractedData.accountSummaries.some(summary => 
@@ -43,7 +50,30 @@ export async function extractTableFromImage(imageUrl: string) {
       }
     }
     
-    // In production, return null to indicate failure rather than showing fake data
+    // Use Tesseract OCR to extract table data from the image
+    console.log('Using Tesseract OCR to extract table data from image');
+    const extractedTable = await extractTableWithTesseract(imageUrl);
+    
+    if (extractedTable) {
+      console.log('Successfully extracted table with Tesseract:', extractedTable);
+      
+      // Convert to the expected format
+      const formattedTable = {
+        headers: extractedTable.headers,
+        rows: extractedTable.rows.map(row => {
+          const rowObject: Record<string, string> = {};
+          extractedTable.headers.forEach((header, index) => {
+            rowObject[header] = row[index] || '';
+          });
+          return rowObject;
+        })
+      };
+      
+      return formattedTable;
+    }
+    
+    // If Tesseract extraction fails, return null
+    console.log('Tesseract extraction failed to extract table data');
     return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
