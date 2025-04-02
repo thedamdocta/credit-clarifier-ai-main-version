@@ -1,6 +1,6 @@
-import { AccountSummary } from '../types/creditReport';
+import { AccountSummary } from '../../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
-import { extractTableWithTesseract } from './table/tesseractExtraction';
+import { extractTableWithTesseract } from '../table/tesseractExtraction';
 import { parsingLogger } from '@/utils/parsingLogger';
 
 /**
@@ -504,14 +504,12 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
 }
 
 // Import the value parsers from our value parser module
-import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from './table/valueParser';
+import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from '../table/valueParser';
 
 /**
  * Create a default table structure when header detection fails
  */
 export function createSimulatedTableData() {
-  // Create a simple table structure with headers and empty rows
-  // This is only used in development when all other extraction methods fail
   return {
     headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
     rows: [
