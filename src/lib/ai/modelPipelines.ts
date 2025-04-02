@@ -9,7 +9,8 @@ let skipAIProcessing = false;
 let preloadingInitiated = false;
 
 // Track which models are loaded to prevent redundant loading
-const loadedModels = {
+// Changed from const to export const to make it accessible to other modules
+export const loadedModels = {
   ner: false,
   classifier: false
 };

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
@@ -75,7 +74,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDrivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
     
