@@ -1,4 +1,3 @@
-
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
@@ -51,11 +50,10 @@ export async function extractTableWithTesseract(
     });
     
     // Configure Tesseract for better table detection
-    // Only use parameters that are supported in the current version
     await worker.loadLanguage('eng');
     await worker.initialize('eng');
     
-    // Set page segmentation mode using only supported parameters
+    // Set only supported parameters (removing the problematic tessedit_ocr_engine_mode)
     await worker.setParameters({
       preserve_interword_spaces: '1', // Preserve spaces between words
       tessjs_create_hocr: '1', // Create HOCR output for better structure understanding

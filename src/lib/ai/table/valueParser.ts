@@ -26,7 +26,12 @@ export function parseNumericValue(value: any): string | null {
   if (strValue === '$') return '$0';
   
   // Fix common OCR errors where O or o is used instead of 0
-  const fixedValue = strValue.replace(/([^a-zA-Z])[O]/g, '$10').replace(/([^a-zA-Z])[o]/g, '$10');
+  const fixedValue = strValue
+    .replace(/([^a-zA-Z])[O]/g, '$10')
+    .replace(/([^a-zA-Z])[o]/g, '$10')
+    .replace(/l0/g, '10') // Fix OCR confusion between l (lowercase L) and 1
+    .replace(/\bO\b/g, '0') // Fix standalone "O" as "0"
+    .replace(/\bo\b/g, '0'); // Fix standalone "o" as "0"
   
   // Extract only digits and at most one decimal point
   const numericPattern = /[-0-9,.]+/;
@@ -65,7 +70,12 @@ export function parseCurrencyValue(value: any): string | null {
   const isNegative = strValue.startsWith('-') || strValue.includes('-$');
   
   // Fix common OCR errors where O or o is used instead of 0
-  const fixedValue = strValue.replace(/([^a-zA-Z])[O]/g, '$10').replace(/([^a-zA-Z])[o]/g, '$10');
+  const fixedValue = strValue
+    .replace(/([^a-zA-Z])[O]/g, '$10')
+    .replace(/([^a-zA-Z])[o]/g, '$10')
+    .replace(/\$(\d+)[.,](\d+)[$]/g, '$$$1.$2') // Fix malformed currency with trailing $ (OCR error)
+    .replace(/\bO\b/g, '0')
+    .replace(/\bo\b/g, '0');
   
   // Extract digits, commas, and period for decimal point
   const numericPattern = /[-0-9,.]+/;
@@ -113,7 +123,11 @@ export function parsePercentageValue(value: any): string | null {
   const hasPercentSign = strValue.includes('%');
   
   // Fix common OCR errors where O or o is used instead of 0
-  const fixedValue = strValue.replace(/([^a-zA-Z])[O]/g, '$10').replace(/([^a-zA-Z])[o]/g, '$10');
+  const fixedValue = strValue
+    .replace(/([^a-zA-Z])[O]/g, '$10')
+    .replace(/([^a-zA-Z])[o]/g, '$10')
+    .replace(/\bO\b/g, '0')
+    .replace(/\bo\b/g, '0');
   
   // Extract numeric part using a pattern to handle various formats
   const numericPattern = /[-0-9,.]+/;
@@ -164,4 +178,63 @@ export function formatValueForDisplay(value: any): string {
   if (strValue === '') return "x";
   
   return strValue;
+}
+
+/**
+ * Try multiple parsing approaches for a value and return the first successful one
+ * This helps with inconsistent OCR output formats
+ * @param value The value to parse
+ * @returns Parsed value or null if all parsing methods fail
+ */
+export function parseFlexibleValue(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  
+  // Try currency parsing first (for values with $ signs)
+  if (String(value).includes('$')) {
+    const currencyValue = parseCurrencyValue(value);
+    if (currencyValue !== null) return currencyValue;
+  }
+  
+  // Try percentage parsing next (for values with % signs)
+  if (String(value).includes('%')) {
+    const percentValue = parsePercentageValue(value);
+    if (percentValue !== null) return percentValue;
+  }
+  
+  // Finally try numeric parsing for plain numbers
+  return parseNumericValue(value);
+}
+
+/**
+ * Check if a string might be a currency value based on context
+ * Useful when OCR fails to detect the $ symbol
+ * @param value The value to check
+ * @returns True if the value is likely a currency value
+ */
+export function mightBeCurrencyValue(value: string): boolean {
+  // Check if the value is a number with commas or decimal points
+  // which is common for currency values
+  return /^\d{1,3}(,\d{3})*(\.\d{2})?$/.test(value) || 
+         /^\d+\.\d{2}$/.test(value);
+}
+
+/**
+ * Special parser for empty cells that contain only spaces or other non-printing chars
+ * @param value The value to parse
+ * @returns "0" for empty cells in numeric contexts, null otherwise
+ */
+export function parseEmptyCell(value: any, defaultToZero: boolean = false): string | null {
+  if (value === null || value === undefined) return defaultToZero ? "0" : null;
+  
+  const strValue = String(value).trim();
+  if (strValue === '') return defaultToZero ? "0" : null;
+  
+  // Check for non-printing characters and whitespace only
+  if (/^\s*$/.test(strValue)) return defaultToZero ? "0" : null;
+  
+  // For values that just contain a dash or hyphen (common for "no value")
+  if (strValue === '-' || strValue === '–' || strValue === '—') return defaultToZero ? "0" : null;
+  
+  // Not an empty cell
+  return null;
 }

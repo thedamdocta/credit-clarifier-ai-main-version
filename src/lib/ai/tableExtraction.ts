@@ -1,4 +1,3 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
@@ -263,7 +262,7 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
 }
 
 // Import the value parsers from our value parser module
-import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from './table/valueParser';
+import { parseNumericValue, parseCurrencyValue, parsePercentageValue, parseFlexibleValue } from './table/valueParser';
 
 /**
  * Convert extracted table data to AccountSummary objects
@@ -295,6 +294,44 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
       debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
       payment: parseCurrencyValue(row['Payment'])
     };
+    
+    // Apply more flexible parsing for any fields that are still null
+    if (summary.open === null && row['Open']) {
+      summary.open = parseFlexibleValue(row['Open']);
+    }
+    
+    if (summary.withBalance === null && row['With Balance']) {
+      summary.withBalance = parseFlexibleValue(row['With Balance']);
+    }
+    
+    if (summary.totalBalance === null && row['Total Balance']) {
+      summary.totalBalance = parseFlexibleValue(row['Total Balance']);
+    }
+    
+    if (summary.available === null && row['Available']) {
+      summary.available = parseFlexibleValue(row['Available']);
+    }
+    
+    if (summary.creditLimit === null && row['Credit Limit']) {
+      summary.creditLimit = parseFlexibleValue(row['Credit Limit']);
+    }
+    
+    if (summary.debtToCredit === null && row['Debt-to-Credit']) {
+      summary.debtToCredit = parseFlexibleValue(row['Debt-to-Credit']);
+    }
+    
+    if (summary.payment === null && row['Payment']) {
+      summary.payment = parseFlexibleValue(row['Payment']);
+    }
+    
+    // Add some extra validation to ensure numeric fields stay numeric
+    if (summary.open !== null && /[^0-9]/.test(summary.open)) {
+      summary.open = summary.open.replace(/[^0-9]/g, '');
+    }
+    
+    if (summary.withBalance !== null && /[^0-9]/.test(summary.withBalance)) {
+      summary.withBalance = summary.withBalance.replace(/[^0-9]/g, '');
+    }
     
     summaries.push(summary);
   });

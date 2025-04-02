@@ -7,7 +7,7 @@ import { AlertCircle, Info, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { isZeroValue, formatValueForDisplay } from "@/lib/ai/table/valueParser";
+import { isZeroValue, formatValueForDisplay, parseFlexibleValue, parseNumericValue, parseCurrencyValue, parsePercentageValue } from "@/lib/ai/table/valueParser";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
@@ -67,6 +67,26 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   // Function to render a cell value with proper formatting based on data type
   // This improved function adds better handling for edge cases
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
+    // Try multiple parsing approaches for OCR text
+    if (typeof value === 'string' && value.trim() !== '') {
+      // First check if this is already a well-formatted value
+      if ((fieldName === 'totalBalance' || fieldName === 'available' || 
+          fieldName === 'creditLimit' || fieldName === 'payment') && 
+          !value.includes('$') && value !== 'x') {
+        // Try currency parsing for these fields if $ is missing
+        const parsedValue = parseCurrencyValue(value);
+        if (parsedValue) {
+          return formatter(parsedValue);
+        }
+      } else if (fieldName === 'debtToCredit' && !value.includes('%') && value !== 'x') {
+        // Try percentage parsing if % is missing
+        const parsedValue = parsePercentageValue(value);
+        if (parsedValue) {
+          return formatter(parsedValue);
+        }
+      }
+    }
+    
     // Special handling for missing or null values - display "x"
     if (value === null || value === undefined || value === '') {
       return "x";
