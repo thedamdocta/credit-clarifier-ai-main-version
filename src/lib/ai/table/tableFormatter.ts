@@ -192,8 +192,11 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         return;
       }
       
+      // Convert rawValue to string for consistent comparison - this fixes the type error
+      const rawValueStr = String(rawValue);
+      
       // For zero values, we need to determine if they should be real zeros or "x"
-      if (rawValue === '0' || rawValue === '$0' || rawValue === 0) {
+      if (rawValueStr === '0' || rawValueStr === '$0' || rawValueStr === '0') {
         if ((accountType === 'revolving' || accountType === 'other' || accountType === 'mortgage') && 
             (headerKey === 'open' || headerKey === 'withBalance' || headerKey === 'totalBalance')) {
           
@@ -215,7 +218,7 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         const knownValues = getSpecificRowValues('installment');
         
         if (knownValues && knownValues[headerKey] && 
-            (containsSpecialIndicator(String(rawValue), headerKey) || rawValue === 'x')) {
+            (containsSpecialIndicator(String(rawValue), headerKey) || rawValueStr === 'x')) {
           formattedRow[header] = knownValues[headerKey];
           return;
         }
@@ -224,7 +227,7 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         const knownValues = getSpecificRowValues('total');
         
         if (knownValues && knownValues[headerKey] && 
-            (containsSpecialIndicator(String(rawValue), headerKey) || rawValue === 'x')) {
+            (containsSpecialIndicator(String(rawValue), headerKey) || rawValueStr === 'x')) {
           formattedRow[header] = knownValues[headerKey];
           return;
         }
