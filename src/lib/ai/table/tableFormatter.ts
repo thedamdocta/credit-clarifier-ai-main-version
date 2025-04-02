@@ -215,7 +215,7 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         const knownValues = getSpecificRowValues('installment');
         
         if (knownValues && knownValues[headerKey] && 
-            (containsSpecialIndicator(rawValue, headerKey) || rawValue === 'x')) {
+            (containsSpecialIndicator(String(rawValue), headerKey) || rawValue === 'x')) {
           formattedRow[header] = knownValues[headerKey];
           return;
         }
@@ -224,7 +224,7 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         const knownValues = getSpecificRowValues('total');
         
         if (knownValues && knownValues[headerKey] && 
-            (containsSpecialIndicator(rawValue, headerKey) || rawValue === 'x')) {
+            (containsSpecialIndicator(String(rawValue), headerKey) || rawValue === 'x')) {
           formattedRow[header] = knownValues[headerKey];
           return;
         }
@@ -232,14 +232,14 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
       
       // For actual values, format them properly by column type
       if (headerKey === 'open' || headerKey === 'withBalance') {
-        formattedRow[header] = parseNumericValue(rawValue) || "x";
+        formattedRow[header] = parseNumericValue(String(rawValue)) || "x";
       }
       else if (headerKey === 'totalBalance' || headerKey === 'available' || 
               headerKey === 'creditLimit' || headerKey === 'payment') {
-        formattedRow[header] = parseCurrencyValue(rawValue) || "x";
+        formattedRow[header] = parseCurrencyValue(String(rawValue)) || "x";
       }
       else if (headerKey === 'debtToCredit') {
-        formattedRow[header] = parsePercentageValue(rawValue) || "x";
+        formattedRow[header] = parsePercentageValue(String(rawValue)) || "x";
       }
       else {
         formattedRow[header] = String(rawValue);
