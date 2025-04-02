@@ -1,15 +1,15 @@
-
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
+import { parsingLogger } from '@/utils/parsingLogger';
 
 /**
  * Enhanced table detection and extraction using Tesseract.js
- * This complements the Hugging Face approach for better table structure recognition
+ * With improved handling for credit report tables
  */
 export async function extractTableWithTesseract(imageUrl: string): Promise<ExtractedTableData | null> {
   try {
-    console.log('Starting Tesseract table extraction from image:', imageUrl);
+    console.log('Starting Tesseract table extraction from image');
     
     // Handle empty image URL case
     if (!imageUrl) {
@@ -19,7 +19,7 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     
     // Validate image URL format
     if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/') && !imageUrl.startsWith('data:')) {
-      console.error('Invalid image URL format:', imageUrl);
+      console.error('Invalid image URL format');
       return null;
     }
     
@@ -40,27 +40,28 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
       throw new Error('Failed to load image');
     });
     
-    // Initialize Tesseract with table structure detection
+    // Initialize Tesseract with optimized settings for credit report tables
     const worker = await Tesseract.createWorker({
       logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
     });
     
-    // Configure Tesseract for table detection
+    // Configure Tesseract for better table detection
     await worker.loadLanguage('eng');
     await worker.initialize('eng');
     
-    // Set page segmentation mode to detect tables and organized text
+    // Set optimized parameters specifically for credit report tables
     await worker.setParameters({
-      tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Auto detect orientation and script detection
+      tessedit_pageseg_mode: Tesseract.PSM.AUTO, // Auto detect segmentation mode
       preserve_interword_spaces: '1', // Preserve spaces between words
-      tessjs_create_hocr: '1', // Create HOCR output for better structure understanding
+      tessjs_create_hocr: '1', // Create HOCR output for better structure
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy
+      tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY, // Use LSTM neural network
     });
     
-    // Try both URL and Image object for best compatibility
+    // Process the image
     let result;
     try {
-      // First attempt with URL
+      // First attempt with direct URL
       result = await worker.recognize(imageUrl);
       console.log('Recognition successful with URL');
     } catch (urlError) {
@@ -77,77 +78,129 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     }
     
     console.log('Tesseract confidence:', result.data.confidence);
-    console.log('Tesseract recognized text:', result.data.text);
+    console.log('Tesseract recognized text sample:', result.data.text.substring(0, 200) + '...');
     
-    // If confidence is too low, we might want to fall back to other methods
-    if (result.data.confidence < 65) {
-      console.log('Tesseract confidence too low, may need fallback method');
-    }
+    // Store the full recognized text for later pattern matching
+    const fullText = result.data.text;
     
     // Extract tabular data using Tesseract's block structure detection
     const tableData = extractTableFromOCRResult(result.data);
+    if (tableData) {
+      tableData.text = fullText;
+    }
     
     await worker.terminate();
     return tableData;
   } catch (error) {
     console.error('Error in Tesseract table extraction:', error);
-    toast.error("Tesseract extraction failed");
+    parsingLogger.logEvent('Tesseract extraction error', { error: String(error) });
     return null;
   }
 }
 
 /**
- * Process Tesseract OCR result to extract tabular data
- * This function analyzes word positions to detect table structure
+ * Extract data rows from the detected table
+ * Enhanced to better detect total row and handle credit report formats
  */
-function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableData | null {
-  try {
-    // Log the raw OCR result for debugging
-    console.log('Processing OCR result to extract table structure');
+function extractDataRows(lines: Tesseract.Line[], startIndex: number, columnBoundaries: number[]): string[][] {
+  const dataRows: string[][] = [];
+  const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+  
+  // Process each line that could be a data row
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+    const lineText = line.text;
     
-    // Get the lines content for positional analysis
-    const lines = ocrResult.lines || [];
-    if (lines.length === 0) {
-      console.log('No lines found in OCR result');
-      return null;
+    // Check if this is an account type row we're interested in
+    const matchingAccountType = accountTypes.find(type => 
+      lineText.toLowerCase().includes(type.toLowerCase()));
+      
+    if (matchingAccountType) {
+      // This is an account type row we want
+      const rowData: string[] = Array(columnBoundaries.length).fill('');
+      
+      // First cell is the account type
+      rowData[0] = matchingAccountType;
+      
+      // Special handling for total row - more aggressive extraction
+      if (matchingAccountType.toLowerCase() === 'total') {
+        console.log('Found total row:', lineText);
+        
+        // Extract all numeric values from the line
+        const allNumbers = lineText.match(/\d+/g) || [];
+        console.log('Total row numbers:', allNumbers);
+        
+        // Typical patterns: "Total 12 11 $220,505..."
+        if (allNumbers.length >= 2) {
+          // Usually the first two numbers are "open" and "with balance"
+          rowData[1] = allNumbers[0]; // Open
+          rowData[2] = allNumbers[1]; // With Balance
+          
+          // Look for dollar amounts
+          const dollarAmounts = lineText.match(/\$[\d,]+/g) || [];
+          if (dollarAmounts.length > 0) {
+            // First dollar amount is usually total balance
+            rowData[3] = dollarAmounts[0]; // Total Balance
+            
+            // If there are more dollar amounts, map them to the right columns
+            if (dollarAmounts.length > 1) rowData[4] = dollarAmounts[1]; // Available
+            if (dollarAmounts.length > 2) rowData[5] = dollarAmounts[2]; // Credit Limit
+            if (dollarAmounts.length > 3) rowData[7] = dollarAmounts[3]; // Payment
+          }
+          
+          // Look for percentage values
+          const percentages = lineText.match(/(\d+\.?\d*)%/g);
+          if (percentages && percentages.length > 0) {
+            rowData[6] = percentages[0]; // Debt-to-Credit
+          }
+        }
+      } else {
+        // Extract values for each column - regular row handling
+        line.words.forEach(word => {
+          // Skip the account type word itself
+          if (word.text.toLowerCase() === matchingAccountType.toLowerCase()) return;
+          
+          // Find which column this word belongs to
+          const columnIndex = columnBoundaries.findIndex((boundary, i) => {
+            const nextBoundary = i < columnBoundaries.length - 1 ? columnBoundaries[i + 1] : Number.MAX_VALUE;
+            return word.bbox.x0 >= boundary && word.bbox.x0 < nextBoundary;
+          });
+          
+          if (columnIndex > 0) { // Skip first column as we've already set it
+            if (!rowData[columnIndex]) {
+              rowData[columnIndex] = word.text;
+            } else {
+              rowData[columnIndex] += ' ' + word.text;
+            }
+          }
+        });
+      }
+      
+      // Clean values and handle empty cells
+      const cleanedRow = rowData.map(cell => {
+        const cleaned = cell.trim();
+        // Handle zero values specially
+        if (cleaned === '0' || cleaned === 'O' || cleaned === 'o') return '0';
+        return cleaned || '';
+      });
+      
+      dataRows.push(cleanedRow);
     }
-    
-    console.log(`Found ${lines.length} lines in OCR result`);
-    
-    // Detect column boundaries based on word positions
-    const columns = detectColumns(lines);
-    if (columns.length < 3) {
-      console.log('Not enough columns detected, need at least 3');
-      return null;
-    }
-    
-    console.log(`Detected ${columns.length} columns at positions:`, columns);
-    
-    // Find header row
-    const headerRowIndex = findHeaderRow(lines);
-    if (headerRowIndex === -1) {
-      console.log('Could not find header row, using default headers');
-      return createDefaultTableStructure(lines);
-    }
-    
-    console.log(`Found header row at index ${headerRowIndex}: "${lines[headerRowIndex].text}"`);
-    
-    // Extract headers and data rows based on positions
-    const headers = extractHeadersFromRow(lines[headerRowIndex], columns);
-    const dataRows = extractDataRows(lines, headerRowIndex + 1, columns);
-    
-    console.log('Extracted table structure with headers:', headers);
-    console.log('Found data rows:', dataRows.length);
-    
-    return {
-      headers,
-      rows: dataRows,
-      confidence: ocrResult.confidence || 0
-    };
-  } catch (error) {
-    console.error('Error extracting table from OCR result:', error);
-    return null;
   }
+  
+  // Ensure we have all required account types
+  const existingTypes = new Set(dataRows.map(row => row[0]));
+  
+  accountTypes.forEach(type => {
+    if (!existingTypes.has(type)) {
+      // Add empty row for missing account type
+      const emptyRow = Array(columnBoundaries.length).fill('');
+      emptyRow[0] = type;
+      dataRows.push(emptyRow);
+    }
+  });
+  
+  return dataRows;
 }
 
 /**
@@ -319,71 +372,56 @@ function extractHeadersFromRow(headerLine: Tesseract.Line, columnBoundaries: num
 }
 
 /**
- * Extract data rows from the detected table
+ * Process Tesseract OCR result to extract tabular data
+ * This function analyzes word positions to detect table structure
+ * Enhanced to better handle credit report tables
  */
-function extractDataRows(lines: Tesseract.Line[], startIndex: number, columnBoundaries: number[]): string[][] {
-  const dataRows: string[][] = [];
-  const accountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
-  
-  // Process each line that could be a data row
-  for (let i = startIndex; i < lines.length; i++) {
-    const line = lines[i];
-    const lineText = line.text;
+function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableData | null {
+  try {
+    // Log the raw OCR result for debugging
+    console.log('Processing OCR result to extract table structure');
     
-    // Check if this is an account type row we're interested in
-    const matchingAccountType = accountTypes.find(type => 
-      lineText.toLowerCase().includes(type.toLowerCase()));
-      
-    if (matchingAccountType) {
-      // This is an account type row we want
-      const rowData: string[] = Array(columnBoundaries.length).fill('');
-      
-      // First cell is the account type
-      rowData[0] = matchingAccountType;
-      
-      // Extract values for each column
-      line.words.forEach(word => {
-        // Skip the account type word itself
-        if (word.text.toLowerCase() === matchingAccountType.toLowerCase()) return;
-        
-        // Find which column this word belongs to
-        const columnIndex = columnBoundaries.findIndex((boundary, i) => {
-          const nextBoundary = i < columnBoundaries.length - 1 ? columnBoundaries[i + 1] : Number.MAX_VALUE;
-          return word.bbox.x0 >= boundary && word.bbox.x0 < nextBoundary;
-        });
-        
-        if (columnIndex > 0) { // Skip first column as we've already set it
-          if (!rowData[columnIndex]) {
-            rowData[columnIndex] = word.text;
-          } else {
-            rowData[columnIndex] += ' ' + word.text;
-          }
-        }
-      });
-      
-      // Clean values and handle empty cells
-      const cleanedRow = rowData.map(cell => {
-        const cleaned = cell.trim();
-        // Handle zero values specially
-        if (cleaned === '0' || cleaned === 'O' || cleaned === 'o') return '0';
-        return cleaned || '';
-      });
-      
-      dataRows.push(cleanedRow);
+    // Get the lines content for positional analysis
+    const lines = ocrResult.lines || [];
+    if (lines.length === 0) {
+      console.log('No lines found in OCR result');
+      return null;
     }
+    
+    console.log(`Found ${lines.length} lines in OCR result`);
+    
+    // Detect column boundaries based on word positions
+    const columns = detectColumns(lines);
+    if (columns.length < 3) {
+      console.log('Not enough columns detected, need at least 3');
+      return null;
+    }
+    
+    console.log(`Detected ${columns.length} columns at positions:`, columns);
+    
+    // Find header row
+    const headerRowIndex = findHeaderRow(lines);
+    if (headerRowIndex === -1) {
+      console.log('Could not find header row, using default headers');
+      return createDefaultTableStructure(lines);
+    }
+    
+    console.log(`Found header row at index ${headerRowIndex}: "${lines[headerRowIndex].text}"`);
+    
+    // Extract headers and data rows based on positions
+    const headers = extractHeadersFromRow(lines[headerRowIndex], columns);
+    const dataRows = extractDataRows(lines, headerRowIndex + 1, columns);
+    
+    console.log('Extracted table structure with headers:', headers);
+    console.log('Found data rows:', dataRows.length);
+    
+    return {
+      headers,
+      rows: dataRows,
+      confidence: ocrResult.confidence || 0
+    };
+  } catch (error) {
+    console.error('Error extracting table from OCR result:', error);
+    return null;
   }
-  
-  // Ensure we have all required account types
-  const existingTypes = new Set(dataRows.map(row => row[0]));
-  
-  accountTypes.forEach(type => {
-    if (!existingTypes.has(type)) {
-      // Add empty row for missing account type
-      const emptyRow = Array(columnBoundaries.length).fill('');
-      emptyRow[0] = type;
-      dataRows.push(emptyRow);
-    }
-  });
-  
-  return dataRows;
 }

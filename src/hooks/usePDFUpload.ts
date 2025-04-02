@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
@@ -15,13 +14,12 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processPDF = (file: File) => {
-    // Process the PDF file with focus on text extraction for the main content
-    // and only use image-based extraction for the account section
+    // Process the PDF file with enhanced image extraction enabled to improve table detection
     processPDFDocument(file, useAI, {
       setCurrentFile,
       setUploadProgress,
       onPDFUploaded,
-      useImageExtraction: false // Disable global image extraction
+      useImageExtraction: true // Enable image extraction for better table detection
     });
   };
 
