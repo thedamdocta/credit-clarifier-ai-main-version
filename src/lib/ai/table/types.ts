@@ -26,3 +26,11 @@ export interface ExtractedTable {
   rows: TableRow[];
   imageUrl?: string;
 }
+
+/**
+ * Formatted table data returned after processing
+ */
+export interface FormattedTableData {
+  headers: string[];
+  rows: Record<string, string>[];
+}
