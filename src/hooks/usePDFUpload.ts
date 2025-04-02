@@ -16,12 +16,13 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
 
   const processPDF = (file: File) => {
     // Process the PDF file with focus on text extraction for the main content
-    // and enable image extraction specifically for the credit accounts table
+    // and enable improved table detection specifically for the credit accounts table
     processPDFDocument(file, useAI, {
       setCurrentFile,
       setUploadProgress,
       onPDFUploaded,
-      useImageExtraction: true // Enable image extraction specifically for credit accounts table
+      useImageExtraction: true, // Enable image extraction for table detection
+      targetTable: "Credit Accounts" // Specifically target the Credit Accounts table
     });
   };
 

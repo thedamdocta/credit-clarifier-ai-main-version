@@ -10,6 +10,7 @@ interface PDFProcessingCallbacks {
   setUploadProgress: (value: number | ((prev: number) => number)) => void;
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   useImageExtraction?: boolean;
+  targetTable?: string; // Added parameter to specify which table to target
 }
 
 export const processPDFDocument = async (
@@ -17,14 +18,19 @@ export const processPDFDocument = async (
   useAI: boolean,
   callbacks: PDFProcessingCallbacks
 ) => {
-  const { setCurrentFile, onPDFUploaded, useImageExtraction = false } = callbacks;
+  const { 
+    setCurrentFile, 
+    onPDFUploaded, 
+    useImageExtraction = false, 
+    targetTable = "Credit Accounts" 
+  } = callbacks;
   
   try {
     setCurrentFile(file);
-    console.log(`Processing PDF document with file: ${file.name}, using image extraction: ${useImageExtraction}`);
+    console.log(`Processing PDF document with file: ${file.name}, targeting table: ${targetTable}`);
     
     // Store this file as the current PDF being processed with a unique ID
-    const uniqueReportId = setCurrentPDFData(file);
+    const uniqueReportId = setCurrentPDFData(file, { targetTable });
     console.log(`Set unique report ID: ${uniqueReportId}`);
     
     // Setup progress tracking
@@ -53,8 +59,8 @@ export const processPDFDocument = async (
         console.log(`PDF loaded with ${numPages} pages`);
         updateProgress(10);
         
-        // Use standard text extraction for the main content
-        const extractedText = await extractTextFromPDF(pdf);
+        // Use standard text extraction for the main content with table targeting
+        const extractedText = await extractTextFromPDF(pdf, { targetTable });
         console.log("Successfully extracted text from PDF, length:", extractedText.length);
         updateProgress(60);
         
@@ -68,6 +74,7 @@ export const processPDFDocument = async (
             parsedReport.reportId = uniqueReportId;
             parsedReport.fileName = file.name;
             parsedReport.rawText = extractedText; // Store the raw text for later use
+            parsedReport.targetTable = targetTable; // Store the target table name
             
             // Store this parsed data in our cache to prevent overriding with sample data
             setExtractedReportData(parsedReport);
@@ -76,6 +83,7 @@ export const processPDFDocument = async (
             window.currentPdfData = {
               reportId: uniqueReportId,
               fileName: file.name,
+              targetTable: targetTable,
               extractedText: extractedText.substring(0, 1000) // Store preview
             };
             
@@ -89,14 +97,14 @@ export const processPDFDocument = async (
               toast.success("PDF successfully processed!");
             }, 500);
           } else {
-            handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+            handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
             completeProgressTracking();
           }
           
         } catch (error) {
           console.error("Error parsing PDF content:", error);
           // Fall back to basic processing
-          handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+          handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
           completeProgressTracking();
         }
         
@@ -121,11 +129,18 @@ export const processPDFDocument = async (
 };
 
 // Extract basic processing into a separate function for better readability
-function handleBasicProcessing(reportId: string, file: File, extractedText: string, onPDFUploaded: (file: File, text: string, parsedReport?: any) => void) {
+function handleBasicProcessing(
+  reportId: string, 
+  file: File, 
+  extractedText: string, 
+  targetTable: string,
+  onPDFUploaded: (file: File, text: string, parsedReport?: any) => void
+) {
   const basicReport = { 
     reportId: reportId,
     fileName: file.name,
     rawText: extractedText,
+    targetTable: targetTable,
     bureau: 'Unknown' as const,
     reportDate: new Date().toISOString().split('T')[0],
     personalInfo: { name: 'Unknown', addresses: [] },
@@ -140,6 +155,7 @@ function handleBasicProcessing(reportId: string, file: File, extractedText: stri
   window.currentPdfData = {
     reportId: reportId,
     fileName: file.name,
+    targetTable: targetTable,
     extractedText: extractedText.substring(0, 1000)
   };
   

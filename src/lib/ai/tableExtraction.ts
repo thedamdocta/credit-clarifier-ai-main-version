@@ -1,15 +1,19 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
+import { calculateCreditAccountsTableScore } from './tableDetection';
 
 /**
- * Extract table data from an image
- * Uses Tesseract OCR to extract table structure from the image
+ * Enhanced table extraction with improved targeting for Credit Accounts tables
+ * @param imageUrl - The URL of the image to extract table from
+ * @param targetTableName - The name of the target table to extract (default: "Credit Accounts")
  */
-export async function extractTableFromImage(imageUrl: string) {
+export async function extractTableFromImage(
+  imageUrl: string, 
+  targetTableName: string = "Credit Accounts"
+) {
   try {
-    console.log('Starting table extraction from image:', imageUrl);
+    console.log(`Starting ${targetTableName} table extraction from image:`, imageUrl);
     
     if (!imageUrl) {
       console.log('No image URL provided for table extraction');
@@ -51,39 +55,60 @@ export async function extractTableFromImage(imageUrl: string) {
     }
     
     // Use enhanced Tesseract OCR to extract table data from the image with improved settings
-    console.log('Using enhanced Tesseract OCR to extract table data from image');
-    const extractedTable = await extractTableWithTesseract(imageUrl);
+    console.log(`Using enhanced Tesseract OCR to extract ${targetTableName} table from image`);
+    const extractedTable = await extractTableWithTesseract(imageUrl, targetTableName);
     
     if (extractedTable) {
       console.log('Successfully extracted table with Tesseract:', extractedTable);
       
-      // Convert to the expected format
-      const formattedTable = {
-        headers: extractedTable.headers,
-        rows: extractedTable.rows.map(row => {
-          const rowObject: Record<string, string> = {};
-          extractedTable.headers.forEach((header, index) => {
-            rowObject[header] = row[index] || '';
-          });
-          return rowObject;
-        })
-      };
+      // Check if this is likely the target table we're looking for
+      const isTargetTable = extractedTable.isTargetTable || 
+                         (extractedTable.matchScore && extractedTable.matchScore > 0.5);
       
-      return formattedTable;
+      if (isTargetTable) {
+        console.log(`This appears to be the ${targetTableName} table we're looking for`);
+        
+        // Convert to the expected format
+        const formattedTable = {
+          headers: extractedTable.headers,
+          rows: extractedTable.rows.map(row => {
+            const rowObject: Record<string, string> = {};
+            extractedTable.headers.forEach((header, index) => {
+              rowObject[header] = row[index] || '';
+            });
+            return rowObject;
+          }),
+          matchScore: extractedTable.matchScore || 0
+        };
+        
+        return formattedTable;
+      } else {
+        console.log(`This table doesn't appear to be the ${targetTableName} table we're looking for`);
+        // Return null to trigger fallback methods
+        return null;
+      }
     }
     
     // If Tesseract extraction fails, try fallback pattern matching on text
-    console.log('Tesseract extraction failed, trying pattern matching on extracted text');
+    console.log(`Tesseract extraction failed for ${targetTableName}, trying pattern matching on extracted text`);
     const extractedText = document.querySelector('.extracted-text-content')?.textContent || '';
     if (extractedText) {
-      const tableData = extractTableStructureFromText(extractedText);
-      if (tableData) {
-        return tableData;
+      // Calculate a score to determine if this text contains the target table
+      const textScore = calculateCreditAccountsTableScore(extractedText);
+      console.log(`Text match score for ${targetTableName}: ${textScore.toFixed(2)}`);
+      
+      // Only extract if the score is reasonably high
+      if (textScore > 0.4) {
+        const tableData = extractTableStructureFromText(extractedText, targetTableName);
+        if (tableData) {
+          tableData.matchScore = textScore;
+          return tableData;
+        }
       }
     }
     
     // All extraction methods failed
-    console.log('All extraction methods failed to extract table data');
+    console.log(`All extraction methods failed to extract ${targetTableName} table data`);
     return null;
   } catch (error) {
     console.error('Error in table extraction:', error);
@@ -93,12 +118,17 @@ export async function extractTableFromImage(imageUrl: string) {
 
 /**
  * Extract table structure from raw text using template matching
+ * @param text - Raw text to extract table from
+ * @param targetTableName - Name of the target table
  */
-export function extractTableStructureFromText(text: string) {
+export function extractTableStructureFromText(
+  text: string, 
+  targetTableName: string = "Credit Accounts"
+): any {
   try {
-    console.log('Extracting table structure from text using pattern matching');
+    console.log(`Extracting ${targetTableName} table structure from text using pattern matching`);
     
-    // Define enhanced patterns for credit report account tables
+    // Define enhanced patterns specifically for credit report account tables
     // These patterns identify data in the format: account type + numbers with various formats
     const rowPatterns = {
       revolving: /revolving\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
@@ -107,6 +137,12 @@ export function extractTableStructureFromText(text: string) {
       other: /other\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
       total: /total\s+(\d+)\s+(\d+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
     };
+    
+    // Check if text contains the target table name
+    const containsTargetName = text.toLowerCase().includes(targetTableName.toLowerCase());
+    if (containsTargetName) {
+      console.log(`Found "${targetTableName}" in text`);
+    }
     
     // Initialize table structure
     const tableStructure = {
@@ -141,7 +177,7 @@ export function extractTableStructureFromText(text: string) {
   }
 }
 
-// Keep simulated data function for development purposes only
+// Keep simulated data function for development purposes only - retain exact values for testing/comparison
 export function createSimulatedTableData(forceUseActualImage: boolean = false) {
   // If we're forcing use of actual image data, don't return simulated data
   if (forceUseActualImage) {

@@ -1,15 +1,19 @@
-
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
+import { calculateCreditAccountsTableScore } from '../tableDetection';
 
 /**
  * Enhanced table detection and extraction using Tesseract.js
  * This complements the Hugging Face approach for better table structure recognition
+ * with a focus on finding and extracting Credit Accounts tables
  */
-export async function extractTableWithTesseract(imageUrl: string): Promise<ExtractedTableData | null> {
+export async function extractTableWithTesseract(
+  imageUrl: string,
+  targetTableName: string = "Credit Accounts"
+): Promise<ExtractedTableData | null> {
   try {
-    console.log('Starting Tesseract table extraction from image:', imageUrl);
+    console.log(`Starting Tesseract extraction for "${targetTableName}" table from image:`, imageUrl);
     
     // Handle empty image URL case
     if (!imageUrl) {
@@ -82,25 +86,40 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     const previewText = result.data.text.substring(0, 200) + '...';
     console.log('Tesseract recognized text sample:', previewText);
     
+    // Calculate score to determine if this is the Credit Accounts table
+    const tableScore = calculateCreditAccountsTableScore(result.data.text);
+    console.log(`Table match score for "${targetTableName}": ${tableScore.toFixed(2)}`);
+    
     // Check specifically if the text contains credit account table keywords
     const textLower = result.data.text.toLowerCase();
     const hasTableKeywords = 
       (textLower.includes('revolving') || textLower.includes('mortgage') || textLower.includes('installment')) && 
       (textLower.includes('balance') || textLower.includes('credit limit') || textLower.includes('payment'));
     
-    if (!hasTableKeywords) {
-      console.log('No credit account table keywords found in text, may be wrong image');
-      // Still process the image, but warn about it
-    }
+    // Determine if this is likely the correct table
+    const isLikelyTargetTable = tableScore > 0.5 || (hasTableKeywords && textLower.includes('account type'));
     
-    // If confidence is too low, use additional processing techniques
-    if (result.data.confidence < 65) {
-      console.log('Tesseract confidence too low, attempting enhanced processing');
-      // We still continue with extraction, but flag it for potential issues
+    if (!isLikelyTargetTable) {
+      console.log(`This is likely NOT the "${targetTableName}" table (score: ${tableScore.toFixed(2)})`);
+      
+      // If it's clearly not the target table, return null to try with another image
+      if (tableScore < 0.3) {
+        console.log(`Rejecting image as unlikely to contain "${targetTableName}" table`);
+        await worker.terminate();
+        return null;
+      }
+    } else {
+      console.log(`This is likely the "${targetTableName}" table (score: ${tableScore.toFixed(2)})`);
     }
     
     // Extract tabular data using Tesseract's block structure detection
     const tableData = extractTableFromOCRResult(result.data);
+    
+    // Add the table match score to help with ranking multiple extractions
+    if (tableData) {
+      tableData.matchScore = tableScore;
+      tableData.isTargetTable = isLikelyTargetTable;
+    }
     
     await worker.terminate();
     return tableData;
