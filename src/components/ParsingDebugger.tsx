@@ -22,7 +22,7 @@ const ParsingDebugger = ({ isVisible = false, onClose }: ParsingDebuggerProps) =
   // Load parsing events on mount
   useEffect(() => {
     if (isVisible) {
-      // Get parsing events
+      // Get parsing events using the getEvents method
       setEvents(parsingLogger.getEvents());
       
       // Get current report if available

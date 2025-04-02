@@ -144,6 +144,17 @@ class ParsingLogger {
     return this.logs;
   }
 
+  // Added method to get events (same as getLogs but renamed for compatibility)
+  getEvents() {
+    return this.logs;
+  }
+
+  // Added method to clear events
+  clearEvents() {
+    this.logs = [];
+    return true;
+  }
+
   getSummary() {
     return {
       reportId: this.reportId,
