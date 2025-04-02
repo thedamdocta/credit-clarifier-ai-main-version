@@ -1,5 +1,5 @@
 
-import { pipeline, type ProgressCallback, type PretrainedModelOptions } from '@huggingface/transformers';
+import { pipeline, type ProgressCallback, type PretrainedOptions } from '@huggingface/transformers';
 import { toast } from 'sonner';
 
 // Model loading status tracking
@@ -101,7 +101,7 @@ const createProgressCallback = (): ProgressCallback => {
   return (info) => {
     // Access the progress value safely using type narrowing
     if ('status' in info && info.status === 'progress') {
-      const progress = ('value' in info) ? info.value : 0;
+      const progress = ('value' in info && typeof info.value === 'number') ? info.value : 0;
       console.log(`Model loading progress: ${Math.round(progress * 100)}%`);
     }
   };
@@ -113,7 +113,7 @@ export const getNER = async () => {
   return manageModelLoading('ner', async () => {
     console.log("Loading NER model...");
     try {
-      const options: PretrainedModelOptions = {
+      const options: PretrainedOptions = {
         progress_callback: createProgressCallback()
       };
       
@@ -131,7 +131,7 @@ export const getTextClassifier = async () => {
   return manageModelLoading('classifier', async () => {
     console.log("Loading text classification model...");
     try {
-      const options: PretrainedModelOptions = {
+      const options: PretrainedOptions = {
         progress_callback: createProgressCallback()
       };
       
