@@ -1,3 +1,4 @@
+
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -60,6 +61,9 @@ export interface CreditReport {
   
   // Add fileName property to track the original file name
   fileName?: string;
+  
+  // Add targetTable property to specify which table to extract
+  targetTable?: string;
   
   // Additional fields for displaying in the report
   recentInquiry?: string;

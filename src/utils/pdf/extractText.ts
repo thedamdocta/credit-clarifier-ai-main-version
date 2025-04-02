@@ -8,6 +8,7 @@ let currentPdfData: {
   fileName?: string;
   extractedText?: string;
   tableImageUrl?: string; 
+  targetTable?: string; // Add targetTable to the interface
 } = {};
 
 // Import the function for PDF to image conversion
@@ -17,12 +18,13 @@ import { convertPDFPageToImage } from './pdfToImage';
 let extractedReportData: any = null;
 
 // Generate and set a unique ID for the current PDF document
-export const setCurrentPDFData = (file: File): string => {
+export const setCurrentPDFData = (file: File, options?: { targetTable?: string }): string => {
   const reportId = `report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   currentPdfData = {
     pdfFile: file,
     reportId,
-    fileName: file.name
+    fileName: file.name,
+    targetTable: options?.targetTable
   };
   return reportId;
 };

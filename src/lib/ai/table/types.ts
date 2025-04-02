@@ -8,10 +8,14 @@ export interface ExtractedTableData {
   headers: string[];
   rows: string[][];
   confidence: number;
+  matchScore?: number;
+  isTargetTable?: boolean;
 }
 
 // Interface for formatted table data ready for use in the app
 export interface FormattedTableData {
   headers: string[];
   rows: Record<string, string>[];
+  matchScore?: number;
 }
+
