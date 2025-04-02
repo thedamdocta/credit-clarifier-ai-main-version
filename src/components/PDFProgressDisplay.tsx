@@ -17,6 +17,14 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
     return sizeInKB > 1024 ? `${(sizeInKB / 1024).toFixed(2)} MB` : `${sizeInKB} KB`;
   }, [file.size]);
 
+  const getProgressMessage = () => {
+    if (progress < 20) return "Reading PDF file...";
+    if (progress < 50) return "Processing content...";
+    if (progress < 80) return "Analyzing with AI...";
+    if (progress < 100) return "Finalizing extraction...";
+    return "PDF processed successfully!";
+  };
+
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center space-x-3">
@@ -31,7 +39,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
         {progress < 100 ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            <span>Processing PDF with AI... {Math.round(progress)}%</span>
+            <span>{getProgressMessage()} {Math.round(progress)}%</span>
           </>
         ) : (
           <span>PDF processed successfully!</span>
