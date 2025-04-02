@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 
 // Maximum file size that triggers a warning (in MB)
-const LARGE_FILE_THRESHOLD = 20; // Increased from 10 to 20 MB
+const LARGE_FILE_THRESHOLD = 40; // Increased from 20 to 40 MB
 
 // Function to read a file as an ArrayBuffer with Promise and timeout protection
 export async function readFileAsArrayBuffer(file: File): Promise<Uint8Array> {
@@ -14,7 +14,7 @@ export async function readFileAsArrayBuffer(file: File): Promise<Uint8Array> {
     const timeout = setTimeout(() => {
       fileReader.abort();
       reject(new Error("File reading timed out - file may be too large"));
-    }, 60000); // Increased from 45s to 60s for larger files
+    }, 90000); // Increased from 60s to 90s for larger files
     
     fileReader.onload = function() {
       clearTimeout(timeout);
@@ -44,15 +44,21 @@ export async function loadPdfDocument(
     pdfjsLib.GlobalWorkerOptions.workerSrc = 
       `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     
+    // Optimized loading options for very large PDFs
+    const loadingOptions = {
+      data: typedarray,
+      // For very large PDFs, use additional optimization options
+      ...(fileSizeMB > 100 ? { 
+        workerPort: null, 
+        cMapPacked: false,
+        disableFontFace: true
+      } : {})
+    };
+    
     // Wrap the PDF loading in a promise with a timeout
     return await Promise.race([
-      pdfjsLib.getDocument({ 
-        data: typedarray,
-        // For very large PDFs, use workerPort: null instead of disableWorker
-        // Increased threshold from 30MB to 50MB
-        ...(fileSizeMB > 50 ? { workerPort: null } : {})
-      }).promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timeout")), 90000)) // Increased from 60s to 90s
+      pdfjsLib.getDocument(loadingOptions).promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timeout")), 120000)) // Increased to 120s
     ]);
   } catch (error) {
     console.error("Error loading PDF:", error);

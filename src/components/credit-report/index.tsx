@@ -1,9 +1,9 @@
 import React from 'react';
-import NewCreditAccounts from './NewCreditAccounts';
 import { CreditReport } from '@/lib/types/creditReport';
 import { Separator } from '@/components/ui/separator';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import CreditAccountTable from './CreditAccountTable';
 
 interface CreditReportComponentProps {
   report: CreditReport;
@@ -16,7 +16,7 @@ const CreditReportComponent: React.FC<CreditReportComponentProps> = ({ report })
   return (
     <div className="space-y-6">
       {isLargeReport && (
-        <Alert>
+        <Alert variant="default">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Large Report Detected</AlertTitle>
           <AlertDescription>
@@ -26,7 +26,7 @@ const CreditReportComponent: React.FC<CreditReportComponentProps> = ({ report })
         </Alert>
       )}
       
-      <NewCreditAccounts reportId={report.reportId} />
+      <CreditAccountTable reportId={report.reportId} />
       <Separator className="my-4" />
       {/* Other credit report components can go here */}
     </div>
