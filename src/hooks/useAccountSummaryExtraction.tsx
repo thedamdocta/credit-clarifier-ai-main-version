@@ -65,7 +65,7 @@ export const useAccountSummaryExtraction = ({
       
       // Update state with the image URL for display in the debugger
       setTableImageUrl(extractedTableImageUrl || null);
-      parsingLogger.log('image-extraction', 'Table image extraction', {
+      parsingLogger.logEvent('image-extraction', { 
         success: !!extractedTableImageUrl,
         tableImageUrl: extractedTableImageUrl
       });
@@ -95,7 +95,7 @@ export const useAccountSummaryExtraction = ({
             setInitialAccountDataFound(true);
             
             // Log the successful extraction for debugging
-            parsingLogger.log('account-extraction', 'Account data extraction', {
+            parsingLogger.logEvent('account-extraction', {
               success: true,
               count: accountData.length,
               sample: accountData[0]

@@ -54,7 +54,7 @@ export const processPDFDocument = async (
     const fileSizeMB = checkFileSizeAndWarn(file);
     
     // For very large files, use simplified processing - increase threshold from 30 to 50MB
-    if (fileSizeMB > 50) {
+    if (fileSizeMB > 80) { // Increased from 50 to 80MB
       toast.info("Using simplified processing for this large file", { duration: 5000 });
       await handleBasicProcessing(uniqueReportId, file, "Large file - text extraction skipped", onPDFUploaded);
       completeProgressTracking();
@@ -82,18 +82,15 @@ export const processPDFDocument = async (
       // Memory management - release array buffer after PDF is loaded to free memory
       typedarray = null;
       
-      // Limit processing for very large documents - increase page threshold from 100 to 150
-      if (numPages > 150) {
-        toast.info("This document has many pages. Using simplified processing.", { duration: 6000 });
-        const basicText = `Large document with ${numPages} pages - using simplified processing`;
-        await handleBasicProcessing(uniqueReportId, file, basicText, onPDFUploaded);
-        completeProgressTracking();
-        return;
+      // No page limit now - removed the restriction
+      // For extremely large documents (500+ pages), just show a toast
+      if (numPages > 500) {
+        toast.info(`This document has ${numPages} pages. Processing might take longer.`, { duration: 6000 });
       }
       
       // Extract images in a separate chunk to prevent UI freezing
-      // Increase the page count threshold from 50 to 80 pages
-      if (useImageExtraction && numPages < 80) {
+      // Increased the page count threshold - now always attempt image extraction
+      if (useImageExtraction) {
         // Yield control back to browser before image extraction
         await new Promise(resolve => setTimeout(resolve, 100));
         
@@ -107,9 +104,12 @@ export const processPDFDocument = async (
       await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
       updateProgress(45);
       
-      // Determine how many pages to process (using less restrictive limits)
+      // Process all pages now - no limits
       const pagesToProcess = determinePageCountForProcessing(pdf, (message) => {
-        toast.info(message, { duration: 4000 });
+        // Just log info about the page count, but process all pages
+        if (numPages > 200) {
+          toast.info(`Processing all ${numPages} pages - this may take a while`, { duration: 4000 });
+        }
       });
       
       // Extract text in batches to prevent UI freezes

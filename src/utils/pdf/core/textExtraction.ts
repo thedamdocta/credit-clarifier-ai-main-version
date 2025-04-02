@@ -3,9 +3,7 @@
 import { ProgressCallbacks } from '../progressHandling';
 
 // Restore original batch size to prevent over-optimization
-const MAX_PAGES_BATCH = 10; // Increased from 5 to 10
-// Restore higher page limit to match previous behavior
-const MAX_PAGES_FOR_TEXT = 100; // Increased from 50 to 100
+const MAX_PAGES_BATCH = 20; // Increased batch size for better performance
 
 // Extract text from PDF document in smaller batches to prevent UI freezing
 export async function extractTextInBatches(
@@ -81,20 +79,6 @@ export async function extractTextInBatches(
 
 // Function to determine how many pages to process for a document
 export function determinePageCountForProcessing(pdf: any, showToast: (message: string) => void): number {
-  const numPages = pdf.numPages;
-  
-  // Less aggressive page limiting to match original behavior
-  let pagesToProcess = numPages;
-  
-  if (numPages > MAX_PAGES_FOR_TEXT) {
-    pagesToProcess = MAX_PAGES_FOR_TEXT;
-    showToast(`Processing first ${MAX_PAGES_FOR_TEXT} pages of ${numPages} to improve performance`);
-  } else if (numPages > 50) {
-    // For larger documents, use a more generous page limit
-    pagesToProcess = Math.min(50, numPages);
-    showToast(`Processing first ${pagesToProcess} pages for better performance`);
-  }
-  
-  return pagesToProcess;
+  // Process all pages - removed the page limit as requested
+  return pdf.numPages;
 }
-

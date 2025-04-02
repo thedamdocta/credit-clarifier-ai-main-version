@@ -149,7 +149,7 @@ export async function enhanceAccountSummariesWithAI(accountSummaries: any[]): Pr
     
     // Log the enhanced summaries for debugging
     if (accountSummaries.length > 0 && enhancedSummaries.length > 0) {
-      parsingLogger.log('ai-enhancement', 'Enhanced account summaries with AI', {
+      parsingLogger.logEvent('ai-enhancement', {
         beforeCount: accountSummaries.length,
         afterCount: enhancedSummaries.length,
         sample: enhancedSummaries[0]
