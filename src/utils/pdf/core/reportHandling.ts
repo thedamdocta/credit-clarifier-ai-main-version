@@ -45,14 +45,11 @@ export const processExtractedText = async (
         dob: "Unknown",
       },
       accounts: [],
-      summary: {
-        totalAccounts: 0,
-        openAccounts: 0,
-        closedAccounts: 0,
-        negativeAccounts: 0,
-      },
       inquiries: [],
       publicRecords: [],
+      collections: [],
+      creditScores: [],
+      rawText: extractedText
     };
     
     // Store the parsed report data
