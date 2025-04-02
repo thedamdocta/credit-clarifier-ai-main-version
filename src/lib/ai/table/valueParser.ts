@@ -31,7 +31,11 @@ export function parseNumericValue(value: any): string | null {
     .replace(/([^a-zA-Z])[o]/g, '$10')
     .replace(/l0/g, '10') // Fix OCR confusion between l (lowercase L) and 1
     .replace(/\bO\b/g, '0') // Fix standalone "O" as "0"
-    .replace(/\bo\b/g, '0'); // Fix standalone "o" as "0"
+    .replace(/\bo\b/g, '0') // Fix standalone "o" as "0"
+    // Additional OCR error fixes
+    .replace(/I/g, '1') // Fix OCR confusion between I (uppercase i) and 1
+    .replace(/l(\d)/g, '1$1') // Fix OCR confusion between l (lowercase L) and 1 when followed by digits
+    .replace(/[|]/g, '1'); // Fix OCR confusion between pipe character and 1
   
   // Extract only digits and at most one decimal point
   const numericPattern = /[-0-9,.]+/;
@@ -67,7 +71,7 @@ export function parseCurrencyValue(value: any): string | null {
   if (strValue === 'x' || strValue === '' || strValue.toLowerCase() === 'null') return null;
   
   // Handle negative values consistently
-  const isNegative = strValue.startsWith('-') || strValue.includes('-$');
+  const isNegative = strValue.startsWith('-') || strValue.includes('-$') || strValue.includes('(') && strValue.includes(')');
   
   // Fix common OCR errors where O or o is used instead of 0
   const fixedValue = strValue
@@ -75,7 +79,14 @@ export function parseCurrencyValue(value: any): string | null {
     .replace(/([^a-zA-Z])[o]/g, '$10')
     .replace(/\$(\d+)[.,](\d+)[$]/g, '$$$1.$2') // Fix malformed currency with trailing $ (OCR error)
     .replace(/\bO\b/g, '0')
-    .replace(/\bo\b/g, '0');
+    .replace(/\bo\b/g, '0')
+    // Fix other common OCR errors for currency values
+    .replace(/I/g, '1')
+    .replace(/l(\d)/g, '1$1')
+    .replace(/[|]/g, '1')
+    .replace(/S/g, '5') // Fix OCR confusion between S and 5
+    .replace(/(\d+)\.(\d+)\.(\d+)/g, '$1$2$3') // Fix double decimal points (OCR error)
+    .replace(/\((\d+[\d,.]*)\)/g, '-$1'); // Handle parentheses notation for negative numbers
   
   // Extract digits, commas, and period for decimal point
   const numericPattern = /[-0-9,.]+/;
@@ -127,7 +138,12 @@ export function parsePercentageValue(value: any): string | null {
     .replace(/([^a-zA-Z])[O]/g, '$10')
     .replace(/([^a-zA-Z])[o]/g, '$10')
     .replace(/\bO\b/g, '0')
-    .replace(/\bo\b/g, '0');
+    .replace(/\bo\b/g, '0')
+    // Additional OCR fixes for percentages
+    .replace(/I/g, '1')
+    .replace(/l(\d)/g, '1$1')
+    .replace(/[|]/g, '1')
+    .replace(/(\d+)\.(\d+)\.(\d+)/g, '$1$2$3'); // Fix double decimal points
   
   // Extract numeric part using a pattern to handle various formats
   const numericPattern = /[-0-9,.]+/;
@@ -201,6 +217,12 @@ export function parseFlexibleValue(value: any): string | null {
     if (percentValue !== null) return percentValue;
   }
   
+  // Check if this might be a currency value missing the $ sign
+  if (mightBeCurrencyValue(String(value))) {
+    const currencyValue = parseCurrencyValue('$' + value);
+    if (currencyValue !== null) return currencyValue;
+  }
+  
   // Finally try numeric parsing for plain numbers
   return parseNumericValue(value);
 }
@@ -237,4 +259,66 @@ export function parseEmptyCell(value: any, defaultToZero: boolean = false): stri
   
   // Not an empty cell
   return null;
+}
+
+/**
+ * Improved currency parser that's more aggressive in finding currency patterns
+ * @param value Any input value that might represent currency
+ * @returns Formatted currency string or null
+ */
+export function parseAggressiveCurrency(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  
+  const strValue = String(value).trim();
+  
+  // Skip obvious non-currency values
+  if (strValue === 'x' || strValue === '' || strValue.toLowerCase() === 'null') return null;
+  
+  // Look for numeric patterns that might be currency
+  const numericMatch = strValue.match(/[\d,.]+/);
+  
+  if (numericMatch) {
+    let numericStr = numericMatch[0].replace(/[^\d.]/g, '');
+    
+    // Try to parse as a number
+    const numValue = parseFloat(numericStr);
+    if (isNaN(numValue)) return null;
+    
+    // Format as currency
+    return `$${numValue.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    })}`;
+  }
+  
+  return null;
+}
+
+/**
+ * Detect the likely type of a value (numeric, currency, percentage)
+ * @param value The value to analyze
+ * @returns The detected type as a string
+ */
+export function detectValueType(value: any): 'numeric' | 'currency' | 'percentage' | 'unknown' {
+  if (value === null || value === undefined) return 'unknown';
+  
+  const strValue = String(value).trim();
+  
+  // Check for currency indicators
+  if (strValue.includes('$') || 
+      /^\d{1,3}(,\d{3})*(\.\d{2})?$/.test(strValue)) {
+    return 'currency';
+  }
+  
+  // Check for percentage indicators
+  if (strValue.includes('%')) {
+    return 'percentage';
+  }
+  
+  // Check for numeric patterns
+  if (/^-?\d+(\.\d+)?$/.test(strValue)) {
+    return 'numeric';
+  }
+  
+  return 'unknown';
 }
