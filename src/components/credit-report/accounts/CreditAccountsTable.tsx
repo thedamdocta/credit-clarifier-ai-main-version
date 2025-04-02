@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -42,24 +43,32 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
         console.log("Updating stable data with new account summaries that have real values");
         
         // Clean up any problematic data before setting state
-        const cleanedSummaries = accountSummaries.map(summary => ({
-          ...summary,
+        const cleanedSummaries = accountSummaries.map(summary => {
+          // Create a clean object to avoid duplication
+          const cleanedSummary = { ...summary };
+          
           // Empty rows handling - specifically for "Other" row
-          // If accountType is "Other", don't auto-set to 0
-          open: summary.accountType === "Other" && (summary.open === ',' || summary.open === '0') ? 
-            null : summary.open,
-          withBalance: summary.accountType === "Other" && (summary.withBalance === ',' || summary.withBalance === '0') ? 
-            null : summary.withBalance,
-          totalBalance: summary.accountType === "Other" && (summary.totalBalance === '$,' || summary.totalBalance === '$0') ? 
-            null : summary.totalBalance,
-          // Special handling for Total row - preserve null values
-          open: summary.accountType === "Total" ? summary.open : summary.open,
-          withBalance: summary.accountType === "Total" ? summary.withBalance : summary.withBalance,
-          totalBalance: summary.accountType === "Total" ? summary.totalBalance : summary.totalBalance,
+          if (summary.accountType === "Other") {
+            if (summary.open === ',' || summary.open === '0') {
+              cleanedSummary.open = null;
+            }
+            
+            if (summary.withBalance === ',' || summary.withBalance === '0') {
+              cleanedSummary.withBalance = null;
+            }
+            
+            if (summary.totalBalance === '$,' || summary.totalBalance === '$0') {
+              cleanedSummary.totalBalance = null;
+            }
+          }
+          
           // Handle negative values in Available column - should be displayed as negative
-          available: summary.available && summary.available.includes('-') ? 
-            summary.available : summary.available
-        }));
+          if (summary.available && summary.available.includes('-')) {
+            cleanedSummary.available = summary.available;
+          }
+          
+          return cleanedSummary;
+        });
         
         setStableData(cleanedSummaries);
       } else {
