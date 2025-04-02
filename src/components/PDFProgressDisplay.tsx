@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { File, Loader2, AlertCircle } from "lucide-react";
@@ -87,7 +86,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
       </div>
       
       {showLongProcessingWarning && (
-        <Alert variant="warning" className="bg-amber-50 mt-4">
+        <Alert className="bg-amber-50 mt-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Processing large documents can take several minutes. Please be patient.
