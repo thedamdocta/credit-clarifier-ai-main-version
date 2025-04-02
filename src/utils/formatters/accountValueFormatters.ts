@@ -4,7 +4,6 @@
 export const formatAccountValue = (value: any): string => {
   // Special explicit handling for 0 values - display as "0" not "x"
   if (value === 0 || value === "0") {
-    console.log("formatAccountValue: Formatting zero value");
     return "0";
   }
   

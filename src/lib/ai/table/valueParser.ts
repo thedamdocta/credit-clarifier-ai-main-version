@@ -19,14 +19,14 @@ export function parseNumericValue(value: string | null): string | null {
     return null;
   }
   
-  // Handle "0" values (including common OCR misreads)
+  // Handle explicit zeros - always return "0" as a string, not numeric 0
   if (normalized === '0' || normalized === 'O' || normalized === 'o') {
     return '0';
   }
   
   // Handle common OCR errors like ',' or '.' instead of number
   if (normalized === ',' || normalized === '.') {
-    return null;  // Keeps returning null for error values
+    return null;  // Return null for error values, not "0"
   }
 
   // Handle single character OCR errors that should be numbers
@@ -56,12 +56,12 @@ export function parseCurrencyValue(value: string | null): string | null {
   
   // Special handling for empty-looking currency values (like just a comma or period)
   if (normalized === '$,' || normalized === '$.' || normalized === '$-') {
-    return null;  // Return null instead of '$0' for truly empty values
+    return null;  // Return null for truly empty values
   }
   
-  // Handle zero values with various formats
+  // Handle explicit zero values with various formats
   if (normalized === '$0' || normalized === '$O' || normalized === '$o') {
-    return '$0';
+    return '$0';  // Keep zero values as "$0"
   }
   
   // Check if this is a negative value that should be displayed as is
@@ -102,7 +102,12 @@ export function parsePercentageValue(value: string | null): string | null {
   
   // Handle empty percentage values
   if (normalized === '%' || normalized === '.%') {
-    return null;  // Return null instead of '0.0%' for truly empty values
+    return null;  // Return null for truly empty values
+  }
+  
+  // Handle explicit zero percentage values
+  if (normalized === '0%' || normalized === '0.0%') {
+    return '0.0%';
   }
   
   // Check if it contains a number and % sign
@@ -112,7 +117,7 @@ export function parsePercentageValue(value: string | null): string | null {
     const num = parseFloat(matches[1]);
     // Handle NaN
     if (isNaN(num)) {
-      return null;  // Keeps returning null for error values
+      return null;  // Return null for error values
     }
     return `${num.toFixed(1)}%`;
   }
@@ -123,7 +128,7 @@ export function parsePercentageValue(value: string | null): string | null {
     const num = parseFloat(normalized);
     // Handle NaN
     if (isNaN(num)) {
-      return null;  // Keeps returning null for error values
+      return null;  // Return null for error values
     }
     return `${num.toFixed(1)}%`;
   }

@@ -46,25 +46,31 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           // Create a clean object to avoid duplication
           const cleanedSummary = { ...summary };
           
-          // Only clear values for "Other" row if it's not explicitly "0"
+          // For "Other" row, preserve explicit "0" values but clean up empty/error values
           if (summary.accountType === "Other") {
-            // Keep "0" values as "0" - only clear commas and empty values
-            if (summary.open === ',' || summary.open === '') {
-              cleanedSummary.open = null;
-            } else if (summary.open === '0') {
+            // If it's explicitly "0", keep it as "0"
+            if (summary.open === "0") {
               cleanedSummary.open = "0";
+            } 
+            // Otherwise clear error values or empty strings
+            else if (summary.open === ',' || summary.open === '' || summary.open === null) {
+              cleanedSummary.open = null;
             }
             
-            if (summary.withBalance === ',' || summary.withBalance === '') {
-              cleanedSummary.withBalance = null;
-            } else if (summary.withBalance === '0') {
+            // Same for withBalance field
+            if (summary.withBalance === "0") {
               cleanedSummary.withBalance = "0";
+            } 
+            else if (summary.withBalance === ',' || summary.withBalance === '' || summary.withBalance === null) {
+              cleanedSummary.withBalance = null;
             }
             
-            if (summary.totalBalance === '$,' || summary.totalBalance === '$' || summary.totalBalance === '') {
-              cleanedSummary.totalBalance = null;
-            } else if (summary.totalBalance === '$0') {
+            // Same for totalBalance field
+            if (summary.totalBalance === "$0") {
               cleanedSummary.totalBalance = "$0";
+            }
+            else if (summary.totalBalance === '$,' || summary.totalBalance === '$' || summary.totalBalance === '' || summary.totalBalance === null) {
+              cleanedSummary.totalBalance = null;
             }
           }
           
@@ -105,32 +111,32 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       return "x";
     }
     
-    // Handle "Other" row zeros - display as "0" not "x"
-    if (accountType === "Other" && (value === 0 || value === "0")) {
-      if (fieldName === "open" || fieldName === "withBalance") {
+    // CRITICAL: Special handling for "Other" row explicit zeros
+    if (accountType === "Other") {
+      // For numeric fields (open, withBalance) - show "0" if value is explicitly "0"
+      if ((fieldName === 'open' || fieldName === 'withBalance') && (value === "0" || value === 0)) {
         return "0";
       }
-      if (fieldName === "totalBalance" && value === "$0") {
+      
+      // For currency fields (totalBalance) - show "$0" if value is explicitly "$0"
+      if (fieldName === 'totalBalance' && (value === "$0" || value === 0)) {
         return "$0";
       }
     }
     
-    // For zero values - explicitly check string "0" as well as number 0
-    if (value === 0 || value === "0") {
+    // For zero values in non-Other rows - explicitly check string "0" as well as number 0
+    if ((value === 0 || value === "0") && accountType !== "Other") {
       return fieldName === "debtToCredit" ? "0.0%" : "0";
     }
     
     // Handle common OCR errors
     if (value === ',' || value === '.') {
-      return "x";  // Display x instead of 0 for Other row
+      return "x";  // Display x instead of 0 for empty cells
     }
     
     // Handle "$," error specifically
-    if (value === "$," || value === "$-" || value === "$." || value === "$0") {
-      if (accountType === "Other") {
-        return "x";  // Display x for empty Other row
-      }
-      return "$0";
+    if (value === "$," || value === "$-" || value === "$." || value === "$") {
+      return "x";  // Display x for empty currency cells
     }
     
     // Display "x" for null, undefined, or empty strings
