@@ -15,12 +15,12 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     // Get the page
     const page = await pdf.getPage(pageNum);
     
-    // Calculate desired dimensions (high resolution for better OCR)
-    const viewport = page.getViewport({ scale: 2.0 });
+    // Calculate desired dimensions (higher resolution for better OCR)
+    const viewport = page.getViewport({ scale: 2.5 }); // Increased scale for better resolution
     
     // Create a canvas element
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { alpha: false }); // Disable alpha for better OCR
     
     if (!context) {
       console.error("Could not create canvas context");
@@ -31,18 +31,23 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     canvas.height = viewport.height;
     canvas.width = viewport.width;
     
+    // Set white background for better contrast
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    
     // Render the PDF page to the canvas
     const renderContext = {
       canvasContext: context,
-      viewport: viewport
+      viewport: viewport,
+      intent: 'print' // Use print intent for better quality
     };
     
     await page.render(renderContext).promise;
-    console.log(`Rendered page ${pageNum} to canvas`);
+    console.log(`Rendered page ${pageNum} to canvas with dimensions ${canvas.width}x${canvas.height}`);
     
     // Convert the canvas to a data URL (PNG format)
     // Using PNG for lossless quality which is better for OCR
-    const imageData = canvas.toDataURL('image/png');
+    const imageData = canvas.toDataURL('image/png', 1.0);
     return imageData;
   } catch (error) {
     console.error(`Error converting page ${pageNum} to image:`, error);
@@ -85,6 +90,10 @@ export async function extractRegionFromPDFPage(
     canvas.width = region.width;
     canvas.height = region.height;
     
+    // Fill with white background
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     // Draw the selected region to the canvas
     ctx.drawImage(
       img,
@@ -93,7 +102,7 @@ export async function extractRegionFromPDFPage(
     );
     
     // Convert the region to a data URL
-    return canvas.toDataURL('image/png');
+    return canvas.toDataURL('image/png', 1.0);
   } catch (error) {
     console.error(`Error extracting region from page ${pageNum}:`, error);
     return null;

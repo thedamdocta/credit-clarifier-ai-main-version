@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -31,6 +32,7 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     }
     
     console.log("Found credit account table section, length:", tableSection.length);
+    console.log("Table section preview:", tableSection.substring(0, 300)); // Log a preview of the table section
     
     // Split the table into lines and filter out empty lines
     const lines = tableSection.split('\n').map(line => line.trim()).filter(line => line.length > 0);
@@ -85,28 +87,41 @@ function extractCreditAccountTableSection(text: string): string | null {
   
   if (creditAccountsMatch) {
     const headerIndex = creditAccountsMatch.index || 0;
+    console.log(`Found "Credit Accounts" header at position ${headerIndex}`);
     
     // Get a more focused section around the Credit Accounts header
     const sectionStart = Math.max(0, headerIndex - 100); // Include some context before
     const focusedText = text.substring(sectionStart);
     
     // Look for the account type header row within this focused text
-    const accountTypeHeaderPattern = /\baccount\s+type\b.*?\bopen\b.*?\bwith\s+balance\b.*?\btotal\s+balance\b/i;
+    // Use a more flexible pattern to match different table formats
+    const accountTypeHeaderPattern = /\b(account\s+type|type|accounts?)\b.*?(\bopen\b|\brevolving\b|\bmortgage\b|\binstallment\b)/i;
     const headerMatch = focusedText.match(accountTypeHeaderPattern);
     
     if (headerMatch) {
+      console.log("Found account type header row");
+      
       // Get the text from the header to the end of the table
       const accountTypeHeaderIndex = sectionStart + (headerMatch.index || 0);
-      const tableEndPattern = /(?:other items|summary of|consumer statement|public records|end of report)/i;
+      
+      // Find a reasonable end point for the table
+      const tableEndPattern = /(?:other items|summary of|consumer statement|public records|end of report|inquiries|collections)/i;
       const endSearchText = text.slice(accountTypeHeaderIndex);
       const tableEndMatch = endSearchText.match(tableEndPattern);
       
-      if (tableEndMatch) {
+      if (tableEndMatch && tableEndMatch.index) {
+        console.log(`Found table end at position ${tableEndMatch.index} from header`);
         return text.slice(accountTypeHeaderIndex, accountTypeHeaderIndex + tableEndMatch.index);
       } else {
         // If we can't find a clear end, just take a reasonable chunk
+        console.log("No clear table end found, using fixed length");
         return text.slice(accountTypeHeaderIndex, accountTypeHeaderIndex + 3000); 
       }
+    } else {
+      console.log("No account type header row found after Credit Accounts header");
+      
+      // If we can't find the header row, take a chunk after "Credit Accounts"
+      return text.slice(headerIndex, headerIndex + 3000);
     }
   }
   
@@ -118,36 +133,65 @@ function extractCreditAccountTableSection(text: string): string | null {
  * Fallback method to extract table section
  */
 function extractTableSectionFallback(text: string): string | null {
-  // Look for the account type header row
-  const headerPattern = /\baccount\s+type\b.*?\bopen\b.*?\bwith\s+balance\b.*?\btotal\s+balance\b/i;
-  const headerMatch = text.match(headerPattern);
+  console.log("Using fallback method to find credit accounts table");
   
-  if (!headerMatch) {
-    return null;
+  // Look for the account type header row with various patterns
+  const headerPatterns = [
+    /\baccount\s+type\b.*?\bopen\b.*?\bwith\s+balance\b.*?\btotal\s+balance\b/i,
+    /\baccount\s+type\b.*?\brevolving\b.*?\bmortgage\b.*?\binstallment\b/i,
+    /\brevolving\b.*?\bmortgage\b.*?\binstallment\b.*?\btotal\b/i
+  ];
+  
+  for (const pattern of headerPatterns) {
+    const headerMatch = text.match(pattern);
+    
+    if (headerMatch) {
+      console.log(`Found table using pattern: ${pattern}`);
+      
+      // Get the text from the header to the end of the table
+      const headerIndex = headerMatch.index || 0;
+      const tableEndPattern = /(?:other items|summary of|consumer statement|public records|end of report|inquiries|collections)/i;
+      const tableEndMatch = text.slice(headerIndex).match(tableEndPattern);
+      
+      if (tableEndMatch && tableEndMatch.index) {
+        return text.slice(headerIndex, headerIndex + tableEndMatch.index);
+      } else {
+        // If we can't find a clear end, just take a reasonable chunk
+        return text.slice(headerIndex, headerIndex + 3000); 
+      }
+    }
   }
   
-  // Get the text from the header to the end of the table
-  const headerIndex = headerMatch.index || 0;
-  const tableEndPattern = /(?:other items|summary of|consumer statement|public records|end of report)/i;
-  const tableEndMatch = text.slice(headerIndex).match(tableEndPattern);
-  
-  if (tableEndMatch) {
-    return text.slice(headerIndex, headerIndex + tableEndMatch.index);
-  } else {
-    // If we can't find a clear end, just take a reasonable chunk
-    return text.slice(headerIndex, headerIndex + 3000); 
-  }
+  console.log("No credit accounts table found with fallback method");
+  return null;
 }
 
 /**
  * Find the header line in the table to understand column positions
  */
 function findHeaderLine(lines: string[]): string | null {
-  // Look for the line with all column headers
-  const headerPattern = /account\s+type.*open.*with\s+balance.*total\s+balance.*available.*credit\s+limit.*debt-to-credit.*payment/i;
+  // Try different patterns for table headers
+  const headerPatterns = [
+    /account\s+type.*open.*with\s+balance.*total\s+balance.*available.*credit\s+limit.*debt-to-credit.*payment/i,
+    /account\s+type.*open.*with\s+balance.*total\s+balance/i,
+    /type.*open.*balance.*available.*credit\s+limit/i
+  ];
   
+  // Look for the line with column headers
+  for (const pattern of headerPatterns) {
+    for (const line of lines) {
+      if (pattern.test(line)) {
+        console.log(`Found header line matching pattern: ${line}`);
+        return line;
+      }
+    }
+  }
+  
+  // If we still can't find it, look for any line that might be a header
   for (const line of lines) {
-    if (headerPattern.test(line)) {
+    if ((line.toLowerCase().includes("account type") || line.toLowerCase().includes("revolving")) && 
+        (line.toLowerCase().includes("open") || line.toLowerCase().includes("balance"))) {
+      console.log(`Found potential header line: ${line}`);
       return line;
     }
   }

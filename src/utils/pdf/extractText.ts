@@ -98,80 +98,138 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
     const pdfDocument = currentPdfData.pdfDocument;
     const numPages = pdfDocument.numPages;
     
-    // First, try to find which page contains the account table
-    // We'll look for the page that has the most occurrences of relevant table keywords
-    let bestPage = 1;
-    let highestScore = 0;
-    
-    // Check which pages have already been extracted as text
-    const extractedText = currentPdfData.extractedText || "";
-    
-    // Use the extracted text to help locate the account table page
     // Enhanced list of keywords to better identify the credit accounts table
+    // Added more specific phrases that would appear in the Credit Accounts section
     const tableKeywords = [
-      'account type', 'revolving', 'mortgage', 'installment', 'total balance', 
-      'credit limit', 'payment', 'debt-to-credit', 'with balance', 'open',
-      'credit accounts', 'account summary', 'summary of accounts'
+      'credit accounts',
+      'account type', 
+      'revolving', 
+      'mortgage', 
+      'installment', 
+      'total balance',
+      'with balance',
+      'debt-to-credit',
+      'payment',
+      'available'
     ];
     
-    // Process each page to find the one with the account table
+    // First, try to find which page contains "Credit Accounts" header specifically
+    let creditAccountsPage = -1;
+    let highestScore = 0;
+    
+    // Check each page for "Credit Accounts" header
     for (let i = 1; i <= numPages; i++) {
       try {
-        // Get the page text content
         const page = await pdfDocument.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
         
-        // Count occurrences of table keywords
-        let score = 0;
-        tableKeywords.forEach(keyword => {
-          const regex = new RegExp(keyword, 'gi');
-          const matches = pageText.match(regex);
-          if (matches) {
-            score += matches.length;
+        // Explicitly check for "Credit Accounts" header
+        if (pageText.includes("credit accounts")) {
+          console.log(`Found "Credit Accounts" header on page ${i}`);
+          
+          // Count occurrences of other table keywords to confirm it's the right table
+          let score = 100; // Give high base score for "Credit Accounts" heading
+          
+          tableKeywords.forEach(keyword => {
+            const regex = new RegExp(keyword, 'gi');
+            const matches = pageText.match(regex);
+            if (matches) {
+              score += matches.length;
+            }
+          });
+          
+          // Check for specific patterns that indicate an account summary table
+          if (/(revolving|mortgage|installment).*?\d+.*?(balance|open)/i.test(pageText)) {
+            score += 50; // Very strong indicator of the right table
           }
-        });
-        
-        // Extra score for specific patterns that strongly indicate the account table
-        if (/(revolving|mortgage|installment).*?\d+.*?balance/i.test(pageText)) {
-          score += 10; // Boost score for typical table content
-        }
-        
-        // Look for tabular structure with account types and numbers
-        if (/revolving.*?\d+.*?mortgage.*?\d+.*?installment.*?\d+/i.test(pageText)) {
-          score += 15; // Very strong indicator of the account table
-        }
-        
-        console.log(`Page ${i} score: ${score} for credit account table detection`);
-        
-        // Update best page if this one has a higher score
-        if (score > highestScore) {
-          highestScore = score;
-          bestPage = i;
+          
+          // Look for column headers typical in account summary tables
+          if (/account\s+type.*open.*with\s+balance.*total\s+balance/i.test(pageText)) {
+            score += 75; // Almost definitely the right table
+          }
+          
+          console.log(`Page ${i} score for credit accounts table: ${score}`);
+          
+          // If this page has the highest score, use it
+          if (score > highestScore) {
+            highestScore = score;
+            creditAccountsPage = i;
+          }
         }
       } catch (error) {
-        console.error(`Error processing page ${i} for table detection:`, error);
+        console.error(`Error analyzing page ${i}:`, error);
       }
     }
     
-    console.log(`Best page for credit account table: ${bestPage} with score ${highestScore}`);
+    // If we didn't find a page with "Credit Accounts", fall back to keyword scoring
+    if (creditAccountsPage === -1) {
+      console.log("No page with explicit 'Credit Accounts' header found, falling back to keyword analysis");
+      
+      // Process each page to find the one with the account table
+      for (let i = 1; i <= numPages; i++) {
+        try {
+          // Get the page text content
+          const page = await pdfDocument.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
+          
+          // Count occurrences of table keywords
+          let score = 0;
+          tableKeywords.forEach(keyword => {
+            const regex = new RegExp(keyword, 'gi');
+            const matches = pageText.match(regex);
+            if (matches) {
+              score += matches.length;
+            }
+          });
+          
+          // Extra score for specific patterns that strongly indicate the account table
+          if (/(revolving|mortgage|installment).*?\d+.*?balance/i.test(pageText)) {
+            score += 20; // Boost score for typical table content
+          }
+          
+          // Look for column headers typical in account summary tables
+          if (/account\s+type.*open.*with\s+balance.*total\s+balance/i.test(pageText)) {
+            score += 30; // Strong indicator of the account table
+          }
+          
+          // Look for tabular structure with account types and numbers
+          if (/revolving.*?\d+.*?mortgage.*?\d+.*?installment.*?\d+/i.test(pageText)) {
+            score += 25; // Very strong indicator of the account table
+          }
+          
+          console.log(`Page ${i} score for credit account table detection: ${score}`);
+          
+          // Update best page if this one has a higher score
+          if (score > highestScore) {
+            highestScore = score;
+            creditAccountsPage = i;
+          }
+        } catch (error) {
+          console.error(`Error processing page ${i} for table detection:`, error);
+        }
+      }
+    }
+    
+    console.log(`Best page for credit account table: ${creditAccountsPage} with score ${highestScore}`);
     
     // If no good page was found, return null
-    if (highestScore < 2) {
+    if (creditAccountsPage === -1 || highestScore < 10) {
       console.log("No good page found for credit account table extraction");
       return null;
     }
     
     // Extract the image of the best page
     try {
-      const pageImage = await convertPDFPageToImage(pdfDocument, bestPage);
+      const pageImage = await convertPDFPageToImage(pdfDocument, creditAccountsPage);
       
       if (!pageImage) {
         console.error("Failed to convert page to image for table extraction");
         return null;
       }
       
-      console.log(`Successfully extracted image for page ${bestPage}`);
+      console.log(`Successfully extracted image for page ${creditAccountsPage}`);
       
       // Store the image URL in the current PDF data
       currentPdfData.tableImageUrl = pageImage;
