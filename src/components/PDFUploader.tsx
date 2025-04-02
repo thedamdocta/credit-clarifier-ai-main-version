@@ -1,9 +1,10 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePDFUpload } from "@/hooks/usePDFUpload";
 import PDFUploadPlaceholder from "./PDFUploadPlaceholder";
 import PDFProgressDisplay from "./PDFProgressDisplay";
+import ExtractionProcessLog from "./credit-report/ExtractionProcessLog";
 
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -11,6 +12,7 @@ interface PDFUploaderProps {
 }
 
 const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: parentIsProcessing }) => {
+  const [showProcessLog, setShowProcessLog] = useState(false);
   const {
     isDragging,
     uploadProgress,
@@ -30,6 +32,13 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
   
   // Combine both processing states
   const combinedIsProcessing = parentIsProcessing || localIsProcessing;
+
+  // Show process log when processing starts
+  React.useEffect(() => {
+    if (combinedIsProcessing) {
+      setShowProcessLog(true);
+    }
+  }, [combinedIsProcessing]);
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -64,6 +73,11 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
           />
         )}
       </div>
+      
+      {/* Always show process log when processing is active */}
+      {(showProcessLog || combinedIsProcessing) && (
+        <ExtractionProcessLog isVisible={true} />
+      )}
     </div>
   );
 };

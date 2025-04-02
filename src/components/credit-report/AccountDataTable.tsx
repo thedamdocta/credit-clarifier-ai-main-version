@@ -29,7 +29,7 @@ const AccountDataTable: React.FC<AccountDataTableProps> = ({ data }) => {
   ];
 
   // Helper function to format values with currency symbol if needed
-  const formatValue = (key: keyof AccountData, value: string | number | undefined | null): string => {
+  const formatValue = (key: string, value: any): string => {
     if (value === undefined || value === null) return '—';
     
     // Properly format currency fields
@@ -43,15 +43,18 @@ const AccountDataTable: React.FC<AccountDataTableProps> = ({ data }) => {
       if (typeof value === 'string' && value.startsWith('$')) return value;
       
       // If it's a number or numeric string that needs formatting
-      const numValue = typeof value === 'number' ? value : Number(value.replace(/[^0-9.-]/g, ''));
+      const numValue = typeof value === 'number' ? value : Number(String(value).replace(/[^0-9.-]/g, ''));
       if (!isNaN(numValue)) {
         return `$${numValue.toLocaleString()}`;
       }
     }
     
     // Ensure percentage has % symbol
-    if (key === 'debtToCredit' && typeof value === 'string' && !value.includes('%')) {
-      return `${value}%`;
+    if (key === 'debtToCredit') {
+      const strValue = String(value);
+      if (!strValue.includes('%')) {
+        return `${strValue}%`;
+      }
     }
     
     return String(value);
@@ -78,7 +81,7 @@ const AccountDataTable: React.FC<AccountDataTableProps> = ({ data }) => {
               <TableRow key={`${row.accountType}-${index}`} className={isTotal ? 'bg-muted/30 font-medium' : ''}>
                 {columns.map((column) => (
                   <TableCell key={column.key}>
-                    {formatValue(column.key as keyof AccountData, row[column.key as keyof AccountData])}
+                    {formatValue(column.key, row[column.key as keyof AccountData])}
                   </TableCell>
                 ))}
               </TableRow>
