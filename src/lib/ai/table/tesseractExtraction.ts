@@ -1,3 +1,4 @@
+
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
@@ -50,12 +51,12 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     await worker.initialize('eng');
     
     // Set optimized parameters specifically for credit report tables
+    // Fix: Remove invalid property 'tessedit_ocr_engine_mode'
     await worker.setParameters({
       tessedit_pageseg_mode: Tesseract.PSM.AUTO, // Auto detect segmentation mode
       preserve_interword_spaces: '1', // Preserve spaces between words
       tessjs_create_hocr: '1', // Create HOCR output for better structure
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy
-      tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY, // Use LSTM neural network
     });
     
     // Process the image
@@ -418,7 +419,8 @@ function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableDat
     return {
       headers,
       rows: dataRows,
-      confidence: ocrResult.confidence || 0
+      confidence: ocrResult.confidence || 0,
+      text: ocrResult.text // Add the raw text to enable pattern matching
     };
   } catch (error) {
     console.error('Error extracting table from OCR result:', error);

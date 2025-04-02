@@ -1,8 +1,93 @@
-
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
 import { parsingLogger } from '@/utils/parsingLogger';
+
+/**
+ * Extract table structure from raw text using template matching
+ */
+export function extractTableStructureFromText(text: string) {
+  try {
+    console.log('Extracting table structure from text using pattern matching');
+    
+    // Define more flexible patterns for credit report account tables
+    // These patterns identify data in various formats
+    const rowPatterns = {
+      revolving: [
+        /revolving\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /revolving.*?(\d+).*?(\d+).*?\$([\d,]+)/i,
+        /revolving.*?open[:\s]*(\d+).*?balance[:\s]*\$([\d,]+)/i
+      ],
+      mortgage: [
+        /mortgage\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /mortgage.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
+      installment: [
+        /installment\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /installment.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
+      other: [
+        /other\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /other.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
+      total: [
+        /total\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
+        /total.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+      ],
+    };
+    
+    // Initialize table structure
+    const tableStructure = {
+      headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
+      rows: []
+    };
+    
+    console.log('Text length for pattern matching:', text.length);
+    console.log('Sample text for pattern matching:', text.substring(0, 200) + '...');
+    
+    // Extract rows using multiple patterns for each account type
+    Object.entries(rowPatterns).forEach(([accountType, patterns]) => {
+      // Try each pattern for this account type
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          console.log(`Found match for ${accountType} using pattern:`, pattern);
+          
+          const row: Record<string, string> = {
+            'Account Type': accountType.charAt(0).toUpperCase() + accountType.slice(1),
+            'Open': match[1] ? match[1].trim() : '0',
+            'With Balance': match[2] ? match[2].trim() : '0',
+            'Total Balance': match[3] ? `$${match[3].trim()}` : '$0',
+            'Available': '$0',
+            'Credit Limit': '$0',
+            'Debt-to-Credit': '0%',
+            'Payment': '$0'
+          };
+          
+          // Try to find additional values
+          const availableMatch = text.match(new RegExp(`${accountType}.*?available[:\\s]*(\\$[\\d,]+|[\\d,]+)`, 'i'));
+          if (availableMatch) {
+            row['Available'] = availableMatch[1].startsWith('$') ? availableMatch[1] : `$${availableMatch[1]}`;
+          }
+          
+          const limitMatch = text.match(new RegExp(`${accountType}.*?limit[:\\s]*(\\$[\\d,]+|[\\d,]+)`, 'i'));
+          if (limitMatch) {
+            row['Credit Limit'] = limitMatch[1].startsWith('$') ? limitMatch[1] : `$${limitMatch[1]}`;
+          }
+          
+          tableStructure.rows.push(row);
+          break; // Use the first matching pattern
+        }
+      }
+    });
+    
+    console.log(`Extracted ${tableStructure.rows.length} rows using pattern matching`);
+    return tableStructure.rows.length > 0 ? tableStructure : null;
+  } catch (error) {
+    console.error('Error extracting table structure from text:', error);
+    return null;
+  }
+}
 
 /**
  * Extract table data from an image
@@ -91,19 +176,24 @@ export async function extractTableFromImage(imageUrl: string) {
       if (!hasTotalRow) {
         console.log('Total row missing, trying to extract separately');
         // Look for patterns like "Total 12 11 $220,505" in the extracted text
-        const totalRow = extractedTable.rows.find(row => 
-          row.join(' ').toLowerCase().includes('total') && 
-          /\d+/.test(row.join(' ')));
+        if (extractedTable.text) {
+          const totalMatch = extractedTable.text.match(/total.*?(\d+).*?(\d+).*?\$([\d,]+)/i);
           
-        if (totalRow) {
-          console.log('Found total row data:', totalRow);
-          // Add it to our formatted table
-          const totalRowObj: Record<string, string> = {};
-          extractedTable.headers.forEach((header, index) => {
-            totalRowObj[header] = totalRow[index] || '';
-          });
-          totalRowObj['Account Type'] = 'Total';
-          formattedTable.rows.push(totalRowObj);
+          if (totalMatch) {
+            console.log('Found total row data in text:', totalMatch);
+            // Add it to our formatted table
+            const totalRowObj: Record<string, string> = {
+              'Account Type': 'Total',
+              'Open': totalMatch[1] || '0',
+              'With Balance': totalMatch[2] || '0',
+              'Total Balance': `$${totalMatch[3] || '0'}`,
+              'Available': '$0',
+              'Credit Limit': '$0',
+              'Debt-to-Credit': '0%',
+              'Payment': '$0'
+            };
+            formattedTable.rows.push(totalRowObj);
+          }
         }
       }
       
@@ -149,7 +239,7 @@ export async function extractTableFromImage(imageUrl: string) {
     
     // If Tesseract extraction fails, try to extract table structure from text patterns
     console.log('Tesseract extraction failed, trying to extract table from text patterns');
-    const tableStructure = extractTableStructureFromText(extractedTable?.text || '');
+    const tableStructure = extractedTable?.text ? extractTableStructureFromText(extractedTable.text) : null;
     
     if (tableStructure) {
       return tableStructure;
@@ -209,90 +299,67 @@ async function extractTextFromTable(imageUrl: string): Promise<string | null> {
 }
 
 /**
- * Extract table structure from raw text using template matching
+ * Convert extracted table data to AccountSummary objects
+ * Enhanced to better handle the specific data formats in credit reports
  */
-export function extractTableStructureFromText(text: string) {
-  try {
-    console.log('Extracting table structure from text using pattern matching');
+export function convertTableToAccountSummaries(tableData: any): AccountSummary[] {
+  const summaries: AccountSummary[] = [];
+  
+  if (!tableData || !tableData.rows || tableData.rows.length === 0) {
+    return summaries;
+  }
+  
+  // Process each row in the table
+  tableData.rows.forEach((row: any) => {
+    // Extract account type
+    const accountType = row['Account Type'];
+    if (!accountType) return;
     
-    // Define more flexible patterns for credit report account tables
-    // These patterns identify data in various formats
-    const rowPatterns = {
-      revolving: [
-        /revolving\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
-        /revolving.*?(\d+).*?(\d+).*?\$([\d,]+)/i,
-        /revolving.*?open[:\s]*(\d+).*?balance[:\s]*\$([\d,]+)/i
-      ],
-      mortgage: [
-        /mortgage\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
-        /mortgage.*?(\d+).*?(\d+).*?\$([\d,]+)/i
-      ],
-      installment: [
-        /installment\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
-        /installment.*?(\d+).*?(\d+).*?\$([\d,]+)/i
-      ],
-      other: [
-        /other\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
-        /other.*?(\d+).*?(\d+).*?\$([\d,]+)/i
-      ],
-      total: [
-        /total\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
-        /total.*?(\d+).*?(\d+).*?\$([\d,]+)/i
-      ],
+    // Create an account summary object with all required properties
+    const summary: AccountSummary = {
+      accountType: accountType,
+      totalAccounts: null,
+      open: parseNumericValue(row['Open']),
+      closed: null,
+      balance: null,
+      withBalance: parseNumericValue(row['With Balance']),
+      totalBalance: parseCurrencyValue(row['Total Balance']),
+      available: parseCurrencyValue(row['Available']),
+      creditLimit: parseCurrencyValue(row['Credit Limit']),
+      debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
+      payment: parseCurrencyValue(row['Payment'])
     };
     
-    // Initialize table structure
-    const tableStructure = {
-      headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
-      rows: []
-    };
-    
-    console.log('Text length for pattern matching:', text.length);
-    console.log('Sample text for pattern matching:', text.substring(0, 200) + '...');
-    
-    // Extract rows using multiple patterns for each account type
-    Object.entries(rowPatterns).forEach(([accountType, patterns]) => {
-      // Try each pattern for this account type
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
+    // Special handling for Total row to ensure we capture its values
+    if (accountType.toLowerCase() === 'total') {
+      console.log('Processing Total row with special handling:', row);
+      
+      // Ensure numeric values are properly captured
+      if (row['Open'] && /\d+/.test(row['Open'])) {
+        summary.open = String(row['Open'].match(/\d+/)[0]);
+      }
+      
+      if (row['With Balance'] && /\d+/.test(row['With Balance'])) {
+        summary.withBalance = String(row['With Balance'].match(/\d+/)[0]);
+      }
+      
+      // Ensure dollar values are properly captured
+      if (row['Total Balance']) {
+        const match = row['Total Balance'].match(/\$?([\d,]+)/);
         if (match) {
-          console.log(`Found match for ${accountType} using pattern:`, pattern);
-          
-          const row: Record<string, string> = {
-            'Account Type': accountType.charAt(0).toUpperCase() + accountType.slice(1),
-            'Open': match[1] ? match[1].trim() : '0',
-            'With Balance': match[2] ? match[2].trim() : '0',
-            'Total Balance': match[3] ? `$${match[3].trim()}` : '$0',
-            'Available': '$0',
-            'Credit Limit': '$0',
-            'Debt-to-Credit': '0%',
-            'Payment': '$0'
-          };
-          
-          // Try to find additional values
-          const availableMatch = text.match(new RegExp(`${accountType}.*?available[:\\s]*(\\$[\\d,]+|[\\d,]+)`, 'i'));
-          if (availableMatch) {
-            row['Available'] = availableMatch[1].startsWith('$') ? availableMatch[1] : `$${availableMatch[1]}`;
-          }
-          
-          const limitMatch = text.match(new RegExp(`${accountType}.*?limit[:\\s]*(\\$[\\d,]+|[\\d,]+)`, 'i'));
-          if (limitMatch) {
-            row['Credit Limit'] = limitMatch[1].startsWith('$') ? limitMatch[1] : `$${limitMatch[1]}`;
-          }
-          
-          tableStructure.rows.push(row);
-          break; // Use the first matching pattern
+          summary.totalBalance = `$${match[1]}`;
         }
       }
-    });
+    }
     
-    console.log(`Extracted ${tableStructure.rows.length} rows using pattern matching`);
-    return tableStructure.rows.length > 0 ? tableStructure : null;
-  } catch (error) {
-    console.error('Error extracting table structure from text:', error);
-    return null;
-  }
+    summaries.push(summary);
+  });
+  
+  return summaries;
 }
+
+// Import the value parsers from our value parser module
+import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from './table/valueParser';
 
 // Keep simulated data function for development purposes only
 export function createSimulatedTableData(forceUseActualImage: boolean = false) {
@@ -363,67 +430,4 @@ export function createSimulatedTableData(forceUseActualImage: boolean = false) {
       }
     ]
   };
-}
-
-// Import the value parsers from our value parser module
-import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from './table/valueParser';
-
-/**
- * Convert extracted table data to AccountSummary objects
- * Enhanced to better handle the specific data formats in credit reports
- */
-export function convertTableToAccountSummaries(tableData: any): AccountSummary[] {
-  const summaries: AccountSummary[] = [];
-  
-  if (!tableData || !tableData.rows || tableData.rows.length === 0) {
-    return summaries;
-  }
-  
-  // Process each row in the table
-  tableData.rows.forEach((row: any) => {
-    // Extract account type
-    const accountType = row['Account Type'];
-    if (!accountType) return;
-    
-    // Create an account summary object with all required properties
-    const summary: AccountSummary = {
-      accountType: accountType,
-      totalAccounts: null,
-      open: parseNumericValue(row['Open']),
-      closed: null,
-      balance: null,
-      withBalance: parseNumericValue(row['With Balance']),
-      totalBalance: parseCurrencyValue(row['Total Balance']),
-      available: parseCurrencyValue(row['Available']),
-      creditLimit: parseCurrencyValue(row['Credit Limit']),
-      debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
-      payment: parseCurrencyValue(row['Payment'])
-    };
-    
-    // Special handling for Total row to ensure we capture its values
-    if (accountType.toLowerCase() === 'total') {
-      console.log('Processing Total row with special handling:', row);
-      
-      // Ensure numeric values are properly captured
-      if (row['Open'] && /\d+/.test(row['Open'])) {
-        summary.open = String(row['Open'].match(/\d+/)[0]);
-      }
-      
-      if (row['With Balance'] && /\d+/.test(row['With Balance'])) {
-        summary.withBalance = String(row['With Balance'].match(/\d+/)[0]);
-      }
-      
-      // Ensure dollar values are properly captured
-      if (row['Total Balance']) {
-        const match = row['Total Balance'].match(/\$?([\d,]+)/);
-        if (match) {
-          summary.totalBalance = `$${match[1]}`;
-        }
-      }
-    }
-    
-    summaries.push(summary);
-  });
-  
-  return summaries;
 }
