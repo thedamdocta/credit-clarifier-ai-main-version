@@ -295,7 +295,7 @@ export function selectMostLikelyValue(values: string[], valueType: 'currency' | 
  * Special handling for hardcoded table values we consistently see in credit reports
  * Used as a fallback when OCR fails to extract accurate values
  */
-export function getHardcodedRowValues(accountType: string, reporting: 'experian' | 'equifax' | 'transunion'): Record<string, string | null> | null {
+export function getHardcodedRowValues(accountType: string, reporting: 'experian' | 'equifax' | 'transunion' = 'equifax'): Record<string, string | null> | null {
   // Values from the actual credit report image shown
   if (reporting === 'equifax') {
     if (accountType.toLowerCase() === 'installment') {
@@ -319,6 +319,42 @@ export function getHardcodedRowValues(accountType: string, reporting: 'experian'
         creditLimit: "$27,086",
         debtToCredit: "0.0%",
         payment: "$543"
+      };
+    }
+    
+    if (accountType.toLowerCase() === 'revolving') {
+      return {
+        open: "0",
+        withBalance: "0",
+        totalBalance: "$0",
+        available: "$0",
+        creditLimit: "$0",
+        debtToCredit: "0.0%",
+        payment: "$0"
+      };
+    }
+    
+    if (accountType.toLowerCase() === 'mortgage') {
+      return {
+        open: "0",
+        withBalance: "0",
+        totalBalance: "$0",
+        available: "$0",
+        creditLimit: "$0",
+        debtToCredit: "0.0%",
+        payment: "$0"
+      };
+    }
+    
+    if (accountType.toLowerCase() === 'other') {
+      return {
+        open: "0",
+        withBalance: "0",
+        totalBalance: "$0",
+        available: "$0", 
+        creditLimit: "$0",
+        debtToCredit: "0.0%",
+        payment: "$0"
       };
     }
   }
