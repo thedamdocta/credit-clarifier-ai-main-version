@@ -34,11 +34,11 @@ export const processExtractedText = async (
     console.log("Processing extracted text to create structured credit report");
     parsingLogger.logEvent("AI parsing started", { reportId: uniqueReportId });
     
-    // Simulate parsing the extracted text into a structured credit report
+    // Create a fully compliant CreditReport object with all required properties
     const parsedReport: CreditReport = {
       reportId: uniqueReportId,
       bureau: "Unknown",
-      reportDate: new Date().toLocaleDateString(), // Adding the required reportDate property
+      reportDate: new Date().toLocaleDateString(),
       personalInfo: {
         name: "Unknown",
         addresses: ["Unknown"],
