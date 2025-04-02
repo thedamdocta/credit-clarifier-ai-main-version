@@ -57,8 +57,9 @@ export async function extractTextInBatches(
       }
       
       // Force memory cleanup when possible
-      if (typeof window !== 'undefined' && window.performance && window.performance.memory) {
-        console.log("Memory usage:", window.performance.memory);
+      if (typeof window !== 'undefined' && window.performance && 'memory' in window.performance) {
+        const perfMemory = window.performance.memory as any;
+        console.log("Memory usage:", perfMemory);
       }
     } catch (error) {
       console.error(`Error extracting batch ${startPage}-${endPage}:`, error);
@@ -166,16 +167,17 @@ export function determinePageCountForProcessing(pdf: any, showToast: (message: s
     let processingLimit = numPages;
     
     // Check if we can detect device memory
-    if (typeof navigator !== 'undefined' && navigator.deviceMemory) {
+    if (typeof navigator !== 'undefined' && 'deviceMemory' in navigator) {
       // Adjust limit based on available memory (deviceMemory is in GB)
-      if (navigator.deviceMemory <= 4) { // 4GB or less RAM
+      const deviceMemory = (navigator as any).deviceMemory as number;
+      if (deviceMemory <= 4) { // 4GB or less RAM
         processingLimit = Math.min(numPages, 100);
-      } else if (navigator.deviceMemory <= 8) { // 8GB or less RAM
+      } else if (deviceMemory <= 8) { // 8GB or less RAM
         processingLimit = Math.min(numPages, 150);
       }
       
       if (processingLimit < numPages) {
-        console.log(`Limiting processing to ${processingLimit} pages based on available device memory (${navigator.deviceMemory}GB)`);
+        console.log(`Limiting processing to ${processingLimit} pages based on available device memory (${deviceMemory}GB)`);
         showToast(`Processing ${processingLimit} of ${numPages} pages for better performance`);
         return processingLimit;
       }

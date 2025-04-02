@@ -1,4 +1,3 @@
-
 import { pipeline, type ProgressCallback, type PretrainedOptions } from '@huggingface/transformers';
 import { toast } from 'sonner';
 
@@ -175,24 +174,27 @@ export const getNER = async (isPreloading = false) => {
       const options: PretrainedOptions = {
         progress_callback: createProgressCallback(),
         // Use CPU instead of GPU in most cases for better stability across browsers
-        cpu: true, // Force CPU to prevent GPU-related freezes
-        // Disable cache and low memory mode for more stability
-        cache: false,
+        // Type-safe way to pass custom options
+        ...({} as Record<string, unknown>),
       };
+      
+      // Set CPU preference as a custom option
+      (options as any).cpu = true;
       
       // If modern GPU is detected, prefer using it for model inference
       if (typeof window !== 'undefined' && 
           window.navigator && 
-          window.navigator.gpu && 
+          'gpu' in navigator && 
           !isPreloading) {
         // Only try GPU mode when not preloading to avoid potential freezes during app startup
         try {
           // Test if device supports WebGPU
-          if (await navigator.gpu?.requestAdapter()) {
+          const nav = navigator as any;
+          if (nav.gpu && await nav.gpu.requestAdapter()) {
             // GPU is available and supports WebGPU
             console.log("WebGPU support detected, will try GPU acceleration");
             // Override CPU option
-            options.cpu = false;
+            (options as any).cpu = false;
           }
         } catch (e) {
           console.log("WebGPU not available, using CPU mode:", e);
@@ -219,24 +221,27 @@ export const getTextClassifier = async (isPreloading = false) => {
       const options: PretrainedOptions = {
         progress_callback: createProgressCallback(),
         // Use CPU instead of GPU in most cases for better stability across browsers
-        cpu: true, // Force CPU to prevent GPU-related freezes
-        // Disable cache and low memory mode for more stability
-        cache: false,
+        // Type-safe way to pass custom options
+        ...({} as Record<string, unknown>),
       };
+      
+      // Set CPU preference as a custom option
+      (options as any).cpu = true;
       
       // If modern GPU is detected, prefer using it for model inference
       if (typeof window !== 'undefined' && 
           window.navigator && 
-          window.navigator.gpu && 
+          'gpu' in navigator && 
           !isPreloading) {
         // Only try GPU mode when not preloading to avoid potential freezes during app startup
         try {
           // Test if device supports WebGPU
-          if (await navigator.gpu?.requestAdapter()) {
+          const nav = navigator as any;
+          if (nav.gpu && await nav.gpu.requestAdapter()) {
             // GPU is available and supports WebGPU
             console.log("WebGPU support detected, will try GPU acceleration");
             // Override CPU option
-            options.cpu = false;
+            (options as any).cpu = false;
           }
         } catch (e) {
           console.log("WebGPU not available, using CPU mode:", e);
@@ -322,5 +327,20 @@ declare global {
     __cachedNERModel: any;
     __cachedClassifierModel: any;
     gc?: () => void;
+  }
+  
+  interface Navigator {
+    gpu?: {
+      requestAdapter: () => Promise<any>;
+    }
+    deviceMemory?: number;
+  }
+  
+  interface Performance {
+    memory?: {
+      jsHeapSizeLimit: number;
+      totalJSHeapSize: number;
+      usedJSHeapSize: number;
+    }
   }
 }
