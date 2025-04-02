@@ -175,62 +175,68 @@ export async function extractTableFromImage(imageUrl: string) {
       
       if (!hasTotalRow) {
         console.log('Total row missing, trying to extract separately');
-        // Look for patterns like "Total 12 11 $220,505" in the extracted text
+        // Look for patterns like "Total 2 2 $31,533 -$4,447 $27,086 0.0% $543" in the extracted text
         if (extractedTable.text) {
-          const totalMatch = extractedTable.text.match(/total.*?(\d+).*?(\d+).*?\$([\d,]+)/i);
+          // Pattern for complete Total row with all values
+          const fullTotalPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-?\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%?)\s+\$?([\d,]+)/i;
+          const fullTotalMatch = extractedTable.text.match(fullTotalPattern);
           
-          if (totalMatch) {
-            console.log('Found total row data in text:', totalMatch);
-            // Add it to our formatted table
+          if (fullTotalMatch) {
+            console.log('Found complete Total row in text:', fullTotalMatch);
+            // Add it to our formatted table with all values
             const totalRowObj: Record<string, string> = {
               'Account Type': 'Total',
-              'Open': totalMatch[1] || '0',
-              'With Balance': totalMatch[2] || '0',
-              'Total Balance': `$${totalMatch[3] || '0'}`,
-              'Available': '$0',
-              'Credit Limit': '$0',
-              'Debt-to-Credit': '0%',
-              'Payment': '$0'
+              'Open': fullTotalMatch[1],
+              'With Balance': fullTotalMatch[2],
+              'Total Balance': `$${fullTotalMatch[3]}`,
+              'Available': fullTotalMatch[4],
+              'Credit Limit': `$${fullTotalMatch[5]}`,
+              'Debt-to-Credit': fullTotalMatch[6],
+              'Payment': `$${fullTotalMatch[7]}`
             };
             formattedTable.rows.push(totalRowObj);
+          } else {
+            // Try with a simpler pattern that might match fewer columns
+            const totalMatch = extractedTable.text.match(/total.*?(\d+).*?(\d+).*?\$([\d,]+)/i);
+            
+            if (totalMatch) {
+              console.log('Found partial Total row data in text:', totalMatch);
+              // Add it to our formatted table with the values we found
+              const totalRowObj: Record<string, string> = {
+                'Account Type': 'Total',
+                'Open': totalMatch[1],
+                'With Balance': totalMatch[2],
+                'Total Balance': `$${totalMatch[3]}`,
+                'Available': '',
+                'Credit Limit': '',
+                'Debt-to-Credit': '',
+                'Payment': ''
+              };
+              
+              // Try to find the remaining values separately
+              const availableMatch = extractedTable.text.match(/total.*?(-\$[\d,]+)/i);
+              if (availableMatch) {
+                totalRowObj['Available'] = availableMatch[1];
+              }
+              
+              const creditLimitMatch = extractedTable.text.match(/total.*?-\$[\d,]+.*?\$([\d,]+)/i);
+              if (creditLimitMatch) {
+                totalRowObj['Credit Limit'] = `$${creditLimitMatch[1]}`;
+              }
+              
+              const debtCreditMatch = extractedTable.text.match(/total.*?([\d\.]+%)/i);
+              if (debtCreditMatch) {
+                totalRowObj['Debt-to-Credit'] = debtCreditMatch[1];
+              }
+              
+              const paymentMatch = extractedTable.text.match(/total.*?\$([\d,]+).*?payment/i);
+              if (paymentMatch) {
+                totalRowObj['Payment'] = `$${paymentMatch[1]}`;
+              }
+              
+              formattedTable.rows.push(totalRowObj);
+            }
           }
-        }
-      }
-      
-      // Ensure the "Total" row contains summed values if individual rows have values
-      const totalRowIndex = formattedTable.rows.findIndex(row => 
-        row['Account Type']?.toLowerCase() === 'total');
-        
-      if (totalRowIndex >= 0) {
-        // Try to ensure the total row has proper values
-        console.log('Enhancing total row data');
-        const hasNumericValues = formattedTable.rows.some(row => 
-          row['Account Type']?.toLowerCase() !== 'total' && 
-          /\d+/.test(row['Open'] || ''));
-          
-        if (hasNumericValues && !formattedTable.rows[totalRowIndex]['Open']) {
-          // Calculate sum for Open column
-          const openSum = formattedTable.rows
-            .filter(row => row['Account Type']?.toLowerCase() !== 'total')
-            .reduce((sum, row) => {
-              const val = parseInt(row['Open'] || '0', 10) || 0;
-              return sum + val;
-            }, 0);
-            
-          formattedTable.rows[totalRowIndex]['Open'] = String(openSum);
-          console.log('Set calculated Open sum for Total row:', openSum);
-        }
-        
-        // Similar calculation for With Balance
-        if (hasNumericValues && !formattedTable.rows[totalRowIndex]['With Balance']) {
-          const withBalanceSum = formattedTable.rows
-            .filter(row => row['Account Type']?.toLowerCase() !== 'total')
-            .reduce((sum, row) => {
-              const val = parseInt(row['With Balance'] || '0', 10) || 0;
-              return sum + val;
-            }, 0);
-            
-          formattedTable.rows[totalRowIndex]['With Balance'] = String(withBalanceSum);
         }
       }
       

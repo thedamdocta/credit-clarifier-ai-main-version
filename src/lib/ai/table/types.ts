@@ -8,7 +8,7 @@ export interface ExtractedTableData {
   headers: string[];
   rows: string[][];
   confidence: number;
-  text?: string; // Add optional text property to store the raw OCR text
+  text?: string; // Store the raw OCR text to help with pattern matching
 }
 
 // Interface for formatted table data ready for use in the app

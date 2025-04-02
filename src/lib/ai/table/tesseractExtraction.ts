@@ -51,7 +51,7 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     await worker.initialize('eng');
     
     // Set optimized parameters specifically for credit report tables
-    // Fix: Remove invalid property 'tessedit_ocr_engine_mode'
+    // Removed invalid property 'tessedit_ocr_engine_mode'
     await worker.setParameters({
       tessedit_pageseg_mode: Tesseract.PSM.AUTO, // Auto detect segmentation mode
       preserve_interword_spaces: '1', // Preserve spaces between words
@@ -415,6 +415,64 @@ function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableDat
     
     console.log('Extracted table structure with headers:', headers);
     console.log('Found data rows:', dataRows.length);
+    
+    // Special processing for the Total row
+    const totalRowIndex = dataRows.findIndex(row => 
+      row[0].toLowerCase().includes('total'));
+      
+    if (totalRowIndex >= 0) {
+      console.log('Found Total row, applying special processing');
+      // Look for Total row values in the raw text - this captures more values correctly
+      const totalRowPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-?\$[\d,]+)\s+\$?([\d,]+)\s+(\d+\.?\d*%?)\s+\$?([\d,]+)/i;
+      
+      // Search for the Total row in the full OCR text
+      const totalMatch = ocrResult.text.match(totalRowPattern);
+      
+      if (totalMatch) {
+        console.log('Found detailed Total row match in OCR text:', totalMatch);
+        // Replace values in the Total row with the matched values
+        dataRows[totalRowIndex] = [
+          'Total',
+          totalMatch[1] || dataRows[totalRowIndex][1], // Open
+          totalMatch[2] || dataRows[totalRowIndex][2], // With Balance
+          `$${totalMatch[3]}` || dataRows[totalRowIndex][3], // Total Balance
+          totalMatch[4] || dataRows[totalRowIndex][4], // Available
+          `$${totalMatch[5]}` || dataRows[totalRowIndex][5], // Credit Limit
+          totalMatch[6] || dataRows[totalRowIndex][6], // Debt-to-Credit
+          `$${totalMatch[7]}` || dataRows[totalRowIndex][7]  // Payment
+        ];
+      } else {
+        // Try alternative pattern with less strict matching
+        const simpleTotal = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)/i;
+        const simpleTotalMatch = ocrResult.text.match(simpleTotal);
+        
+        if (simpleTotalMatch) {
+          console.log('Found simple Total row match in OCR text:', simpleTotalMatch);
+          // Update just the matched fields
+          dataRows[totalRowIndex][1] = simpleTotalMatch[1]; // Open
+          dataRows[totalRowIndex][2] = simpleTotalMatch[2]; // With Balance  
+          dataRows[totalRowIndex][3] = `$${simpleTotalMatch[3]}`; // Total Balance
+          
+          // Try to find negative Available value separately
+          const negativeAvail = ocrResult.text.match(/total.*?(-\$[\d,]+)/i);
+          if (negativeAvail) {
+            dataRows[totalRowIndex][4] = negativeAvail[1]; // Available
+          }
+          
+          // Try to find Credit Limit value separately  
+          const creditLimit = ocrResult.text.match(/total.*?-\$[\d,]+.*?\$?([\d,]+)/i);
+          if (creditLimit) {
+            dataRows[totalRowIndex][5] = `$${creditLimit[1]}`; // Credit Limit
+          }
+          
+          // Try to find payment value separately
+          const payment = ocrResult.text.match(/total.*?\$([\d,]+).*?payment/i);
+          if (payment) {
+            dataRows[totalRowIndex][7] = `$${payment[1]}`; // Payment
+          }
+        }
+      }
+    }
     
     return {
       headers,
