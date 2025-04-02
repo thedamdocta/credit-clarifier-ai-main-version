@@ -1,3 +1,4 @@
+
 // Main PDF processing orchestrator that coordinates the different modules
 import { toast } from "sonner";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
@@ -35,7 +36,6 @@ export const processPDFDocument = async (
     parsingLogger.logEvent("PDF processing started", { fileName: file.name, size: file.size });
     
     // Store this file as the current PDF being processed with a unique ID
-    // Use setPDFData instead of setCurrentPDFData
     const uniqueReportId = setCurrentPDFData(file);
     
     // Setup progress tracking
@@ -147,38 +147,6 @@ export const processPDFDocument = async (
     callbacks.setUploadProgress(0);
   }
 };
-
-// Function to extract OCR using Tesseract - this is kept for the credit account extraction specifically
-// but not used in the main PDF processing flow
-export async function extractTextFromImage(imageData: string): Promise<string | null> {
-  try {
-    const Tesseract = (await import('tesseract.js')).default;
-    console.log("Using Tesseract.js for OCR");
-    
-    const worker = await Tesseract.createWorker({
-      logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
-    });
-    
-    await worker.loadLanguage('eng');
-    await worker.initialize('eng');
-    
-    // Set page segmentation mode for better recognition of tables and structured text
-    await worker.setParameters({
-      tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Auto detect orientation
-      preserve_interword_spaces: '1', // Preserve spaces between words
-      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.-% ', // Limit to relevant characters
-    });
-    
-    const result = await worker.recognize(imageData);
-    console.log("Tesseract confidence:", result.data.confidence);
-    
-    await worker.terminate();
-    return result.data.text;
-  } catch (error) {
-    console.error("OCR extraction error:", error);
-    return null;
-  }
-}
 
 // Import the renamed function from extractText.ts
 import { setPDFData } from './extractText';

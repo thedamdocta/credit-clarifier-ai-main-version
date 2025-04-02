@@ -1,7 +1,8 @@
+
 // Core logic for handling credit report processing and data extraction
 import { parsingLogger } from "@/utils/parsingLogger";
 import { CreditReport } from "@/lib/types/creditReport";
-import { extractTextFromImage, processImageWithEnhancedOCR } from "@/lib/ai/ocrExtraction";
+import { extractTextFromImageRegion, processImageWithEnhancedOCR } from "@/lib/ai/ocrExtraction";
 import { extractCreditAccountsTableImage, getExtractedReportData, setExtractedReportData, setPDFData } from "../extractText";
 
 // Function to set the current PDF data and return a unique report ID
@@ -39,7 +40,7 @@ export const processExtractedText = async (
       bureau: "Unknown",
       personalInfo: {
         name: "Unknown",
-        address: "Unknown",
+        addresses: ["Unknown"],
         ssn: "Unknown",
         dob: "Unknown",
       },
