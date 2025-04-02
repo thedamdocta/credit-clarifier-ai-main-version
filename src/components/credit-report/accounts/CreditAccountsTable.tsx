@@ -7,6 +7,7 @@ import { AlertCircle, Info, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { isZeroValue, formatValueForDisplay } from "@/lib/ai/table/valueParser";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
@@ -66,27 +67,17 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   // Function to render a cell value with proper formatting based on data type
   // This improved function adds better handling for edge cases
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
-    // For zero values - explicitly check string "0" as well as number 0
-    if (value === 0 || value === "0") {
-      return fieldName === "debtToCredit" ? "0.0%" : "0";
-    }
-    
-    // Handle negative values properly (often seen in Available fields)
-    if (typeof value === 'string' && value.startsWith('-$')) {
-      return value; // Keep negative dollar values as is
-    }
-    
-    // Handle currencies with or without $ prefix consistently
-    if (typeof value === 'string' && !isNaN(parseFloat(value.replace(/[^0-9.-]/g, '')))) {
-      if (fieldName === 'totalBalance' || fieldName === 'available' || fieldName === 'creditLimit' || fieldName === 'payment') {
-        const numericValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
-        return value.includes('$') ? value : `$${numericValue}`;
-      }
-    }
-    
-    // Display "x" for null, undefined, or empty strings
+    // Special handling for missing or null values - display "x"
     if (value === null || value === undefined || value === '') {
       return "x";
+    }
+    
+    // Special handling for zero values (display as "0" or "$0" depending on field)
+    if (isZeroValue(value)) {
+      if (fieldName === 'debtToCredit') return "0.0%";
+      if (fieldName === 'totalBalance' || fieldName === 'available' || 
+          fieldName === 'creditLimit' || fieldName === 'payment') return "$0";
+      return "0";
     }
     
     // For actual values, format them properly
