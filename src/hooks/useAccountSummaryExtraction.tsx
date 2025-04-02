@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { extractCreditAccountsTableImage } from "@/utils/pdf/core/tableExtractor";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai";
 import { getExtractedReportData } from "@/utils/pdf/extractText";
+import { parsingLogger } from "@/utils/parsingLogger";
 
 interface AccountSummaryExtractionResult {
   isProcessing: boolean;
@@ -52,15 +54,25 @@ export const useAccountSummaryExtraction = ({
   const handleEnhancedExtraction = async (forceNew = false) => {
     setIsProcessing(true);
     setExtractionAttempts(prev => prev + 1);
+    setAttemptedExtraction(true);
     
     try {
       // First get the table image
-      const tableImageUrl = await extractCreditAccountsTableImage(report);
-      setTableImageUrl(tableImageUrl || null);
+      const extractedTableImageUrl = await extractCreditAccountsTableImage(report);
       
-      if (tableImageUrl) {
+      // Log the extracted image URL for debugging
+      console.log('Extracted table image URL:', extractedTableImageUrl ? 'success' : 'failed');
+      
+      // Update state with the image URL for display in the debugger
+      setTableImageUrl(extractedTableImageUrl || null);
+      parsingLogger.log('image-extraction', 'Table image extraction', {
+        success: !!extractedTableImageUrl,
+        tableImageUrl: extractedTableImageUrl
+      });
+      
+      if (extractedTableImageUrl) {
         // Extract table from image
-        const extractedTable = await extractTableFromImage(tableImageUrl);
+        const extractedTable = await extractTableFromImage(extractedTableImageUrl);
         
         if (extractedTable && extractedTable.rows && extractedTable.rows.length > 0) {
           // Use the AI-enhanced conversion if available
@@ -81,6 +93,13 @@ export const useAccountSummaryExtraction = ({
             setExtractionFailed(false);
             setUsingSampleData(false);
             setInitialAccountDataFound(true);
+            
+            // Log the successful extraction for debugging
+            parsingLogger.log('account-extraction', 'Account data extraction', {
+              success: true,
+              count: accountData.length,
+              sample: accountData[0]
+            });
           } else {
             handleExtractionFailure();
           }

@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Code, Image } from "lucide-react";
-import { CreditReport } from "@/lib/types/creditReport";
+import { AccountSummary } from "@/lib/types/creditReport";
 
 interface CreditAccountsDebugProps {
   accountSummaries: any[];

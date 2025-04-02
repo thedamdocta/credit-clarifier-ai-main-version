@@ -1,6 +1,7 @@
 
 import { processTableCellWithAI, batchProcessCells, CellType } from './aiCellProcessor';
 import { ExtractedTable } from './types';
+import { parsingLogger } from '@/utils/parsingLogger';
 
 /**
  * Process an entire table with AI cell-by-cell
@@ -144,6 +145,15 @@ export async function enhanceAccountSummariesWithAI(accountSummaries: any[]): Pr
       // Add more fields as necessary
       
       enhancedSummaries.push(enhancedSummary);
+    }
+    
+    // Log the enhanced summaries for debugging
+    if (accountSummaries.length > 0 && enhancedSummaries.length > 0) {
+      parsingLogger.log('ai-enhancement', 'Enhanced account summaries with AI', {
+        beforeCount: accountSummaries.length,
+        afterCount: enhancedSummaries.length,
+        sample: enhancedSummaries[0]
+      });
     }
     
     return enhancedSummaries;
