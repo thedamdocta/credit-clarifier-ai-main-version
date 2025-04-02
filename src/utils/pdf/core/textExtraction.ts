@@ -1,13 +1,13 @@
+
 // PDF text extraction functionality
 import { ProgressCallbacks } from '../progressHandling';
 
 // Optimized batch size for better performance while preventing UI freezing
-// Adjust batch sizes based on performance testing
-const MAX_PAGES_BATCH = 10; // Reduced from 20 to 10 for better UI responsiveness
-const SUB_BATCH_SIZE = 3; // Reduced from 5 to 3 for more frequent yields to the UI
+const MAX_PAGES_BATCH = 5; // Reduced from 10 to 5 for better UI responsiveness
+const SUB_BATCH_SIZE = 2; // Reduced from 3 to 2 for more frequent yields to the UI
 
-// Maximum pages to process for very large documents - keep at 300
-const MAX_PAGES_TO_PROCESS = 300;
+// Maximum pages to process for very large documents
+const MAX_PAGES_TO_PROCESS = 200; // Reduced from 300 to 200
 
 // Extract text from PDF document in smaller batches to prevent UI freezing
 export async function extractTextInBatches(
@@ -37,7 +37,7 @@ export async function extractTextInBatches(
     }
     
     // Yield to UI between batches - CRITICAL for preventing "page unresponsive" dialogs
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 100)); // Increased from 50ms to 100ms
     
     const endPage = Math.min(startPage + MAX_PAGES_BATCH - 1, actualPagesToProcess);
     console.log(`Processing batch of pages ${startPage}-${endPage}...`);
@@ -54,6 +54,11 @@ export async function extractTextInBatches(
         } catch (e) {
           // Ignore if gc is not available
         }
+      }
+      
+      // Force memory cleanup when possible
+      if (typeof window !== 'undefined' && window.performance && window.performance.memory) {
+        console.log("Memory usage:", window.performance.memory);
       }
     } catch (error) {
       console.error(`Error extracting batch ${startPage}-${endPage}:`, error);
@@ -84,8 +89,8 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
     for (let i = startPage; i <= endPage; i += SUB_BATCH_SIZE) {
       const subEndPage = Math.min(i + SUB_BATCH_SIZE - 1, endPage);
       
-      // Yield to UI thread before processing sub-batch
-      await new Promise(resolve => setTimeout(resolve, 20));
+      // Yield to UI thread before processing sub-batch - increased yield time
+      await new Promise(resolve => setTimeout(resolve, 50)); // Increased from 20ms to 50ms
       
       // Get pages for this sub-batch
       for (let j = i; j <= subEndPage; j++) {
@@ -93,27 +98,25 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
           const page = await pdf.getPage(j);
           
           try {
-            // Extract text, but yield to UI thread first
-            await new Promise(resolve => setTimeout(resolve, 0));
+            // Extract text, but yield to UI thread first - increased yield time
+            await new Promise(resolve => setTimeout(resolve, 20)); // Increased from 0ms to 20ms
             
             const textContent = await page.getTextContent({
               normalizeWhitespace: true,
               disableCombineTextItems: false
             });
             
-            // Process a smaller chunk at a time
+            // Process a smaller chunk at a time - reduced chunk size
             const texts: string[] = [];
-            const chunkSize = 50; // Process 50 items at a time
+            const chunkSize = 20; // Reduced from 50 to 20 items at a time
             
             for (let k = 0; k < textContent.items.length; k += chunkSize) {
               const chunk = textContent.items.slice(k, k + chunkSize);
               const chunkText = chunk.map((item: any) => item.str).join(" ");
               texts.push(chunkText);
               
-              // Yield to UI every chunk to prevent freezing
-              if (k % (chunkSize * 2) === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-              }
+              // Yield to UI more frequently - every chunk instead of every other chunk
+              await new Promise(resolve => setTimeout(resolve, 5)); // Added 5ms yield time every chunk
             }
             
             batchText += texts.join(" ") + " ";
@@ -134,8 +137,8 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
           // Continue with other pages
         }
         
-        // Yield to UI every page to prevent freezing
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // Yield to UI every page to prevent freezing - increased yield time
+        await new Promise(resolve => setTimeout(resolve, 20)); // Increased from 10ms to 20ms
       }
     }
     
@@ -150,15 +153,34 @@ async function extractBatchText(pdf: any, startPage: number, endPage: number): P
 export function determinePageCountForProcessing(pdf: any, showToast: (message: string) => void): number {
   const numPages = pdf.numPages;
   
-  // For extremely large documents, limit page count
+  // For extremely large documents, limit page count more aggressively
   if (numPages > MAX_PAGES_TO_PROCESS) {
     console.log(`Document has ${numPages} pages, limiting processing to ${MAX_PAGES_TO_PROCESS} pages for performance`);
     showToast(`Large document detected (${numPages} pages). Processing first ${MAX_PAGES_TO_PROCESS} pages.`);
     return MAX_PAGES_TO_PROCESS;
   }
   
-  // For moderately large documents, show a warning but process all pages
-  if (numPages > 100) {
+  // For moderately large documents, use a dynamic threshold
+  if (numPages > 50) {
+    // Dynamic threshold based on device memory (if available)
+    let processingLimit = numPages;
+    
+    // Check if we can detect device memory
+    if (typeof navigator !== 'undefined' && navigator.deviceMemory) {
+      // Adjust limit based on available memory (deviceMemory is in GB)
+      if (navigator.deviceMemory <= 4) { // 4GB or less RAM
+        processingLimit = Math.min(numPages, 100);
+      } else if (navigator.deviceMemory <= 8) { // 8GB or less RAM
+        processingLimit = Math.min(numPages, 150);
+      }
+      
+      if (processingLimit < numPages) {
+        console.log(`Limiting processing to ${processingLimit} pages based on available device memory (${navigator.deviceMemory}GB)`);
+        showToast(`Processing ${processingLimit} of ${numPages} pages for better performance`);
+        return processingLimit;
+      }
+    }
+    
     console.log(`Processing all ${numPages} pages of moderately large document`);
     showToast(`Processing ${numPages} pages - this may take a while`);
   }

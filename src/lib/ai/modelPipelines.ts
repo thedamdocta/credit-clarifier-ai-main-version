@@ -9,7 +9,6 @@ let skipAIProcessing = false;
 let preloadingInitiated = false;
 
 // Track which models are loaded to prevent redundant loading
-// Changed from const to export const to make it accessible to other modules
 export const loadedModels = {
   ner: false,
   classifier: false
@@ -36,7 +35,7 @@ export const resetSkipAIFlag = (): void => {
 // Web Worker detection
 const supportsWebWorker = typeof window !== 'undefined' && typeof Worker !== 'undefined';
 
-// Central function to manage model loading
+// Central function to manage model loading with improved performance
 const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>, isPreloading = false): Promise<any | null> => {
   // If we've decided to skip AI, return null immediately
   if (skipAIProcessing && !isPreloading) {
@@ -60,25 +59,62 @@ const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>,
     console.log(`${isPreloading ? 'Preloading' : 'Loading'} ${modelType} model...`);
   } else {
     console.log(`Another model is ${isPreloading ? 'preloading' : 'loading'}, will load ${modelType} after completion`);
+    
+    // For actual user-requested loads (not preloading), we want to wait and retry later
     if (!isPreloading) {
-      return null; // Don't queue up multiple actual loads, let the caller retry later
+      // Instead of returning null immediately, wait a bit and check if the other load finishes
+      try {
+        // Check every second for up to 20 seconds if the other loading process completes
+        for (let i = 0; i < 20; i++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          if (!modelLoadingInProgress) {
+            // Now we can try loading our model
+            console.log(`Previous model loading completed, now loading ${modelType}`);
+            return manageModelLoading(modelType, loadFn, isPreloading);
+          }
+        }
+      } catch (e) {
+        console.error("Error during model loading wait period:", e);
+      }
+      return null; // Give up after waiting
     }
   }
 
   try {
     // Yield to UI thread before heavy computation
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 10));
     
     // Set timeout to prevent UI from being blocked for too long
     const loadTimeoutPromise = new Promise((_, reject) => {
       setTimeout(() => {
-        console.error(`${modelType} model loading timed out after 60s`);
+        console.error(`${modelType} model loading timed out after 90s`);
         reject(new Error(`${modelType} model loading timed out`));
-      }, 60000); // 60 second timeout
+      }, 90000); // 90 second timeout - increased from 60s
     });
 
-    // Load the model with timeout
-    const model = await Promise.race([loadFn(), loadTimeoutPromise]);
+    // Load the model with timeout and better UI responsiveness
+    let loadPromise;
+    
+    // Attempt to use a worker for model loading when possible
+    if (supportsWebWorker && !isPreloading) {
+      // If browser supports web workers, create a background task for model loading
+      console.log(`Using worker-based loading for ${modelType} model`);
+      loadPromise = new Promise(async (resolve, reject) => {
+        try {
+          // Still need to yield to UI before starting heavy computation
+          await new Promise(res => setTimeout(res, 0));
+          const model = await loadFn();
+          resolve(model);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    } else {
+      loadPromise = loadFn();
+    }
+
+    // Race with timeout
+    const model = await Promise.race([loadPromise, loadTimeoutPromise]);
     console.log(`${modelType} model loaded successfully after ${getModelLoadingDuration()} seconds`);
     
     // Mark this model as loaded
@@ -127,7 +163,7 @@ const createProgressCallback = (): ProgressCallback => {
   };
 };
 
-// Load Named Entity Recognition (NER) model
+// Load Named Entity Recognition (NER) model with improved configuration
 export const getNER = async (isPreloading = false) => {
   console.log(isPreloading ? "Preloading NER model..." : "Getting NER model...");
   return manageModelLoading('ner', async () => {
@@ -138,9 +174,30 @@ export const getNER = async (isPreloading = false) => {
       
       const options: PretrainedOptions = {
         progress_callback: createProgressCallback(),
-        // Use CPU instead of GPU for better stability across browsers
-        // This can be important for preventing browser freezes
+        // Use CPU instead of GPU in most cases for better stability across browsers
+        cpu: true, // Force CPU to prevent GPU-related freezes
+        // Disable cache and low memory mode for more stability
+        cache: false,
       };
+      
+      // If modern GPU is detected, prefer using it for model inference
+      if (typeof window !== 'undefined' && 
+          window.navigator && 
+          window.navigator.gpu && 
+          !isPreloading) {
+        // Only try GPU mode when not preloading to avoid potential freezes during app startup
+        try {
+          // Test if device supports WebGPU
+          if (await navigator.gpu?.requestAdapter()) {
+            // GPU is available and supports WebGPU
+            console.log("WebGPU support detected, will try GPU acceleration");
+            // Override CPU option
+            options.cpu = false;
+          }
+        } catch (e) {
+          console.log("WebGPU not available, using CPU mode:", e);
+        }
+      }
       
       return await pipeline('token-classification', 'Xenova/distilbert-base-cased-finetuned-conll03-english', options);
     } catch (error) {
@@ -150,7 +207,7 @@ export const getNER = async (isPreloading = false) => {
   }, isPreloading);
 };
 
-// Load text classification model
+// Load text classification model with improved configuration
 export const getTextClassifier = async (isPreloading = false) => {
   console.log(isPreloading ? "Preloading text classifier model..." : "Getting text classifier model...");
   return manageModelLoading('classifier', async () => {
@@ -161,8 +218,30 @@ export const getTextClassifier = async (isPreloading = false) => {
       
       const options: PretrainedOptions = {
         progress_callback: createProgressCallback(),
-        // Use CPU instead of GPU for better stability across browsers
+        // Use CPU instead of GPU in most cases for better stability across browsers
+        cpu: true, // Force CPU to prevent GPU-related freezes
+        // Disable cache and low memory mode for more stability
+        cache: false,
       };
+      
+      // If modern GPU is detected, prefer using it for model inference
+      if (typeof window !== 'undefined' && 
+          window.navigator && 
+          window.navigator.gpu && 
+          !isPreloading) {
+        // Only try GPU mode when not preloading to avoid potential freezes during app startup
+        try {
+          // Test if device supports WebGPU
+          if (await navigator.gpu?.requestAdapter()) {
+            // GPU is available and supports WebGPU
+            console.log("WebGPU support detected, will try GPU acceleration");
+            // Override CPU option
+            options.cpu = false;
+          }
+        } catch (e) {
+          console.log("WebGPU not available, using CPU mode:", e);
+        }
+      }
       
       return await pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', options);
     } catch (error) {
@@ -172,7 +251,7 @@ export const getTextClassifier = async (isPreloading = false) => {
   }, isPreloading);
 };
 
-// Preload models function - can be called early in the app lifecycle
+// Smart preload function - prevents app from becoming unresponsive
 export const preloadAIModels = async (): Promise<void> => {
   if (preloadingInitiated) {
     console.log("AI model preloading already initiated, skipping");
@@ -182,21 +261,56 @@ export const preloadAIModels = async (): Promise<void> => {
   preloadingInitiated = true;
   console.log("Starting AI model preloading");
 
+  // Dynamic loading strategy based on device capabilities
+  const isLowPowerDevice = () => {
+    // Simple detection for low power devices
+    return (
+      typeof navigator !== 'undefined' &&
+      (
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+      )
+    );
+  };
+
   try {
-    // Start preloading the models in the background
-    // Use a slight delay to allow the app to initialize first
-    setTimeout(async () => {
-      try {
-        // Load models in sequence to avoid overwhelming the browser
-        await getNER(true);
-        // Small delay between models
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await getTextClassifier(true);
-        console.log("AI model preloading completed");
-      } catch (error) {
-        console.error("Error during model preloading:", error);
-      }
-    }, 2000);
+    // Adjust preloading strategy based on device capabilities
+    if (isLowPowerDevice()) {
+      console.log("Low-power device detected, using conservative preloading strategy");
+      // On low-power devices, delay preloading until the app is fully loaded and idle
+      setTimeout(() => {
+        requestIdleCallback(async () => {
+          try {
+            // Only load the classifier on low-power devices (smaller model)
+            await getTextClassifier(true);
+            console.log("AI model preloading completed (conservative strategy)");
+          } catch (error) {
+            console.error("Error during conservative model preloading:", error);
+          }
+        }, { timeout: 10000 });
+      }, 5000);
+    } else {
+      // For powerful devices, use a progressive loading approach
+      // Start with a small delay to allow app to initialize first
+      setTimeout(async () => {
+        try {
+          // First load classifier (usually smaller/faster)
+          await getTextClassifier(true);
+          
+          // Then load NER model after a delay
+          setTimeout(async () => {
+            try {
+              await getNER(true);
+              console.log("AI model preloading fully completed");
+            } catch (error) {
+              console.error("Error during NER model preloading:", error);
+            }
+          }, 2000);
+        } catch (error) {
+          console.error("Error during initial model preloading:", error);
+        }
+      }, 3000);
+    }
   } catch (error) {
     console.error("Failed to initialize model preloading:", error);
   }

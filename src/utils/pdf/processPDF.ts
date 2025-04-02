@@ -53,103 +53,124 @@ export const processPDFDocument = async (
     // Check file size and warn for large files
     const fileSizeMB = checkFileSizeAndWarn(file);
     
-    // For extremely large files, use very simplified processing - increase threshold to 200MB
-    if (fileSizeMB > 200) {
+    // For extremely large files, use very simplified processing - reduced from 200MB to 100MB
+    if (fileSizeMB > 100) {
       toast.info("Using simplified processing for this very large file", { duration: 5000 });
       await handleBasicProcessing(uniqueReportId, file, "Very large file - text extraction limited", onPDFUploaded);
       completeProgressTracking();
       return;
     }
     
-    // IMPROVED: Use a web worker for file reading to prevent UI thread blocking
-    // Only read a manageable chunk of the file at once for really large files
+    // Break down processing into smaller steps with more UI yields
     try {
-      // Yield to UI thread before starting heavy work
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Step 1: Read the file as array buffer with more UI yields
+      updateProgress(10);
+      await new Promise(resolve => setTimeout(resolve, 50));
       
+      // Read file in chunks for large files
       const typedarray = await readFileAsArrayBuffer(file);
       updateProgress(20);
       
-      // Yield to UI thread again
+      // Step 2: Load PDF document with more UI yields
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Load PDF document with optimizations for large files
-      const pdfLoadOptions = fileSizeMB > 100 ? { disableFontFace: true, cMapPacked: false } : {};
-      const pdf = await loadPdfDocument(typedarray, fileSizeMB);
+      // Use more aggressive optimizations for PDF loading
+      const pdfLoadOptions = fileSizeMB > 50 ? { 
+        disableFontFace: true, 
+        cMapPacked: false,
+        disableRange: true, // Disable range requests
+        disableStream: true, // Disable streaming
+        disableAutoFetch: true // Disable auto fetching
+      } : {};
+      
+      // Load the PDF with timeout and error handling
+      const pdf = await Promise.race([
+        loadPdfDocument(typedarray, fileSizeMB),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timed out")), 60000))
+      ]).catch(error => {
+        console.error("Error loading PDF:", error);
+        toast.error("Could not load this PDF. The file might be damaged or too complex.");
+        clearProgressTracking();
+        throw new Error("PDF loading failed");
+      });
       
       const numPages = pdf.numPages;
       console.log(`PDF loaded with ${numPages} pages`);
       parsingLogger.logEvent("PDF loaded", { pages: numPages });
       updateProgress(30);
       
-      // For extremely large documents (500+ pages), show a toast and limit processing
-      const pagesToProcess = numPages > 300 ? 300 : numPages;
-      if (numPages > 300) {
-        toast.info(`This document has ${numPages} pages. Processing first ${pagesToProcess} pages for better performance.`, { duration: 6000 });
-      }
-      
-      // Split heavy operations into small chunks with yields to prevent UI freezing
-      
-      // STEP 1: Extract images if needed (with yield points to prevent freezing)
+      // Step 3: Process images if needed
       if (useImageExtraction) {
-        // Yield to UI thread before image extraction
-        await new Promise(resolve => setTimeout(resolve, 100));
+        updateProgress(35);
+        await new Promise(resolve => setTimeout(resolve, 50));
         
         try {
           await Promise.race([
             attemptExtractFirstPageImage(pdf),
-            new Promise((_, reject) => setTimeout(() => reject("Image extraction timed out"), 15000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Image extraction timed out")), 10000))
           ]);
         } catch (error) {
-          console.log("Image extraction skipped:", error);
+          console.log("Image extraction skipped or timed out:", error);
         }
         
-        // Yield to UI thread after image extraction
         await new Promise(resolve => setTimeout(resolve, 50));
       }
       
       updateProgress(40);
       
-      // STEP 2: Extract text in small batches with yields between each batch
+      // Step 4: Extract text with dynamic page processing
       await new Promise(resolve => setTimeout(resolve, 100));
-      updateProgress(45);
+      
+      // Determine how many pages to process based on document size and device capabilities
+      const pagesToProcess = determinePageCountForProcessing(pdf, (message) => {
+        toast.info(message, { duration: 5000 });
+      });
       
       let extractedText = "";
       try {
         extractedText = await extractTextInBatches(pdf, updateProgress, pagesToProcess);
-        updateProgress(60);
+        updateProgress(65);
       } catch (error) {
         console.error("Error in batch text extraction:", error);
         toast.warning("Text extraction incomplete. Using partial text.");
         // Continue with whatever text we extracted
       }
       
-      // Yield again after text extraction
+      // Step 5: Parse the extracted text with more UI yields
       await new Promise(resolve => setTimeout(resolve, 100));
-      updateProgress(75);
+      updateProgress(70);
       
-      // STEP 3: Parse the extracted text
-      const parsedReport = await handleParsing(
-        extractedText,
-        uniqueReportId,
-        file,
-        useAI,
-        updateProgress
-      );
+      // Give the UI more time to update before heavy parsing
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Final yield before completion
-      await new Promise(resolve => setTimeout(resolve, 50));
-      updateProgress(95);
-      
-      if (parsedReport) {
-        // Complete processing
-        completeProgressTracking();
+      try {
+        const parsedReport = await handleParsing(
+          extractedText,
+          uniqueReportId,
+          file,
+          useAI,
+          updateProgress
+        );
         
-        // Pass the extracted text, file, and parsed report to the parent component
-        onPDFUploaded(file, extractedText, parsedReport);
+        // Final yield before completion
+        await new Promise(resolve => setTimeout(resolve, 50));
+        updateProgress(95);
         
-        toast.success("PDF successfully processed!");
-      } else {
+        if (parsedReport) {
+          // Complete processing
+          completeProgressTracking();
+          
+          // Pass the extracted text, file, and parsed report to the parent component
+          onPDFUploaded(file, extractedText, parsedReport);
+          
+          toast.success("PDF successfully processed!");
+        } else {
+          await handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+          completeProgressTracking();
+        }
+      } catch (parsingError) {
+        console.error("Error during parsing:", parsingError);
+        toast.warning("Parsing encountered issues, using basic text extraction");
         await handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
         completeProgressTracking();
       }

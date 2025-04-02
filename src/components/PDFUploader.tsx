@@ -18,6 +18,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
   const [showProcessLog, setShowProcessLog] = useState(false);
   const [showStartupInfo, setShowStartupInfo] = useState(false);
   const [modelsReady, setModelsReady] = useState(false);
+  const [hasShownLargeFileWarning, setHasShownLargeFileWarning] = useState(false);
   
   const {
     isDragging,
@@ -50,9 +51,9 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
       } else if (typeof loadedModels === 'object' && (loadedModels.ner || loadedModels.classifier)) {
         // If at least one model is loaded
         setModelsReady(true);
-        // After 5 seconds, hide the startup info if it was showing
+        // After 3 seconds, hide the startup info if it was showing (reduced from 5s)
         if (showStartupInfo) {
-          setTimeout(() => setShowStartupInfo(false), 5000);
+          setTimeout(() => setShowStartupInfo(false), 3000);
         }
       }
     };
@@ -60,8 +61,8 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
     // Check initially
     checkIfModelLoading();
     
-    // And then every second
-    const interval = setInterval(checkIfModelLoading, 1000);
+    // And then every 2 seconds (reduced from every 1s to reduce overhead)
+    const interval = setInterval(checkIfModelLoading, 2000);
     return () => clearInterval(interval);
   }, [showStartupInfo]);
 
@@ -69,8 +70,27 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
   React.useEffect(() => {
     if (combinedIsProcessing) {
       setShowProcessLog(true);
+      
+      // Show large file warning if current file is large
+      if (currentFile && currentFile.size > 20 * 1024 * 1024 && !hasShownLargeFileWarning) {
+        setHasShownLargeFileWarning(true);
+      }
+    } else {
+      // Reset large file warning status when not processing
+      setHasShownLargeFileWarning(false);
     }
-  }, [combinedIsProcessing]);
+  }, [combinedIsProcessing, currentFile]);
+
+  // Function to determine if we should show the large file warning
+  const shouldShowLargeFileWarning = () => {
+    return (
+      combinedIsProcessing && 
+      uploadProgress >= 40 && 
+      uploadProgress < 95 && 
+      currentFile && 
+      currentFile.size > 20 * 1024 * 1024
+    );
+  };
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
@@ -133,11 +153,12 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
         )}
       </div>
       
-      {combinedIsProcessing && uploadProgress >= 40 && uploadProgress < 95 && (
+      {shouldShowLargeFileWarning() && (
         <Alert variant="warning" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <AlertDescription className="text-amber-800">
-            PDF processing may take a minute or two, especially for large files or first-time AI model loading.
+            This is a large PDF file. Processing may take several minutes and might appear to freeze temporarily.
+            Please be patient and avoid clicking during processing.
           </AlertDescription>
         </Alert>
       )}

@@ -1,7 +1,8 @@
+
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
-import { loadedModels } from "@/lib/ai/modelPipelines";
+import { loadedModels, isModelLoading, getModelLoadingDuration } from "@/lib/ai/modelPipelines";
 
 interface UsePDFUploadProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -15,9 +16,13 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelLoadRetries, setModelLoadRetries] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Maximum file size to process without warning (in MB)
+  const MAX_RECOMMENDED_FILE_SIZE = 50;
 
-  // Check if models are preloaded at initialization
+  // Check if models are preloaded at initialization with improved retry logic
   useEffect(() => {
     // Check if models are already loaded
     if (typeof loadedModels === 'object') {
@@ -29,19 +34,39 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
       }
     }
     
-    // Set up a periodic check for loaded models
+    // Set up a periodic check for loaded models with limited retries
     const checkInterval = setInterval(() => {
       if (typeof loadedModels === 'object' && (loadedModels.ner || loadedModels.classifier)) {
         setModelsLoaded(true);
         clearInterval(checkInterval);
+      } else {
+        // Increment retry counter
+        setModelLoadRetries(prev => {
+          const newCount = prev + 1;
+          // After 60 seconds (30 checks at 2s interval), stop checking
+          if (newCount > 30) {
+            console.log("Giving up on model loading checks after 60s");
+            clearInterval(checkInterval);
+          }
+          return newCount;
+        });
       }
-    }, 1000);
+    }, 2000); // Check every 2 seconds instead of 1s to reduce overhead
     
     return () => clearInterval(checkInterval);
   }, []);
 
   const processPDF = async (file: File) => {
     try {
+      // Check file size before proceeding
+      const fileSizeMB = file.size / (1024 * 1024);
+      if (fileSizeMB > MAX_RECOMMENDED_FILE_SIZE) {
+        toast.warning(
+          `This file is ${Math.round(fileSizeMB)}MB, which may take longer to process. Please be patient.`,
+          { duration: 6000 }
+        );
+      }
+      
       setIsProcessing(true);
       
       // Show initial upload started toast
@@ -49,17 +74,26 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
         duration: 3000,
       });
       
-      // Process the PDF file with enhanced image extraction
-      await processPDFDocument(file, useAI, {
-        setCurrentFile,
-        setUploadProgress,
-        onPDFUploaded,
-        useImageExtraction
-      });
+      // Use setTimeout to create a small delay before starting heavy processing
+      // This gives the UI a chance to update with the loading indicators
+      setTimeout(async () => {
+        try {
+          // Process the PDF file with enhanced image extraction
+          await processPDFDocument(file, useAI, {
+            setCurrentFile,
+            setUploadProgress,
+            onPDFUploaded,
+            useImageExtraction
+          });
+        } catch (error) {
+          console.error("PDF processing error:", error);
+          toast.error("Failed to process the PDF. Please try a different file.");
+          setIsProcessing(false);
+        }
+      }, 100);
     } catch (error) {
       console.error("PDF processing error:", error);
       toast.error("Failed to process the PDF. Please try a different file.");
-    } finally {
       setIsProcessing(false);
     }
   };
