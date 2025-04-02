@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
@@ -117,76 +118,6 @@ export const extractAccountSummariesWithRegex = (text: string) => {
   }
 };
 
-export const createSampleAccountSummaries = () => {
-  return [
-    {
-      accountType: 'Revolving',
-      totalAccounts: 6,
-      open: "5",
-      withBalance: "3",
-      closed: 1,
-      balance: null,
-      totalBalance: "$12,500",
-      available: "$25,000",
-      creditLimit: "$37,500",
-      debtToCredit: "33.3%",
-      payment: "$250"
-    },
-    {
-      accountType: 'Mortgage',
-      totalAccounts: 1,
-      open: "1",
-      withBalance: "1",
-      closed: 0,
-      balance: null,
-      totalBalance: "$180,000",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$1,200"
-    },
-    {
-      accountType: 'Installment',
-      totalAccounts: 2,
-      open: "2",
-      withBalance: "2",
-      closed: 0,
-      balance: null,
-      totalBalance: "$22,500",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$650"
-    },
-    {
-      accountType: 'Other',
-      totalAccounts: 0,
-      open: "0",
-      withBalance: "0",
-      closed: 0,
-      balance: null,
-      totalBalance: "$0",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$0"
-    },
-    {
-      accountType: 'Total',
-      totalAccounts: 9,
-      open: "8",
-      withBalance: "6",
-      closed: 1,
-      balance: null,
-      totalBalance: "$215,000",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$2,100"
-    }
-  ];
-};
-
 export const createDefaultAccountSummaries = () => {
   return [
     {
@@ -269,14 +200,12 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
         const accountSummaries = convertTableToAccountSummaries(tableData);
         console.log('Successfully extracted account summaries from image:', accountSummaries);
         
-        const enhancedSummaries = postProcessAccountSummaries(accountSummaries, extractedText);
-        
-        const hasRealData = enhancedSummaries.some(summary => 
+        const hasRealData = accountSummaries.some(summary => 
           summary.open !== null || summary.withBalance !== null || summary.totalBalance !== null);
         
         if (hasRealData) {
           console.log('Using extracted data from image');
-          return enhancedSummaries;
+          return accountSummaries;
         } else {
           console.log('Extracted data had no real values, trying regex');
         }
@@ -296,80 +225,13 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
       return regexSummaries;
     }
     
-    if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
-      console.log('Development environment detected: using sample account summaries');
-      return createSampleAccountSummaries();
-    } else {
-      console.log('Production environment: using empty account summaries');
-      return createDefaultAccountSummaries();
-    }
+    console.log('No real data found, using empty account summaries');
+    return createDefaultAccountSummaries();
   } catch (error) {
     console.error('Error in improved account summary extraction:', error);
     return createDefaultAccountSummaries();
   }
 };
-
-function postProcessAccountSummaries(summaries: any[], extractedText: string): any[] {
-  try {
-    console.log("Post-processing account summaries to fix common issues");
-    
-    if (!summaries || summaries.length === 0) return summaries;
-    
-    const processedSummaries = summaries.map(summary => {
-      const processedSummary = { ...summary };
-      
-      if (summary.accountType === "Installment") {
-        if (!processedSummary.open) processedSummary.open = "2";
-        if (!processedSummary.withBalance) processedSummary.withBalance = "2";
-        if (!processedSummary.totalBalance) processedSummary.totalBalance = "$31,533";
-        if (!processedSummary.available) processedSummary.available = "-$4,447";
-        if (!processedSummary.creditLimit) processedSummary.creditLimit = "$27,086";
-        if (!processedSummary.debtToCredit) processedSummary.debtToCredit = "116.0%";
-        if (!processedSummary.payment) processedSummary.payment = "$543";
-      }
-      else if (summary.accountType === "Total") {
-        console.log("Processing Total row specially");
-        
-        if (!processedSummary.open) processedSummary.open = "2";
-        if (!processedSummary.withBalance) processedSummary.withBalance = "2";
-        if (!processedSummary.totalBalance) processedSummary.totalBalance = "$31,533";
-        if (!processedSummary.available) processedSummary.available = "-$4,447";
-        if (!processedSummary.creditLimit) processedSummary.creditLimit = "$27,086";
-        if (!processedSummary.debtToCredit) processedSummary.debtToCredit = "0.0%";
-        if (!processedSummary.payment) processedSummary.payment = "$543";
-        
-        const totalPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)/i;
-        const totalMatch = extractedText.match(totalPattern);
-        
-        if (totalMatch) {
-          console.log("Found Total row values in text:", totalMatch[1], totalMatch[2], totalMatch[3]);
-          processedSummary.open = totalMatch[1];
-          processedSummary.withBalance = totalMatch[2];
-          processedSummary.totalBalance = `$${totalMatch[3]}`;
-        }
-      }
-      else if (summary.accountType === "Revolving" || summary.accountType === "Mortgage" || summary.accountType === "Other") {
-        if (!processedSummary.open) processedSummary.open = "0";
-        if (!processedSummary.withBalance) processedSummary.withBalance = "0";
-      }
-      
-      ['totalBalance', 'available', 'creditLimit', 'payment'].forEach(prop => {
-        if (processedSummary[prop] && typeof processedSummary[prop] === 'string') {
-          if (processedSummary[prop].match(/^[\d,]+$/) && !processedSummary[prop].includes('$')) {
-            processedSummary[prop] = `$${processedSummary[prop]}`;
-          }
-        }
-      });
-      
-      return processedSummary;
-    });
-    
-    return processedSummaries;
-  } catch (error) {
-    console.error("Error in postProcessAccountSummaries:", error);
-    return summaries;
-  }
-}
 
 export const parsePDFContent = async (extractedText: string, useAI: boolean = false) => {
   try {

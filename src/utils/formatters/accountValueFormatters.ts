@@ -1,4 +1,3 @@
-
 /**
  * Safely formats cell values for the account summary tables
  */
@@ -83,11 +82,6 @@ export const formatPercentageValue = (value: any): string => {
   }
   
   const stringValue = String(value);
-  
-  // Handle known special values
-  if (stringValue.includes("116")) {
-    return "116.0%";
-  }
   
   // If it already has a % symbol, ensure it has a decimal place
   if (stringValue.includes('%')) {

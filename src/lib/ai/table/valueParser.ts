@@ -74,31 +74,13 @@ export function parseCurrencyValue(value: string | null): string | null {
     return '-$0';  // Keep negative zero as is
   }
   
-  // Special pattern for "-$4,447" value that appears in the image
+  // Special pattern for negative values
   if (/^[-−–—]\$[\d,]+$/.test(normalized) || /^\$-[\d,]+$/.test(normalized)) {
     // Ensure consistent format with minus before dollar sign
     if (/^\$-[\d,]+$/.test(normalized)) {
       normalized = normalized.replace(/^\$-/, '-$');
     }
-    
-    // Fix common OCR error with "-$4,447" specifically
-    if (normalized.includes('4,447') || normalized.includes('4447')) {
-      return '-$4,447';
-    }
-    
     return normalized;  // Return the negative value directly
-  }
-  
-  // Check for specific values we want to ensure are correctly formatted
-  // These are values specifically seen in the credit report image
-  if (normalized.match(/27[,.]?0?8?6/)) {
-    return '$27,086';  // Fix Credit Limit value
-  }
-  if (normalized.match(/31[,.]?5?3?3/)) {
-    return '$31,533';  // Fix Total Balance value
-  }
-  if (normalized.match(/54?3/)) {
-    return '$543';  // Fix Payment value
   }
   
   // Special handling for empty-looking currency values (like just a comma or period)
@@ -174,7 +156,6 @@ export function parseCurrencyValue(value: string | null): string | null {
 /**
  * Parse a percentage value from OCR text
  * Handles different percentage formats
- * Enhanced for the 116.0% value seen in credit reports
  */
 export function parsePercentageValue(value: string | null): string | null {
   if (value === null || value === undefined || value === '') return null;
@@ -185,11 +166,6 @@ export function parsePercentageValue(value: string | null): string | null {
   // Handle explicit zero values - these may be replaced with "x" by the caller
   if (normalized === '0' || normalized === '0.0' || normalized === '0%' || normalized === '0.0%') {
     return '0.0%';  // Standardize zero values
-  }
-  
-  // Special handling for the "116.0%" value seen in the report
-  if (/^1?1?6\.?0?%?$/.test(normalized) || normalized.includes('116')) {
-    return "116.0%";  // Return exact value from the image
   }
   
   // Enhanced pattern to find percentage values even with OCR artifacts
@@ -293,38 +269,8 @@ export function selectMostLikelyValue(values: string[], valueType: 'currency' | 
   return mostCommonValue;
 }
 
-/**
- * Special handling for hardcoded table values we consistently see in credit reports
- * Used as a fallback when OCR fails to extract accurate values
- */
-export function getHardcodedRowValues(accountType: string, reporting: 'experian' | 'equifax' | 'transunion' = 'equifax'): Record<string, string | null> | null {
-  // Values from the actual credit report image shown
-  if (reporting === 'equifax') {
-    if (accountType.toLowerCase() === 'installment') {
-      return {
-        open: "2",
-        withBalance: "2",
-        totalBalance: "$31,533",
-        available: "-$4,447",
-        creditLimit: "$27,086",
-        debtToCredit: "116.0%",
-        payment: "$543"
-      };
-    }
-    
-    if (accountType.toLowerCase() === 'total') {
-      return {
-        open: "2",
-        withBalance: "2",
-        totalBalance: "$31,533",
-        available: "-$4,447",
-        creditLimit: "$27,086",
-        debtToCredit: "0.0%",
-        payment: "$543"
-      };
-    }
-  }
-  
-  // For other account types, don't provide hardcoded values
+// Remove the hardcoded values function entirely
+export function getHardcodedRowValues(): null {
+  // This function no longer provides hardcoded values
   return null;
 }

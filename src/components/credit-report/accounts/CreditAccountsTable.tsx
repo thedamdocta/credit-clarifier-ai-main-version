@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -24,10 +25,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       const newDataHasRealValues = accountSummaries.some(summary => 
         ((summary.open !== null && summary.open !== "" && summary.open !== "0") || 
          (summary.withBalance !== null && summary.withBalance !== "" && summary.withBalance !== "0") || 
-         (summary.totalBalance !== null && summary.totalBalance !== "" && summary.totalBalance !== "$0")) ||
-         (summary.accountType === "Installment" && 
-          (summary.debtToCredit === "116.0%" || summary.available === "-$4,447")) ||
-         summary.accountType === "Total"
+         (summary.totalBalance !== null && summary.totalBalance !== "" && summary.totalBalance !== "$0"))
       );
       
       const currentDataHasNoValues = !stableData || stableData.length === 0 || !stableData.some(summary => 
@@ -38,9 +36,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       
       if (currentDataHasNoValues || newDataHasRealValues) {
         console.log("Updating stable data with new account summaries that have real values");
-        
-        const enhancedSummaries = applySpecialCaseDetection(accountSummaries);
-        setStableData(enhancedSummaries);
+        setStableData(accountSummaries);
       } else {
         console.log("Keeping existing stable data as it has better values than new data");
       }
@@ -49,9 +45,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   
   const summariesToDisplay = stableData && stableData.length > 0 ? stableData : accountSummaries;
   
-  const isSampleData = summariesToDisplay && 
-    summariesToDisplay.some(s => s.accountType === "Revolving" && s.totalBalance === "$16,355" && s.payment === "$627") &&
-    summariesToDisplay.some(s => s.accountType === "Installment" && s.totalBalance === "$204,150" && s.available === "$15,455");
+  const isSampleData = false; // Removed sample data detection to always use actual data
   
   const hasNoData = !summariesToDisplay || summariesToDisplay.length === 0 || summariesToDisplay.every(summary =>
     (summary.open === null || summary.open === "") && 
@@ -60,56 +54,6 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   );
   
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string, accountType: string) => {
-    // Handle special known values for Installment account type
-    if (accountType === "Installment") {
-      if (fieldName === "available" && (!value || value === "0" || value === "$0")) {
-        return "-$4,447";
-      }
-      if (fieldName === "creditLimit" && (!value || value === "0" || value === "$0")) {
-        return "$27,086";
-      }
-      if (fieldName === "debtToCredit" && (!value || value === "0" || value === "0.0%")) {
-        return "116.0%";
-      }
-      if (fieldName === "payment" && (!value || value === "0" || value === "$0")) {
-        return "$543";
-      }
-      if (fieldName === "totalBalance" && (!value || value === "0" || value === "$0")) {
-        return "$31,533";
-      }
-      if (fieldName === "open" && (!value)) {
-        return "2";
-      }
-      if (fieldName === "withBalance" && (!value)) {
-        return "2";
-      }
-    }
-    
-    // Handle special known values for Total account type
-    if (accountType === "Total") {
-      if (fieldName === "available" && (!value || value === "0" || value === "$0")) {
-        return "-$4,447";
-      }
-      if (fieldName === "creditLimit" && (!value || value === "0" || value === "$0")) {
-        return "$27,086";
-      }
-      if (fieldName === "payment" && (!value || value === "0" || value === "$0")) {
-        return "$543";
-      }
-      if (fieldName === "totalBalance" && (!value || value === "0" || value === "$0")) {
-        return "$31,533";
-      }
-      if (fieldName === "open" && (!value)) {
-        return "2";
-      }
-      if (fieldName === "withBalance" && (!value)) {
-        return "2";
-      }
-      if (fieldName === "debtToCredit" && (!value || value === "0" || value === "0.0%")) {
-        return "0.0%";
-      }
-    }
-    
     // For Revolving account type, only allow real zeros for open and withBalance fields
     if (accountType === "Revolving") {
       if (fieldName === 'open' || fieldName === 'withBalance') {
@@ -224,45 +168,5 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     </div>
   );
 };
-
-function applySpecialCaseDetection(summaries: AccountSummary[]): AccountSummary[] {
-  return summaries.map(summary => {
-    const enhancedSummary = { ...summary };
-    
-    if (summary.accountType === "Installment") {
-      if (!enhancedSummary.open || enhancedSummary.open === "0") enhancedSummary.open = "2";
-      if (!enhancedSummary.withBalance || enhancedSummary.withBalance === "0") enhancedSummary.withBalance = "2";
-      if (!enhancedSummary.totalBalance) enhancedSummary.totalBalance = "$31,533";
-      if (!enhancedSummary.available) enhancedSummary.available = "-$4,447";
-      if (!enhancedSummary.creditLimit) enhancedSummary.creditLimit = "$27,086";
-      if (!enhancedSummary.debtToCredit) enhancedSummary.debtToCredit = "116.0%";
-      if (!enhancedSummary.payment) enhancedSummary.payment = "$543";
-    }
-    
-    if (summary.accountType === "Total") {
-      if (!enhancedSummary.open || enhancedSummary.open === "0") enhancedSummary.open = "2";
-      if (!enhancedSummary.withBalance || enhancedSummary.withBalance === "0") enhancedSummary.withBalance = "2";
-      if (!enhancedSummary.totalBalance) enhancedSummary.totalBalance = "$31,533";
-      if (!enhancedSummary.available) enhancedSummary.available = "-$4,447";
-      if (!enhancedSummary.creditLimit) enhancedSummary.creditLimit = "$27,086";
-      if (!enhancedSummary.debtToCredit) enhancedSummary.debtToCredit = "0.0%";
-      if (!enhancedSummary.payment) enhancedSummary.payment = "$543";
-    }
-    
-    // For Mortgage and Other, NEVER set "0" values, keep them null so they display as "x"
-    if (summary.accountType === "Mortgage" || summary.accountType === "Other") {
-      // Don't set any specific values, let them stay as null to display as "x"
-    }
-    
-    // Only keep "0" for Revolving open and withBalance columns
-    if (summary.accountType === "Revolving") {
-      if (!enhancedSummary.open) enhancedSummary.open = "0";
-      if (!enhancedSummary.withBalance) enhancedSummary.withBalance = "0";
-      // Don't set other fields to zero, leave them as null so they'll display as "x"
-    }
-    
-    return enhancedSummary;
-  });
-}
 
 export default CreditAccountsTable;
