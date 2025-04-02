@@ -258,7 +258,7 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
           <div className="flex flex-wrap gap-2 pt-4 justify-end">
             <Button 
               variant="outline" 
-              onClick={handleRefreshPages} 
+              onClick={handleRefreshPages}
               disabled={isProcessing || isExtracting}
             >
               {isProcessing ? (

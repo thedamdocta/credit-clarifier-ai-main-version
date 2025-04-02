@@ -46,9 +46,9 @@ const NewCreditAccountTable: React.FC<NewCreditAccountTableProps> = ({ accountDa
             const isTotal = row.accountType === 'Total';
             
             return (
-              <TableRow key={`${row.accountType}-${index}`} isHighlighted={isTotal}>
+              <TableRow key={`${row.accountType}-${index}`} className={isTotal ? 'bg-muted/30 font-medium' : ''}>
                 {columns.map(column => (
-                  <TableCell key={column.key} className={isTotal ? 'font-medium' : ''}>
+                  <TableCell key={column.key}>
                     {row[column.key as keyof AccountData] || '—'}
                   </TableCell>
                 ))}
