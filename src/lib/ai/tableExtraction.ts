@@ -61,11 +61,23 @@ export async function extractTableFromImage(
     if (extractedTable) {
       console.log('Successfully extracted table with Tesseract:', extractedTable);
       
-      // Check if this is likely the target table we're looking for
-      const isTargetTable = extractedTable.isTargetTable || 
-                         (extractedTable.matchScore && extractedTable.matchScore > 0.5);
+      // Check specifically if the text contains credit account table keywords
+      const textLower = extractedTable.text ? extractedTable.text.toLowerCase() : '';
+      const hasTableKeywords = 
+        (textLower.includes('revolving') || textLower.includes('mortgage') || textLower.includes('installment')) && 
+        (textLower.includes('balance') || textLower.includes('credit limit') || textLower.includes('payment'));
       
-      if (isTargetTable) {
+      // Look specifically for currency symbols and numeric patterns
+      const hasCurrencyPattern = extractedTable.text ? /\$[\d,.]+/i.test(extractedTable.text) : false;
+      const hasNumericColumns = extractedTable.text ? /(\d+)\s+(\d+)\s+\$?([\d,.]+)/i.test(extractedTable.text) : false;
+      
+      // Determine if this is likely the correct table with a more comprehensive check
+      const isLikelyTargetTable = extractedTable.isTargetTable || 
+                               (extractedTable.matchScore && extractedTable.matchScore > 0.5) ||
+                               (hasTableKeywords && textLower.includes('account type')) ||
+                               (hasTableKeywords && hasCurrencyPattern && hasNumericColumns);
+      
+      if (isLikelyTargetTable) {
         console.log(`This appears to be the ${targetTableName} table we're looking for`);
         
         // Convert to the expected format

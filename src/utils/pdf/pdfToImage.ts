@@ -16,11 +16,16 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     const page = await pdf.getPage(pageNum);
     
     // Calculate desired dimensions (higher resolution for better OCR)
-    const viewport = page.getViewport({ scale: 3.0 }); // Increased scale for better resolution
+    // Use an even higher scale factor for better quality
+    const scale = 3.5; // Increased from 3.0 for better detail
+    const viewport = page.getViewport({ scale: scale });
     
     // Create a canvas element
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d', { alpha: false }); // Disable alpha for better OCR
+    const context = canvas.getContext('2d', { 
+      alpha: false, // Disable alpha for better OCR
+      willReadFrequently: true // Optimize for pixel reading
+    });
     
     if (!context) {
       console.error("Could not create canvas context");
@@ -40,11 +45,15 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
       canvasContext: context,
       viewport: viewport,
       intent: 'print', // Use print intent for better quality
-      background: 'white' // Ensure white background for better text contrast
+      background: 'white', // Ensure white background for better text contrast
+      renderInteractiveForms: true // Render form fields if present
     };
     
     await page.render(renderContext).promise;
     console.log(`Rendered page ${pageNum} to canvas with dimensions ${canvas.width}x${canvas.height}`);
+    
+    // Apply image enhancement for better OCR before converting to data URL
+    applyImageEnhancement(context, canvas.width, canvas.height);
     
     // Convert the canvas to a data URL (PNG format for better quality)
     const imageData = canvas.toDataURL('image/png', 1.0);
@@ -57,6 +66,53 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
   } catch (error) {
     console.error(`Error converting page ${pageNum} to image:`, error);
     return null;
+  }
+}
+
+/**
+ * Apply image enhancement techniques to improve OCR accuracy
+ * @param context Canvas context of the image
+ * @param width Width of the image
+ * @param height Height of the image
+ */
+function applyImageEnhancement(
+  context: CanvasRenderingContext2D, 
+  width: number, 
+  height: number
+): void {
+  try {
+    // Get image data for processing
+    const imageData = context.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    
+    // Enhance contrast for better OCR readability
+    for (let i = 0; i < data.length; i += 4) {
+      // Calculate grayscale value
+      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      
+      // Apply threshold to increase contrast
+      // This makes the text more distinct from the background
+      let value = avg > 180 ? 255 : avg < 100 ? 0 : avg;
+      
+      // For values in the middle range, enhance contrast
+      if (value > 0 && value < 255) {
+        value = Math.min(255, value * 1.2); // Boost mid-tones
+      }
+      
+      // Apply the new value to RGB channels
+      data[i] = value;     // R
+      data[i + 1] = value; // G
+      data[i + 2] = value; // B
+      // Don't modify Alpha channel (data[i + 3])
+    }
+    
+    // Put the modified data back
+    context.putImageData(imageData, 0, 0);
+    
+    console.log("Applied image enhancement for better OCR");
+  } catch (error) {
+    console.error("Error applying image enhancement:", error);
+    // Continue with original image if enhancement fails
   }
 }
 

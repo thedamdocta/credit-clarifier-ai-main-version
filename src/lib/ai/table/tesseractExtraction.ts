@@ -59,6 +59,10 @@ export async function extractTableWithTesseract(
       preserve_interword_spaces: '1', // Preserve spaces between words
       tessjs_create_hocr: '1', // Create HOCR output for better structure understanding
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy
+      tessedit_write_images: '1', // Write images to output to help with debugging
+      tessedit_ocr_engine_mode: '3', // Use LSTM neural network mode for better accuracy
+      textord_tabfind_find_tables: '1', // Enable table finding logic
+      textord_tablefind_recognize_tables: '1', // Enable table recognition
     });
     
     // Try both URL and Image object for best compatibility
