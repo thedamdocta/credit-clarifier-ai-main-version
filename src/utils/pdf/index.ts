@@ -5,6 +5,9 @@ export * from './extractText';
 export * from './parseExtractedText';
 export * from './progressHandling';
 export * from './pdfToImage';
+export * from './patterns/documentPatterns';
+export * from './accounts/accountSummaries';
+export * from './bureaus/equifaxEnhancer';
 
 // Export from core modules
 export * from './core/pdfDocumentLoader';
