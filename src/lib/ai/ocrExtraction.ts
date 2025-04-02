@@ -1,23 +1,23 @@
 
 import { pipeline } from '@huggingface/transformers';
-import { preprocessImageForOCR } from './imagePreprocessing';
+import { preprocessImageForOCR, compressImage } from './imagePreprocessing';
 
 // Lazily loaded OCR pipeline
 let ocrPipelinePromise: Promise<any> | null = null;
 
-// Model configuration
-const OCR_MODEL = 'microsoft/trocr-base-printed';
+// Disable AI features if they're causing performance issues
 const USE_SIMULATION = true; // For development purposes only
+const COMPRESS_IMAGES = true; // Enable image compression for better performance
 
 /**
  * Extract text from an image using OCR
- * Enhanced version with better error handling and performance optimization
+ * Optimized version with better compression and performance
  */
 export async function extractTextFromImage(imageUrl: string): Promise<string | null> {
   if (USE_SIMULATION) {
     // Simulate OCR processing for development
     console.log('Simulating OCR processing for', imageUrl);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 200)); // Reduced simulation time
     
     // Return simulated text that mimics credit report table data
     return `
@@ -42,15 +42,33 @@ export async function extractTextFromImage(imageUrl: string): Promise<string | n
     // Add a cache-busting parameter for freshness
     const cacheBustUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
     
-    // Preprocess the image for better OCR results
-    const processedImageUrl = await preprocessImageForOCR(cacheBustUrl);
-    const imageToProcess = processedImageUrl || cacheBustUrl;
+    // Preprocess the image for better OCR results - with compression
+    let imageToProcess = cacheBustUrl;
     
-    // Initialize the OCR pipeline with timeout
+    if (COMPRESS_IMAGES) {
+      // Compress image first for better performance
+      const compressedImage = await compressImage(cacheBustUrl, 0.7, 1024);
+      if (compressedImage) {
+        console.log('Using compressed image for OCR');
+        imageToProcess = compressedImage;
+      } else {
+        // Fall back to basic preprocessing
+        const processedImageUrl = await preprocessImageForOCR(cacheBustUrl);
+        imageToProcess = processedImageUrl || cacheBustUrl;
+      }
+    } else {
+      // Use standard preprocessing without compression
+      const processedImageUrl = await preprocessImageForOCR(cacheBustUrl);
+      imageToProcess = processedImageUrl || cacheBustUrl;
+    }
+    
+    // Initialize the OCR pipeline with timeout - reduced from 15s to 10s
     const ocrPromise = async () => {
       if (!ocrPipelinePromise) {
         console.log('Loading OCR model...');
-        ocrPipelinePromise = pipeline('image-to-text', OCR_MODEL);
+        ocrPipelinePromise = pipeline('image-to-text', 'onnx-community/caption-it', { 
+          quantized: true // Use quantized model for better performance
+        });
       }
       
       // Get the OCR pipeline
@@ -60,11 +78,11 @@ export async function extractTextFromImage(imageUrl: string): Promise<string | n
       return await ocrPipeline(imageToProcess);
     };
     
-    // Add timeout to prevent hanging
+    // Add timeout to prevent hanging - reduced from 15s to 10s
     const result = await Promise.race([
       ocrPromise(),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OCR processing timed out')), 15000)
+        setTimeout(() => reject(new Error('OCR processing timed out')), 10000)
       )
     ]);
     
@@ -82,11 +100,21 @@ export async function extractTextFromImage(imageUrl: string): Promise<string | n
 
 /**
  * Enhanced OCR specifically optimized for table detection
+ * With performance improvements
  */
 export async function extractTableTextFromImage(imageUrl: string): Promise<string | null> {
   try {
     // For table extraction, we want to optimize OCR for structured data
-    // This could use a different model or settings in a production environment
+    // With added compression for better performance
+    if (COMPRESS_IMAGES) {
+      const compressedImage = await compressImage(imageUrl, 0.7, 1024);
+      if (compressedImage) {
+        console.log('Using compressed image for table OCR');
+        return extractTextFromImage(compressedImage);
+      }
+    }
+    
+    // Fall back to standard extraction
     return extractTextFromImage(imageUrl);
   } catch (error) {
     console.error('Error in table OCR processing:', error);

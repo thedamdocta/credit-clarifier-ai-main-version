@@ -1,9 +1,9 @@
 
 import { pipeline } from '@huggingface/transformers';
 
-// Configuration for AI cell processing
-const AI_CELL_ENABLED = true;  // Toggle to enable/disable AI cell processing
-const AI_TIMEOUT_MS = 1500;    // Timeout for AI processing per cell
+// Configuration for AI cell processing - optimized for performance
+const AI_CELL_ENABLED = false;  // Disabled by default for better performance
+const AI_TIMEOUT_MS = 1000;    // Reduced from 1500ms to 1000ms
 const TEXT_MODEL = 'distilbert-base-uncased';  // Lightweight model for text classification
 
 // Types of cell content we need to process
@@ -25,13 +25,16 @@ let textProcessorPromise: Promise<any> | null = null;
 const getTextProcessor = async () => {
   if (!textProcessorPromise) {
     console.log('Initializing AI text processor for cell processing...');
-    textProcessorPromise = pipeline('text-classification', TEXT_MODEL);
+    textProcessorPromise = pipeline('text-classification', TEXT_MODEL, {
+      quantized: true // Use quantized model for better performance
+    });
   }
   return textProcessorPromise;
 };
 
 /**
  * Process a single cell using AI to improve data extraction
+ * Optimized for performance
  * 
  * @param rawValue The raw text extracted from the cell
  * @param cellType The expected type of data in the cell
@@ -56,18 +59,8 @@ export async function processTableCellWithAI(
   }
   
   try {
-    // Create a context-enhanced prompt for the AI to understand cell better
-    const prompt = createCellPrompt(rawValue, cellType, columnName);
-    
-    // Process with timeout to prevent hanging
-    const result = await Promise.race([
-      processWithAI(prompt, cellType),
-      new Promise<AICellResult>((resolve) => {
-        setTimeout(() => resolve(defaultResult), AI_TIMEOUT_MS);
-      })
-    ]);
-    
-    return result || defaultResult;
+    // Use rule-based processing instead of AI for better performance
+    return processWithRules(rawValue, cellType);
   } catch (error) {
     console.error('Error in AI cell processing:', error);
     return defaultResult;
@@ -75,65 +68,41 @@ export async function processTableCellWithAI(
 }
 
 /**
- * Create a specialized prompt for the AI model based on cell type
+ * Process cell values using rules instead of AI for better performance
  */
-function createCellPrompt(rawValue: string, cellType: CellType, columnName: string): string {
-  // Base context
-  let prompt = `Extract the correct value from this text that was OCR'd from a credit report table cell: "${rawValue}". `;
+function processWithRules(rawValue: string, cellType: CellType): AICellResult {
+  let processedValue = rawValue;
+  let confidence = 0.9;
   
-  // Add context based on cell type
+  // Simple rule-based processing based on expected cell type
   switch (cellType) {
-    case 'numeric':
-      prompt += `This should be a whole number. Column: ${columnName}`;
-      break;
     case 'currency':
-      prompt += `This should be a currency value with $ sign. Column: ${columnName}`;
+      // Clean up currency values
+      if (!rawValue.includes('$')) {
+        processedValue = `$${rawValue.replace(/[^\d.,\-]/g, '')}`;
+      } else {
+        processedValue = rawValue.replace(/[^\$\d.,\-]/g, '');
+      }
       break;
+      
     case 'percentage':
-      prompt += `This should be a percentage value with % sign. Column: ${columnName}`;
+      // Clean up percentage values
+      if (!rawValue.includes('%')) {
+        processedValue = `${rawValue.replace(/[^\d.,]/g, '')}%`;
+      } else {
+        processedValue = rawValue.replace(/[^%\d.,]/g, '');
+      }
       break;
+      
+    case 'numeric':
+      // Clean up numeric values
+      processedValue = rawValue.replace(/[^\d.,\-]/g, '');
+      break;
+      
     case 'text':
-      prompt += `This is text content. Column: ${columnName}`;
+      // Clean up text values
+      processedValue = rawValue.trim();
       break;
-  }
-  
-  return prompt;
-}
-
-/**
- * Process the cell with AI model
- */
-async function processWithAI(prompt: string, cellType: CellType): Promise<AICellResult> {
-  console.log(`AI processing cell with prompt: ${prompt}`);
-  
-  // For dev/demo purposes, simulate AI processing with rules
-  // In production, this would call the actual AI model
-  await new Promise(resolve => setTimeout(resolve, 100)); // Simulate processing time
-  
-  let processedValue = '';
-  let confidence = 0.95;
-  
-  // Simple simulation of AI processing based on content patterns
-  // In production, this would use the actual AI model response
-  if (prompt.includes('currency')) {
-    // Extract currency patterns
-    const match = prompt.match(/\$?([\d,]+)/);
-    processedValue = match ? `$${match[1]}` : '';
-    confidence = match ? 0.9 : 0.5;
-  } else if (prompt.includes('percentage')) {
-    // Extract percentage patterns
-    const match = prompt.match(/([\d\.]+)%?/);
-    processedValue = match ? `${parseFloat(match[1]).toFixed(1)}%` : '';
-    confidence = match ? 0.9 : 0.5;
-  } else if (prompt.includes('numeric')) {
-    // Extract numeric patterns
-    const match = prompt.match(/\b(\d+)\b/);
-    processedValue = match ? match[1] : '';
-    confidence = match ? 0.95 : 0.5;
-  } else {
-    // For text, just clean up whitespace
-    processedValue = prompt.replace(/Extract.*?"(.*?)"\..*$/s, '$1').trim();
-    confidence = 0.8;
   }
   
   return {
@@ -144,7 +113,7 @@ async function processWithAI(prompt: string, cellType: CellType): Promise<AICell
 }
 
 /**
- * Batch process multiple cells with AI
+ * Batch process multiple cells with rules instead of AI
  * This is more efficient when processing many cells
  */
 export async function batchProcessCells(
@@ -158,10 +127,6 @@ export async function batchProcessCells(
     }));
   }
   
-  // Process cells in parallel with individual timeouts
-  const promises = cells.map(cell => 
-    processTableCellWithAI(cell.value, cell.type, cell.columnName)
-  );
-  
-  return Promise.all(promises);
+  // Process cells in parallel - but use rules instead of AI for better performance
+  return cells.map(cell => processWithRules(cell.value || '', cell.type));
 }

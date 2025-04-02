@@ -10,6 +10,10 @@ import { extractTextInBatches, determinePageCountForProcessing } from "./core/te
 import { attemptExtractFirstPageImage } from "./core/imageExtraction";
 import { handleParsing } from "./core/parsingHandler";
 
+// Performance optimization flags
+const SKIP_IMAGE_EXTRACTION_FOR_LARGE_FILES = true;
+const REDUCED_PAGE_LIMIT_FOR_LARGE_FILES = 50; // Reduced from 100 to 50
+
 // Define PDF document type based on PDF.js types
 interface PDFDocumentType {
   numPages: number;
@@ -53,8 +57,8 @@ export const processPDFDocument = async (
     // Check file size and warn for large files
     const fileSizeMB = checkFileSizeAndWarn(file);
     
-    // For extremely large files, use very simplified processing - reduced from 200MB to 100MB
-    if (fileSizeMB > 100) {
+    // For extremely large files, use very simplified processing - reduced from 100MB to 75MB
+    if (fileSizeMB > 75) {
       toast.info("Using simplified processing for this very large file", { duration: 5000 });
       await handleBasicProcessing(uniqueReportId, file, "Very large file - text extraction limited", onPDFUploaded);
       completeProgressTracking();
@@ -75,7 +79,7 @@ export const processPDFDocument = async (
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Use more aggressive optimizations for PDF loading
-      const pdfLoadOptions = fileSizeMB > 50 ? { 
+      const pdfLoadOptions = fileSizeMB > 30 ? { 
         disableFontFace: true, 
         cMapPacked: false,
         disableRange: true, // Disable range requests
@@ -83,10 +87,10 @@ export const processPDFDocument = async (
         disableAutoFetch: true // Disable auto fetching
       } : {};
       
-      // Load the PDF with timeout and error handling
+      // Load the PDF with timeout and error handling - reduced from 60s to 45s
       const pdf = await Promise.race([
         loadPdfDocument(typedarray, fileSizeMB),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timed out")), 60000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error("PDF loading timed out")), 45000))
       ]).catch(error => {
         console.error("Error loading PDF:", error);
         toast.error("Could not load this PDF. The file might be damaged or too complex.");
@@ -99,21 +103,26 @@ export const processPDFDocument = async (
       parsingLogger.logEvent("PDF loaded", { pages: numPages });
       updateProgress(30);
       
-      // Step 3: Process images if needed
-      if (useImageExtraction) {
+      // Step 3: Process images if needed, but skip for large files
+      const shouldExtractImages = useImageExtraction && 
+        (!SKIP_IMAGE_EXTRACTION_FOR_LARGE_FILES || fileSizeMB < 30);
+      
+      if (shouldExtractImages) {
         updateProgress(35);
         await new Promise(resolve => setTimeout(resolve, 50));
         
         try {
           await Promise.race([
             attemptExtractFirstPageImage(pdf),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Image extraction timed out")), 10000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Image extraction timed out")), 8000)) // Reduced from 10s to 8s
           ]);
         } catch (error) {
           console.log("Image extraction skipped or timed out:", error);
         }
         
         await new Promise(resolve => setTimeout(resolve, 50));
+      } else {
+        console.log("Skipping image extraction for better performance");
       }
       
       updateProgress(40);
@@ -122,9 +131,12 @@ export const processPDFDocument = async (
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Determine how many pages to process based on document size and device capabilities
-      const pagesToProcess = determinePageCountForProcessing(pdf, (message) => {
-        toast.info(message, { duration: 5000 });
-      });
+      // For large files, use reduced page limit
+      const pagesToProcess = fileSizeMB > 30 
+        ? Math.min(REDUCED_PAGE_LIMIT_FOR_LARGE_FILES, pdf.numPages)
+        : determinePageCountForProcessing(pdf, (message) => {
+            toast.info(message, { duration: 5000 });
+          });
       
       let extractedText = "";
       try {
@@ -144,11 +156,18 @@ export const processPDFDocument = async (
       await new Promise(resolve => setTimeout(resolve, 200));
       
       try {
+        // For large files, set useAI to false to improve performance
+        const shouldUseAI = fileSizeMB > 30 ? false : useAI;
+        
+        if (fileSizeMB > 30 && useAI) {
+          toast.info("Disabling AI processing for better performance with this large file");
+        }
+        
         const parsedReport = await handleParsing(
           extractedText,
           uniqueReportId,
           file,
-          useAI,
+          shouldUseAI,
           updateProgress
         );
         

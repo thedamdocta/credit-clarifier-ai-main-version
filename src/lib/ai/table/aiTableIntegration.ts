@@ -3,11 +3,20 @@ import { processTableCellWithAI, batchProcessCells, CellType } from './aiCellPro
 import { ExtractedTable } from './types';
 import { parsingLogger } from '@/utils/parsingLogger';
 
+// Toggle AI processing on/off to improve performance
+const ENABLE_AI_ENHANCEMENT = false; // Disabled by default for better performance
+
 /**
  * Process an entire table with AI cell-by-cell
  * This enhances the accuracy of OCR'd table data
  */
 export async function enhanceTableWithAI(tableData: ExtractedTable): Promise<ExtractedTable> {
+  // Skip AI processing if disabled
+  if (!ENABLE_AI_ENHANCEMENT) {
+    console.log('AI table enhancement disabled for better performance');
+    return tableData;
+  }
+  
   if (!tableData || !tableData.rows || tableData.rows.length === 0) {
     return tableData;
   }
@@ -93,9 +102,15 @@ function determineCellType(header: string): CellType {
 
 /**
  * Integration function to enhance the account summary extraction process
- * with AI cell processing
+ * with AI cell processing - optimized for performance
  */
 export async function enhanceAccountSummariesWithAI(accountSummaries: any[]): Promise<any[]> {
+  // Skip AI processing if disabled
+  if (!ENABLE_AI_ENHANCEMENT) {
+    console.log('AI account enhancement disabled for better performance');
+    return accountSummaries;
+  }
+  
   if (!accountSummaries || accountSummaries.length === 0) {
     return accountSummaries;
   }
