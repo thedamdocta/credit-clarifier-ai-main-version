@@ -64,7 +64,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isVisible, isModelLoading, modelLoadingTimeout]);
+  }, [isVisible, modelLoadingTimeout]);
 
   useEffect(() => {
     if (isVisible && !isSubscribed) {
