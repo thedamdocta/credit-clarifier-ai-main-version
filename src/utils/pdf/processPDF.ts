@@ -67,7 +67,8 @@ export const processPDFDocument = async (
       return readFileAsArrayBuffer(file);
     };
     
-    const typedarray = await readFilePromise();
+    // Use a function scope for the typedarray to allow better memory management
+    let typedarray: Uint8Array | null = await readFilePromise();
     updateProgress(20);
     
     try {
@@ -79,7 +80,7 @@ export const processPDFDocument = async (
       updateProgress(30);
       
       // Memory management - release array buffer after PDF is loaded to free memory
-      // @ts-ignore - This is a hack to free memory
+      // Instead of reassigning, set to null to help garbage collection
       typedarray = null;
       
       // Limit processing for very large documents
