@@ -112,3 +112,57 @@ export async function extractRegionFromPDFPage(
     return null;
   }
 }
+
+/**
+ * Try to detect and extract just the accounts table region from a PDF image
+ * @param imageUrl The full page image URL
+ * @returns A data URL with just the table or null if detection failed
+ */
+export async function extractAccountsTableFromImage(imageUrl: string): Promise<string | null> {
+  try {
+    if (!imageUrl) return null;
+    
+    // Load the image into a temporary image element
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = imageUrl;
+    });
+    
+    // Create a canvas for the cropped region
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+    
+    if (!ctx) {
+      console.error("Could not create canvas context for table extraction");
+      return null;
+    }
+    
+    // Estimate the table position - this is a rough approximation
+    // In a real implementation, we'd use image recognition to find the table
+    const tableTop = Math.round(img.height * 0.45); // Approximate position of table
+    const tableHeight = Math.round(img.height * 0.2); // Approximate height of table
+    
+    // Set canvas dimensions to match the table region
+    canvas.width = img.width;
+    canvas.height = tableHeight;
+    
+    // Fill with white background first
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw just the table region to the canvas
+    ctx.drawImage(
+      img,
+      0, tableTop, img.width, tableHeight,
+      0, 0, canvas.width, canvas.height
+    );
+    
+    // Convert the region to a data URL
+    return canvas.toDataURL('image/png', 1.0);
+  } catch (error) {
+    console.error("Error extracting accounts table from image:", error);
+    return null;
+  }
+}
