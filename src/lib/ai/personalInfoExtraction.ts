@@ -1,4 +1,5 @@
-import { extractEntities } from './textAnalysis';
+
+import { extractEntities, NEREntity } from './textAnalysis';
 import { extractSSNWithAI } from './entityExtraction';
 import { PersonalInfo } from '../types/creditReport';
 

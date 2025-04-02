@@ -1,13 +1,14 @@
 
 import { getNER } from './modelPipelines';
 
-export interface Entity {
+// Renamed to NEREntity to avoid conflicts
+export interface NEREntity {
   word: string;
   entity: string;
   score: number;
 }
 
-export async function extractEntities(text: string): Promise<Entity[]> {
+export async function extractEntities(text: string): Promise<NEREntity[]> {
   try {
     // Only process a limited amount of text to avoid freezing the browser
     const textToProcess = text.substring(0, 3000);

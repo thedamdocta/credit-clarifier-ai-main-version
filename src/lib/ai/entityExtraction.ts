@@ -1,4 +1,5 @@
-import { extractEntities } from './textAnalysis';
+
+import { extractEntities, NEREntity } from './textAnalysis';
 import { extractNameWithAI } from './personalInfoExtraction';
 
 // Enhanced SSN extraction using NLP
