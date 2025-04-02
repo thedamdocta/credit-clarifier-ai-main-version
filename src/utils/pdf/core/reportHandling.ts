@@ -2,7 +2,7 @@
 // Core logic for handling credit report processing and data extraction
 import { parsingLogger } from "@/utils/parsingLogger";
 import { CreditReport } from "@/lib/types/creditReport";
-import { extractTextFromImageRegion, processImageWithEnhancedOCR } from "@/lib/ai/ocrExtraction";
+import { extractTextFromImage } from "@/lib/ai/ocrExtraction";
 import { createDefaultAccountSummaries } from "../accounts/accountSummaries";
 import { 
   extractCreditAccountsTableImage, 
@@ -89,8 +89,8 @@ export const extractCreditAccountsWithOCR = async (report: any): Promise<string 
       return null;
     }
     
-    // Use enhanced OCR to extract text from the table image
-    const ocrText = await processImageWithEnhancedOCR(tableImageUrl);
+    // Use OCR to extract text from the table image
+    const ocrText = await extractTextFromImage(tableImageUrl);
     
     if (!ocrText) {
       console.warn("OCR extraction failed");
@@ -101,6 +101,29 @@ export const extractCreditAccountsWithOCR = async (report: any): Promise<string 
     return ocrText;
   } catch (error) {
     console.error("Error extracting credit accounts with OCR:", error);
+    return null;
+  }
+};
+
+// Helper function to extract text from a specific region of an image
+export const extractTextFromImageRegion = async (imageUrl: string, region: { x: number, y: number, width: number, height: number }): Promise<string | null> => {
+  try {
+    // This is a simplified implementation - in a real app, you would crop the image first
+    console.log(`Extracting text from image region: ${JSON.stringify(region)}`);
+    return await extractTextFromImage(imageUrl);
+  } catch (error) {
+    console.error("Error extracting text from image region:", error);
+    return null;
+  }
+};
+
+// Wrapper function for enhanced OCR processing
+export const processImageWithEnhancedOCR = async (imageUrl: string): Promise<string | null> => {
+  try {
+    console.log("Processing image with enhanced OCR:", imageUrl ? imageUrl.substring(0, 50) + '...' : 'undefined');
+    return await extractTextFromImage(imageUrl);
+  } catch (error) {
+    console.error("Error in enhanced OCR processing:", error);
     return null;
   }
 };

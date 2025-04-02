@@ -11,7 +11,8 @@ import {
   AlertCircle,
   RefreshCw,
   Check,
-  X 
+  X,
+  Loader2
 } from 'lucide-react';
 import { usePdfImageExtraction } from '@/hooks/usePdfImageExtraction';
 import { extractTableFromImage, convertTableToAccountData, validateAccountData } from '@/utils/tableExtraction';
