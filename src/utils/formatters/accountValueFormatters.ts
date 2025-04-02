@@ -2,9 +2,9 @@
  * Safely formats cell values for the account summary tables
  */
 export const formatAccountValue = (value: any): string => {
-  // Special handling for "0" values - we pass them through as "0"
-  // but only for specific account types and columns (handled in the component)
+  // Special explicit handling for 0 values - display as "0" not "x"
   if (value === 0 || value === "0") {
+    console.log("formatAccountValue: Formatting zero value");
     return "0";
   }
   
@@ -26,14 +26,9 @@ export const formatDollarAmount = (value: any): string => {
     return "x"; 
   }
   
-  // Special handling for 0 - display as "x" not "$0"
-  if (value === 0 || value === "0" || value === "$0") {
-    return "x";
-  }
-  
-  // Handle OCR errors and placeholders
-  if (value === "," || value === "." || value === "$," || value === "$." || value === "$") {
-    return "x";
+  // Special handling for 0 - display as "$0"
+  if (value === 0 || value === "0") {
+    return "$0";
   }
 
   const stringValue = String(value);
@@ -71,14 +66,9 @@ export const formatPercentageValue = (value: any): string => {
     return "x";
   }
   
-  // Special handling for 0 - display as "x" not "0.0%"
-  if (value === 0 || value === "0" || value === "0%" || value === "0.0%") {
-    return "x";
-  }
-  
-  // Handle OCR errors and placeholders
-  if (value === "," || value === "." || value === "%" || value === ".%") {
-    return "x";
+  // Special handling for 0
+  if (value === 0 || value === "0" || value === "0%") {
+    return "0.0%";
   }
   
   const stringValue = String(value);
@@ -114,8 +104,8 @@ export const formatPercentageValue = (value: any): string => {
  * Check if a cell value exists and should be displayed
  */
 export const hasDisplayValue = (value: any): boolean => {
-  // Return true only for actual values, not empty or null values
-  return value !== undefined && value !== null && value !== '';
+  // Always return true even for empty values since we'll show "x" 
+  return true;
 };
 
 /**
@@ -153,6 +143,7 @@ export const extractCellContent = (line: string, startPos: number, endPos: numbe
   
   // Enhanced detection for standalone "0" values
   if (substring.trim() === "0" || /\b0\b/.test(substring)) {
+    console.log("Found standalone '0' value in cell:", substring);
     return "0";
   }
   
@@ -166,7 +157,8 @@ export const extractNumericValue = (cellContent: string | null): string | null =
   if (!cellContent) return null;
   
   // Check for exactly "0" with word boundaries (handles the Revolving row case in your example)
-  if (cellContent.trim() === "0" || /\b0\b/.test(cellContent) || cellContent === ",") {
+  if (cellContent.trim() === "0" || /\b0\b/.test(cellContent)) {
+    console.log("Found standalone '0' value in numeric extraction");
     return "0";
   }
   
@@ -184,11 +176,6 @@ export const extractNumericValue = (cellContent: string | null): string | null =
  */
 export const extractDollarValue = (cellContent: string | null): string | null => {
   if (!cellContent) return null;
-  
-  // Return "$0" for zero value indicators like "0", ",", or "$,"
-  if (cellContent.trim() === "0" || cellContent.trim() === "," || cellContent.trim() === "$,") {
-    return "$0";
-  }
   
   // Check if there's any dollar sign in this cell section
   if (cellContent.includes('$')) {
@@ -219,11 +206,6 @@ export const extractDollarValue = (cellContent: string | null): string | null =>
  */
 export const extractPercentageValue = (cellContent: string | null): string | null => {
   if (!cellContent) return null;
-  
-  // Return "0.0%" for zero value indicators
-  if (cellContent.trim() === "0" || cellContent.trim() === "," || cellContent.trim() === "%") {
-    return "0.0%";
-  }
   
   // Check if there's any percentage sign in this cell section
   if (cellContent.includes('%')) {

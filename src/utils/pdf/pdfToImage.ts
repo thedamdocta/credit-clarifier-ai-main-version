@@ -1,7 +1,6 @@
 
 /**
  * Utility for converting PDF pages to images for better text extraction
- * Used specifically for the credit account table extraction
  */
 
 /**
@@ -12,17 +11,15 @@
  */
 export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<string | null> {
   try {
-    console.log(`Starting PDF to image conversion for page ${pageNum}`);
-    
     // Get the page
     const page = await pdf.getPage(pageNum);
     
-    // Calculate desired dimensions (higher resolution for better OCR)
-    const viewport = page.getViewport({ scale: 3.0 }); // Increased scale for better detail and text clarity
+    // Calculate desired dimensions (high resolution for better OCR)
+    const viewport = page.getViewport({ scale: 2.0 });
     
     // Create a canvas element
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true }); // Optimize for OCR
+    const context = canvas.getContext('2d');
     
     if (!context) {
       console.error("Could not create canvas context");
@@ -33,25 +30,18 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     canvas.height = viewport.height;
     canvas.width = viewport.width;
     
-    // Use white background for better OCR contrast
-    context.fillStyle = 'white';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Render the PDF page to the canvas with enhanced settings
+    // Render the PDF page to the canvas
     const renderContext = {
       canvasContext: context,
-      viewport: viewport,
-      background: 'white', // Ensure white background
-      intent: 'print' // Use print intent for higher quality
+      viewport: viewport
     };
     
     await page.render(renderContext).promise;
-    console.log(`Rendered page ${pageNum} to canvas, dimensions: ${canvas.width}x${canvas.height}`);
+    console.log(`Rendered page ${pageNum} to canvas`);
     
     // Convert the canvas to a data URL (PNG format)
     // Using PNG for lossless quality which is better for OCR
-    const imageData = canvas.toDataURL('image/png', 1.0); // Use maximum quality
-    console.log(`Successfully converted page ${pageNum} to image, data URL length: ${imageData.length}`);
+    const imageData = canvas.toDataURL('image/png');
     return imageData;
   } catch (error) {
     console.error(`Error converting page ${pageNum} to image:`, error);
@@ -83,7 +73,7 @@ export async function extractRegionFromPDFPage(
     
     // Create a canvas for the cropped region
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+    const ctx = canvas.getContext('2d');
     
     if (!ctx) {
       console.error("Could not create canvas context for region extraction");
@@ -94,10 +84,6 @@ export async function extractRegionFromPDFPage(
     canvas.width = region.width;
     canvas.height = region.height;
     
-    // Fill with white background first
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
     // Draw the selected region to the canvas
     ctx.drawImage(
       img,
@@ -106,63 +92,9 @@ export async function extractRegionFromPDFPage(
     );
     
     // Convert the region to a data URL
-    return canvas.toDataURL('image/png', 1.0); // Use maximum quality
+    return canvas.toDataURL('image/png');
   } catch (error) {
     console.error(`Error extracting region from page ${pageNum}:`, error);
-    return null;
-  }
-}
-
-/**
- * Try to detect and extract just the accounts table region from a PDF image
- * @param imageUrl The full page image URL
- * @returns A data URL with just the table or null if detection failed
- */
-export async function extractAccountsTableFromImage(imageUrl: string): Promise<string | null> {
-  try {
-    if (!imageUrl) return null;
-    
-    // Load the image into a temporary image element
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Failed to load image"));
-      img.src = imageUrl;
-    });
-    
-    // Create a canvas for the cropped region
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-    
-    if (!ctx) {
-      console.error("Could not create canvas context for table extraction");
-      return null;
-    }
-    
-    // Estimate the table position - this is a rough approximation
-    // In a real implementation, we'd use image recognition to find the table
-    const tableTop = Math.round(img.height * 0.45); // Approximate position of table
-    const tableHeight = Math.round(img.height * 0.2); // Approximate height of table
-    
-    // Set canvas dimensions to match the table region
-    canvas.width = img.width;
-    canvas.height = tableHeight;
-    
-    // Fill with white background first
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw just the table region to the canvas
-    ctx.drawImage(
-      img,
-      0, tableTop, img.width, tableHeight,
-      0, 0, canvas.width, canvas.height
-    );
-    
-    // Convert the region to a data URL
-    return canvas.toDataURL('image/png', 1.0);
-  } catch (error) {
-    console.error("Error extracting accounts table from image:", error);
     return null;
   }
 }

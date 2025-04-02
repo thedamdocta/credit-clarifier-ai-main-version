@@ -1,28 +1,26 @@
 
-// Empty interfaces and functions to prevent AI model loading
+import { getClassifier, getNER } from './modelPipelines';
+import { TextClassification, Entity } from './types';
 
-export interface NEREntity {
-  word: string;
-  entity: string;
-  score: number;
-}
+// Function to analyze the sentiment of text
+export const analyzeSentiment = async (text: string): Promise<TextClassification> => {
+  try {
+    const classifier = await getClassifier();
+    const result = await classifier(text);
+    return result[0];
+  } catch (error) {
+    console.error('Error analyzing sentiment:', error);
+    return { label: 'UNKNOWN', score: 0 };
+  }
+};
 
-export async function extractEntities(text: string): Promise<NEREntity[]> {
-  console.log("AI text analysis disabled, returning empty results");
-  return [];
-}
-
-export async function processWithAI(text: string): Promise<any> {
-  console.log("AI processing disabled, returning empty results");
-  return null;
-}
-
-export async function analyzeText(text: string): Promise<any> {
-  console.log("AI text analysis disabled, returning empty results");
-  return null;
-}
-
-export async function extractFields(text: string): Promise<any> {
-  console.log("AI field extraction disabled, returning empty results");
-  return {};
-}
+// Function to extract named entities from text
+export const extractEntities = async (text: string): Promise<Entity[]> => {
+  try {
+    const ner = await getNER();
+    return await ner(text);
+  } catch (error) {
+    console.error('Error extracting entities:', error);
+    return [];
+  }
+};

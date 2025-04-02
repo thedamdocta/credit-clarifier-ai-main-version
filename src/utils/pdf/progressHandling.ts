@@ -4,50 +4,22 @@ import { toast } from "sonner";
 export interface ProgressCallbacks {
   setCurrentFile: (file: File) => void;
   setUploadProgress: (value: number | ((prev: number) => number)) => void;
-  updateProgress?: (value: number) => void; // Add updateProgress as an optional property
 }
 
 export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   const { setUploadProgress } = callbacks;
-  let progressInterval: NodeJS.Timeout | null = null;
   
-  // Function to update progress directly
-  const updateProgress = (value: number) => {
-    // Ensure value is within proper bounds
-    const safeValue = Math.max(0, Math.min(value, 100));
-    setUploadProgress(safeValue);
-  };
-  
-  // Start progress interval for better UX - with less frequent updates to reduce UI load
-  progressInterval = setInterval(() => {
+  // Start progress interval for better UX
+  const progressInterval = setInterval(() => {
     setUploadProgress((prev) => {
-      // If progress is stalled near certain thresholds, give a small increment
-      // to show the user that processing is still happening
-      if ((prev >= 39 && prev <= 41) || (prev >= 59 && prev <= 61) || (prev >= 79 && prev <= 81)) {
-        return prev + 0.1;
-      }
-      
-      // Only increment if not already complete and less aggressively
-      if (prev >= 90) return prev;
-      
-      // Slow down as we approach higher percentages to avoid false completion
-      let increment;
-      if (prev < 30) increment = 0.5;
-      else if (prev < 50) increment = 0.3;
-      else if (prev < 70) increment = 0.2;
-      else increment = 0.1;
-      
-      const newProgress = prev + increment;
+      const newProgress = prev + 5;
       return newProgress > 90 ? 90 : newProgress;
     });
-  }, 800); // Less frequent updates (800ms) to reduce UI rendering burden
+  }, 100);
   
   // Function to clear the progress interval
   const clearProgressTracking = () => {
-    if (progressInterval) {
-      clearInterval(progressInterval);
-      progressInterval = null;
-    }
+    clearInterval(progressInterval);
   };
   
   // Function to complete progress tracking
@@ -58,7 +30,7 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
     // Reset progress after a delay
     setTimeout(() => {
       setUploadProgress(0);
-    }, 2000); // Give more time to see completion
+    }, 1000);
   };
   
   // Function to handle errors in progress tracking
@@ -70,9 +42,9 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   };
   
   return {
-    updateProgress,
     clearProgressTracking,
     completeProgressTracking,
     handleProgressError
   };
 };
+

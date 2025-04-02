@@ -1,43 +1,25 @@
 
-// Empty model pipelines file to prevent any AI model loading
-export const skipAIProcessing = true;
+import { pipeline } from '@huggingface/transformers';
+import { TEXT_CLASSIFICATION_MODEL, NER_MODEL } from './config';
 
-// Function stubs to prevent errors
-export const isModelLoading = (): boolean => false;
-export const getModelLoadingDuration = (): number => 0;
-export const shouldSkipAI = (): boolean => true;
-export const resetModelLoadingState = (): void => {};
-export const resetSkipAIFlag = (): void => {};
-export const getNER = async () => null;
-export const getTextClassifier = async () => null;
-export const preloadAIModels = async (): Promise<void> => {};
+// Initialize model pipelines lazily
+let classifierPromise: Promise<any> | null = null;
+let nerPromise: Promise<any> | null = null;
 
-// Empty declarations for type compatibility
-export const loadedModels = {
-  ner: false,
-  classifier: false
+// Helper function to load the text classification model
+export const getClassifier = async () => {
+  if (!classifierPromise) {
+    console.log('Loading text classification model...');
+    classifierPromise = pipeline('text-classification', TEXT_CLASSIFICATION_MODEL);
+  }
+  return classifierPromise;
 };
 
-// Global declaration for cached models
-declare global {
-  interface Window {
-    __cachedNERModel: any;
-    __cachedClassifierModel: any;
-    gc?: () => void;
+// Helper function to load the named entity recognition model
+export const getNER = async () => {
+  if (!nerPromise) {
+    console.log('Loading NER model...');
+    nerPromise = pipeline('token-classification', NER_MODEL);
   }
-  
-  interface Navigator {
-    gpu?: {
-      requestAdapter: () => Promise<any>;
-    }
-    deviceMemory?: number;
-  }
-  
-  interface Performance {
-    memory?: {
-      jsHeapSizeLimit: number;
-      totalJSHeapSize: number;
-      usedJSHeapSize: number;
-    }
-  }
-}
+  return nerPromise;
+};

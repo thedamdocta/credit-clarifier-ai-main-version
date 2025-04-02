@@ -1,4 +1,3 @@
-
 export interface Account {
   accountName: string;
   accountNumber: string;

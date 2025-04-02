@@ -1,19 +1,9 @@
 
-// Main PDF processing orchestrator that coordinates the different modules
 import { toast } from "sonner";
-import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
-import { parsingLogger } from "@/utils/parsingLogger";
-import { CreditReport } from "@/lib/types/creditReport";
-import { handleBasicProcessing, setCurrentPDFData } from "./core/reportHandling";
-import { readFileAsArrayBuffer, loadPdfDocument } from "./core/pdfDocumentLoader";
-import { extractTextInBatches, determinePageCountForProcessing } from "./core/textExtraction";
-import { attemptExtractFirstPageImage } from "./core/imageExtraction";
-import { handleParsing } from "./core/parsingHandler";
-
-interface PDFDocumentType {
-  numPages: number;
-  getPage: (pageNumber: number) => Promise<any>;
-}
+import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
+import { parsePDFContent } from "./parseExtractedText";
+import { setupProgressTracking } from "./progressHandling";
+import { convertPDFPageToImage } from "./pdfToImage";
 
 interface PDFProcessingCallbacks {
   setCurrentFile: (file: File) => void;
@@ -27,92 +17,198 @@ export const processPDFDocument = async (
   useAI: boolean,
   callbacks: PDFProcessingCallbacks
 ) => {
-  const { setCurrentFile, onPDFUploaded, useImageExtraction = true } = callbacks;
+  const { setCurrentFile, onPDFUploaded, useImageExtraction = false } = callbacks;
   
   try {
     setCurrentFile(file);
     console.log(`Processing PDF document with file: ${file.name}, using image extraction: ${useImageExtraction}`);
-    parsingLogger.logEvent("PDF processing started", { fileName: file.name, size: file.size });
     
     // Store this file as the current PDF being processed with a unique ID
     const uniqueReportId = setCurrentPDFData(file);
+    console.log(`Set unique report ID: ${uniqueReportId}`);
     
     // Setup progress tracking
     const { 
       clearProgressTracking, 
       completeProgressTracking, 
+      handleProgressError,
       updateProgress
     } = setupProgressTracking(callbacks);
     
-    updateProgress(5);
+    // Load the PDF.js library dynamically
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 
+      `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     
-    // Read file as array buffer
-    const typedarray = await readFileAsArrayBuffer(file);
-    updateProgress(20);
+    // Read the PDF file
+    const fileReader = new FileReader();
     
-    // Load PDF document
-    const pdf = await loadPdfDocument(typedarray);
-    const numPages = pdf.numPages;
-    console.log(`PDF loaded with ${numPages} pages`);
-    parsingLogger.logEvent("PDF loaded", { pages: numPages });
-    updateProgress(30);
-    
-    // Extract images if needed
-    if (useImageExtraction) {
-      updateProgress(35);
+    fileReader.onload = async function() {
+      const typedarray = new Uint8Array(this.result as ArrayBuffer);
+      
       try {
-        await attemptExtractFirstPageImage(pdf);
+        // Load the PDF document
+        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+        const numPages = pdf.numPages;
+        console.log(`PDF loaded with ${numPages} pages`);
+        updateProgress(10);
+        
+        // Method for text extraction
+        let extractedText = "";
+        
+        if (useImageExtraction) {
+          // Image-based extraction method
+          console.log("Using image-based extraction method");
+          let combinedText = "";
+          
+          // Process each page
+          for (let i = 1; i <= numPages; i++) {
+            updateProgress(10 + Math.floor((i / numPages) * 40));
+            console.log(`Converting page ${i} to image`);
+            
+            try {
+              // Convert the page to an image
+              const imageData = await convertPDFPageToImage(pdf, i);
+              if (imageData) {
+                // Use Tesseract.js to extract text from the image
+                const pageText = await extractTextFromImage(imageData);
+                if (pageText) {
+                  combinedText += pageText + " ";
+                  console.log(`Extracted ${pageText.length} characters from page ${i}`);
+                }
+              }
+            } catch (pageError) {
+              console.error(`Error processing page ${i}:`, pageError);
+            }
+          }
+          
+          extractedText = combinedText;
+        } else {
+          // Direct PDF text extraction method
+          extractedText = await extractTextFromPDF(pdf);
+        }
+        
+        console.log("Successfully extracted text from PDF, length:", extractedText.length);
+        updateProgress(60);
+        
+        try {
+          // Parse the extracted text with the unique report ID
+          const parsedReport = await parsePDFContent(extractedText, useAI);
+          
+          // Ensure the report has a unique ID and filename
+          if (parsedReport) {
+            parsedReport.reportId = uniqueReportId;
+            parsedReport.fileName = file.name; // Store filename for reference
+            parsedReport.rawText = extractedText; // Store the raw text for later use
+            
+            // Store this parsed data in our cache to prevent overriding with sample data
+            setExtractedReportData(parsedReport);
+            
+            // Create a global reference to this PDF for better extraction
+            window.currentPdfData = {
+              reportId: uniqueReportId,
+              fileName: file.name,
+              extractedText: extractedText.substring(0, 1000) // Store preview
+            };
+            
+            // Make sure state is updated before completing processing
+            setTimeout(() => {
+              completeProgressTracking();
+              
+              // Pass the extracted text, file, and parsed report to the parent component
+              onPDFUploaded(file, extractedText, parsedReport);
+              
+              toast.success("PDF successfully processed!");
+            }, 500);
+          } else {
+            handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+            completeProgressTracking();
+          }
+          
+        } catch (error) {
+          console.error("Error parsing PDF content:", error);
+          // Fall back to basic processing
+          handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
+          completeProgressTracking();
+        }
+        
       } catch (error) {
-        console.log("Image extraction skipped:", error);
+        console.error("Error processing PDF:", error);
+        toast.error("Failed to process PDF. Please try another file.");
+        clearProgressTracking();
       }
-    } else {
-      console.log("Image extraction disabled");
-    }
-    
-    updateProgress(40);
-    
-    // Extract text
-    const pagesToProcess = determinePageCountForProcessing(pdf);
-    let extractedText = await extractTextInBatches(pdf, updateProgress, pagesToProcess);
-    updateProgress(65);
-    
-    // Parse the extracted text
-    await new Promise(resolve => setTimeout(resolve, 100));
-    updateProgress(70);
-    
-    try {
-      const parsedReport = await handleParsing(
-        extractedText,
-        uniqueReportId,
-        file,
-        useAI,
-        updateProgress
-      );
-      
-      updateProgress(95);
-      
-      if (parsedReport) {
-        // Complete processing
-        completeProgressTracking();
-        
-        // Pass the extracted text, file, and parsed report to the parent component
-        onPDFUploaded(file, extractedText, parsedReport);
-        
-        toast.success("PDF successfully processed!");
-      } else {
-        await handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
-        completeProgressTracking();
-      }
-    } catch (parsingError) {
-      console.error("Error during parsing:", parsingError);
-      toast.warning("Parsing encountered issues, using basic text extraction");
-      await handleBasicProcessing(uniqueReportId, file, extractedText, onPDFUploaded);
-      completeProgressTracking();
-    }
+    };
+
+    fileReader.onerror = () => {
+      toast.error("Error reading the file.");
+      handleProgressError("File reader error");
+    };
+
+    fileReader.readAsArrayBuffer(file);
   } catch (error) {
-    console.error("Error processing PDF:", error);
-    parsingLogger.logEvent("PDF processing error", { error: String(error) });
-    toast.error("Failed to process PDF. Please try another file.");
+    console.error("Error in PDF processing:", error);
+    toast.error("An error occurred while processing the PDF.");
     callbacks.setUploadProgress(0);
   }
 };
+
+// Extract OCR using Tesseract
+async function extractTextFromImage(imageData: string): Promise<string | null> {
+  try {
+    const Tesseract = (await import('tesseract.js')).default;
+    console.log("Using Tesseract.js for OCR");
+    
+    const worker = await Tesseract.createWorker({
+      logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
+    });
+    
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
+    
+    // Set page segmentation mode for better recognition of tables and structured text
+    await worker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Auto detect orientation
+      preserve_interword_spaces: '1', // Preserve spaces between words
+      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.-% ', // Limit to relevant characters
+    });
+    
+    const result = await worker.recognize(imageData);
+    console.log("Tesseract confidence:", result.data.confidence);
+    
+    await worker.terminate();
+    return result.data.text;
+  } catch (error) {
+    console.error("OCR extraction error:", error);
+    return null;
+  }
+}
+
+// Extract basic processing into a separate function for better readability
+function handleBasicProcessing(reportId: string, file: File, extractedText: string, onPDFUploaded: (file: File, text: string, parsedReport?: any) => void) {
+  const basicReport = { 
+    reportId: reportId,
+    fileName: file.name,
+    rawText: extractedText,
+    bureau: 'Unknown' as const,
+    reportDate: new Date().toISOString().split('T')[0],
+    personalInfo: { name: 'Unknown', addresses: [] },
+    accounts: [],
+    inquiries: [],
+    publicRecords: [],
+    collections: [],
+    creditScores: []
+  };
+  
+  // Store in global for easier access
+  window.currentPdfData = {
+    reportId: reportId,
+    fileName: file.name,
+    extractedText: extractedText.substring(0, 1000)
+  };
+  
+  // Store this parsed data in our cache
+  setExtractedReportData(basicReport);
+  
+  onPDFUploaded(file, extractedText, basicReport);
+  toast.success("PDF processed with basic extraction");
+}
