@@ -1,4 +1,3 @@
-
 /**
  * Value parsing utilities for extracted table data
  * These functions help convert raw OCR text into properly formatted values
@@ -64,30 +63,36 @@ export function parseCurrencyValue(value: string | null): string | null {
   let isNegative = false;
   if (normalized.includes('-$') || (normalized.includes('-') && normalized.includes('$'))) {
     isNegative = true;
-    // Remove the negative sign temporarily for processing
-    normalized = normalized.replace('-', '');
+    // Keep the negative format for these special cases
+    // Make sure it's formatted as -$XXX consistently
+    if (normalized.indexOf('$') > normalized.indexOf('-')) {
+      // Change "-XXX$" or "- $XXX" to "-$XXX"
+      normalized = normalized.replace(/-(.*)\$/, '-$$$1').replace(/\s+/g, '');
+    }
+    
+    // Extract just the number part for processing
+    const numMatch = normalized.match(/-\$?([\d,]+)/);
+    if (numMatch) {
+      return `-$${numMatch[1]}`;
+    }
+    
+    // If we got here with a negative symbol, return as is
+    return normalized;
   }
   
-  // Make sure it starts with a dollar sign
-  if (!normalized.includes('$')) {
-    normalized = '$' + normalized;
+  // For non-negative values, ensure $ is present and format consistently
+  const numMatch = normalized.match(/\$?([\d,]+)/);
+  if (numMatch) {
+    return `$${numMatch[1]}`;
   }
   
-  // Try to extract the currency value with better regex
-  const matches = normalized.match(/\$([\d,.]+)/);
-  if (matches) {
-    // Use the captured group which has just the number part
-    const numericPart = matches[1];
-    return isNegative ? `-$${numericPart}` : `$${numericPart}`;
-  }
-
-  // If all else fails, return the normalized string
-  return isNegative ? `-${normalized}` : normalized;
+  // Return the original if no pattern matched
+  return normalized.length > 0 ? normalized : null;
 }
 
 /**
  * Parse a percentage value from OCR text
- * Formats as "XX.X%" for consistency
+ * Handles different percentage formats
  */
 export function parsePercentageValue(value: string | null): string | null {
   if (value === null || value === undefined || value === '') return null;
@@ -95,38 +100,19 @@ export function parsePercentageValue(value: string | null): string | null {
   // Normalize the value
   const normalized = value.toString().trim();
   
-  // Handle empty percentage values
-  if (normalized === '%' || normalized === '.%') {
-    return '0.0%';  // Return formatted zero for empty percentage values
+  // Handle explicit zero values
+  if (normalized === '0' || normalized === '0.0' || normalized === '0%' || normalized === '0.0%') {
+    return '0.0%';  // Standardize zero values
   }
   
-  // Handle explicit zero percentage values
-  if (normalized === '0%' || normalized === '0.0%') {
-    return '0.0%';
+  // Try to extract a percentage value
+  const percentMatch = normalized.match(/([\d\.]+)%?/);
+  if (percentMatch) {
+    const numValue = parseFloat(percentMatch[1]);
+    // Format consistently with one decimal place
+    return `${numValue.toFixed(1)}%`;
   }
   
-  // Check if it contains a number and % sign
-  const matches = normalized.match(/([\d.]+)\s*%?/);
-  if (matches) {
-    // Format to ensure one decimal place
-    const num = parseFloat(matches[1]);
-    // Handle NaN
-    if (isNaN(num)) {
-      return null;  // Return null for error values
-    }
-    return `${num.toFixed(1)}%`;
-  }
-
-  // If it's just a number without a % sign, add it
-  const numericMatches = normalized.match(/^[\d.]+$/);
-  if (numericMatches) {
-    const num = parseFloat(normalized);
-    // Handle NaN
-    if (isNaN(num)) {
-      return null;  // Return null for error values
-    }
-    return `${num.toFixed(1)}%`;
-  }
-
-  return normalized;
+  // Return the original if no pattern matched
+  return normalized.length > 0 ? normalized : null;
 }

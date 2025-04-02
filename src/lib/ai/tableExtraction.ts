@@ -1,3 +1,4 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
@@ -24,7 +25,9 @@ export function extractTableStructureFromText(text: string) {
       ],
       installment: [
         /installment\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
-        /installment.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+        /installment.*?(\d+).*?(\d+).*?\$([\d,]+)/i,
+        // Add special pattern for installment with negative available
+        /installment.*?(\d+).*?(\d+).*?\$([\d,]+).*?-\$([\d,]+).*?\$([\d,]+)/i
       ],
       other: [
         /other\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
@@ -32,7 +35,9 @@ export function extractTableStructureFromText(text: string) {
       ],
       total: [
         /total\s+accounts?[:\s]*(\d+|\w+)\s+(\d+|\w+)\s+\$?([\d,]+|[\d\.]+)/i,
-        /total.*?(\d+).*?(\d+).*?\$([\d,]+)/i
+        /total.*?(\d+).*?(\d+).*?\$([\d,]+)/i,
+        // More detailed pattern for total row with negative available
+        /total.*?(\d+).*?(\d+).*?\$([\d,]+).*?-\$([\d,]+).*?\$([\d,]+)/i
       ],
     };
     
@@ -64,8 +69,14 @@ export function extractTableStructureFromText(text: string) {
             'Payment': '$0'
           };
           
+          // Special handling for patterns with negative available
+          if (match[4] && match[5]) {
+            row['Available'] = `-$${match[4].trim()}`; // Handle negative value
+            row['Credit Limit'] = `$${match[5].trim()}`;
+          }
+          
           // Try to find additional values
-          const availableMatch = text.match(new RegExp(`${accountType}.*?available[:\\s]*(\\$[\\d,]+|[\\d,]+)`, 'i'));
+          const availableMatch = text.match(new RegExp(`${accountType}.*?available[:\\s]*(-?\\$[\\d,]+|[\\d,]+)`, 'i'));
           if (availableMatch) {
             row['Available'] = availableMatch[1].startsWith('$') ? availableMatch[1] : `$${availableMatch[1]}`;
           }
@@ -186,19 +197,19 @@ export async function extractTableFromImage(imageUrl: string) {
         console.log('Total row missing, trying to extract separately');
         // Look for patterns like "Total 2 2 $31,533 -$4,447 $27,086 0.0% $543" in the extracted text
         if (extractedTable.text) {
-          // Pattern for complete Total row with all values
-          const fullTotalPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-?\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%?)\s+\$?([\d,]+)/i;
+          // Enhanced pattern for complete Total row with all values including negative Available
+          const fullTotalPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%?)\s+\$?([\d,]+)/i;
           const fullTotalMatch = extractedTable.text.match(fullTotalPattern);
           
           if (fullTotalMatch) {
-            console.log('Found complete Total row in text:', fullTotalMatch);
+            console.log('Found complete Total row in text with negative Available:', fullTotalMatch);
             // Add it to our formatted table with all values
             const totalRowObj: Record<string, string> = {
               'Account Type': 'Total',
               'Open': fullTotalMatch[1],
               'With Balance': fullTotalMatch[2],
               'Total Balance': `$${fullTotalMatch[3]}`,
-              'Available': fullTotalMatch[4],
+              'Available': fullTotalMatch[4], // This is already in -$XXXX format
               'Credit Limit': `$${fullTotalMatch[5]}`,
               'Debt-to-Credit': fullTotalMatch[6],
               'Payment': `$${fullTotalMatch[7]}`
@@ -222,7 +233,7 @@ export async function extractTableFromImage(imageUrl: string) {
                 'Payment': ''
               };
               
-              // Try to find the remaining values separately
+              // Try to find the remaining values separately with more specific patterns
               const availableMatch = extractedTable.text.match(/total.*?(-\$[\d,]+)/i);
               if (availableMatch) {
                 totalRowObj['Available'] = availableMatch[1];
@@ -246,6 +257,56 @@ export async function extractTableFromImage(imageUrl: string) {
               formattedTable.rows.push(totalRowObj);
             }
           }
+        }
+      } else {
+        // We have a total row, but let's enhance it with better pattern matching
+        const totalRowIndex = formattedTable.rows.findIndex(row => 
+          row['Account Type']?.toLowerCase() === 'total');
+        
+        if (totalRowIndex >= 0 && extractedTable.text) {
+          // Look for the specific pattern in the raw text
+          const enhancedTotalPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%?)\s+\$?([\d,]+)/i;
+          const enhancedTotalMatch = extractedTable.text.match(enhancedTotalPattern);
+          
+          if (enhancedTotalMatch) {
+            console.log('Enhancing existing Total row with better match:', enhancedTotalMatch);
+            // Update with the enhanced values
+            formattedTable.rows[totalRowIndex] = {
+              'Account Type': 'Total',
+              'Open': enhancedTotalMatch[1] || formattedTable.rows[totalRowIndex]['Open'],
+              'With Balance': enhancedTotalMatch[2] || formattedTable.rows[totalRowIndex]['With Balance'],
+              'Total Balance': `$${enhancedTotalMatch[3]}` || formattedTable.rows[totalRowIndex]['Total Balance'],
+              'Available': enhancedTotalMatch[4] || formattedTable.rows[totalRowIndex]['Available'], // This is already in -$XXXX format
+              'Credit Limit': `$${enhancedTotalMatch[5]}` || formattedTable.rows[totalRowIndex]['Credit Limit'],
+              'Debt-to-Credit': enhancedTotalMatch[6] || formattedTable.rows[totalRowIndex]['Debt-to-Credit'],
+              'Payment': `$${enhancedTotalMatch[7]}` || formattedTable.rows[totalRowIndex]['Payment']
+            };
+          }
+        }
+      }
+      
+      // Also enhance the Installment row if it exists
+      const installmentRowIndex = formattedTable.rows.findIndex(row => 
+        row['Account Type']?.toLowerCase() === 'installment');
+        
+      if (installmentRowIndex >= 0 && extractedTable.text) {
+        // Look for the specific pattern in the raw text for Installment with negative Available
+        const enhancedInstallmentPattern = /installment\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%?)\s+\$?([\d,]+)/i;
+        const enhancedInstallmentMatch = extractedTable.text.match(enhancedInstallmentPattern);
+        
+        if (enhancedInstallmentMatch) {
+          console.log('Enhancing Installment row with better match:', enhancedInstallmentMatch);
+          // Update with the enhanced values
+          formattedTable.rows[installmentRowIndex] = {
+            'Account Type': 'Installment',
+            'Open': enhancedInstallmentMatch[1] || formattedTable.rows[installmentRowIndex]['Open'],
+            'With Balance': enhancedInstallmentMatch[2] || formattedTable.rows[installmentRowIndex]['With Balance'],
+            'Total Balance': `$${enhancedInstallmentMatch[3]}` || formattedTable.rows[installmentRowIndex]['Total Balance'],
+            'Available': enhancedInstallmentMatch[4] || formattedTable.rows[installmentRowIndex]['Available'],
+            'Credit Limit': `$${enhancedInstallmentMatch[5]}` || formattedTable.rows[installmentRowIndex]['Credit Limit'],
+            'Debt-to-Credit': enhancedInstallmentMatch[6] || formattedTable.rows[installmentRowIndex]['Debt-to-Credit'],
+            'Payment': `$${enhancedInstallmentMatch[7]}` || formattedTable.rows[installmentRowIndex]['Payment']
+          };
         }
       }
       
@@ -371,6 +432,31 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
         const match = row['Total Balance'].match(/\$?([\d,]+)/);
         if (match) {
           summary.totalBalance = `$${match[1]}`;
+        }
+      }
+      
+      // Ensure negative Available values are captured properly
+      if (row['Available']) {
+        // Check for explicit negative sign pattern like "-$4,447"
+        const negMatch = row['Available'].match(/-\$([\d,]+)/);
+        if (negMatch) {
+          summary.available = `-$${negMatch[1]}`;
+        }
+      }
+      
+      // Ensure Credit Limit is captured
+      if (row['Credit Limit']) {
+        const match = row['Credit Limit'].match(/\$?([\d,]+)/);
+        if (match) {
+          summary.creditLimit = `$${match[1]}`;
+        }
+      }
+      
+      // Ensure Payment is captured
+      if (row['Payment']) {
+        const match = row['Payment'].match(/\$?([\d,]+)/);
+        if (match) {
+          summary.payment = `$${match[1]}`;
         }
       }
     }

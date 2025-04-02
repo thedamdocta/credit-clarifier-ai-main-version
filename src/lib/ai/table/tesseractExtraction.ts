@@ -51,7 +51,6 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     await worker.initialize('eng');
     
     // Set optimized parameters specifically for credit report tables
-    // Removed invalid property 'tessedit_ocr_engine_mode'
     await worker.setParameters({
       tessedit_pageseg_mode: Tesseract.PSM.AUTO, // Auto detect segmentation mode
       preserve_interword_spaces: '1', // Preserve spaces between words
@@ -89,6 +88,86 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     if (tableData) {
       tableData.text = fullText;
       tableData.imageUrl = imageUrl; // Store the source image URL
+      
+      // Log the raw text for debug purposes
+      console.log('Full extracted text for pattern matching:', fullText);
+      
+      // Look for specific patterns in the raw text that might be missed in table extraction
+      // Specifically look for the Total row pattern
+      const totalRowPattern = /Total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%?)\s+\$?([\d,]+)/i;
+      const totalRowMatch = fullText.match(totalRowPattern);
+      
+      // If we found a Total row pattern, store it in the table data
+      if (totalRowMatch) {
+        console.log('Found Total row pattern in raw text:', totalRowMatch);
+        // Check if we already have a Total row
+        const totalRowIndex = tableData.rows.findIndex(row => 
+          row[0]?.toLowerCase() === 'total');
+          
+        if (totalRowIndex >= 0) {
+          // Update the existing Total row
+          tableData.rows[totalRowIndex] = [
+            'Total',
+            totalRowMatch[1] || tableData.rows[totalRowIndex][1] || '',
+            totalRowMatch[2] || tableData.rows[totalRowIndex][2] || '',
+            `$${totalRowMatch[3]}` || tableData.rows[totalRowIndex][3] || '',
+            totalRowMatch[4] || tableData.rows[totalRowIndex][4] || '',
+            `$${totalRowMatch[5]}` || tableData.rows[totalRowIndex][5] || '',
+            totalRowMatch[6] || tableData.rows[totalRowIndex][6] || '',
+            `$${totalRowMatch[7]}` || tableData.rows[totalRowIndex][7] || ''
+          ];
+        } else {
+          // Add a new Total row
+          tableData.rows.push([
+            'Total',
+            totalRowMatch[1] || '',
+            totalRowMatch[2] || '',
+            `$${totalRowMatch[3]}` || '',
+            totalRowMatch[4] || '',
+            `$${totalRowMatch[5]}` || '',
+            totalRowMatch[6] || '',
+            `$${totalRowMatch[7]}` || ''
+          ]);
+        }
+      }
+      
+      // Similarly look for the Installment row pattern
+      const installmentRowPattern = /Installment\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+([\d\.]+%?)\s+\$?([\d,]+)/i;
+      const installmentRowMatch = fullText.match(installmentRowPattern);
+      
+      // If we found an Installment row pattern, store it in the table data
+      if (installmentRowMatch) {
+        console.log('Found Installment row pattern in raw text:', installmentRowMatch);
+        // Check if we already have an Installment row
+        const installmentRowIndex = tableData.rows.findIndex(row => 
+          row[0]?.toLowerCase() === 'installment');
+          
+        if (installmentRowIndex >= 0) {
+          // Update the existing Installment row
+          tableData.rows[installmentRowIndex] = [
+            'Installment',
+            installmentRowMatch[1] || tableData.rows[installmentRowIndex][1] || '',
+            installmentRowMatch[2] || tableData.rows[installmentRowIndex][2] || '',
+            `$${installmentRowMatch[3]}` || tableData.rows[installmentRowIndex][3] || '',
+            installmentRowMatch[4] || tableData.rows[installmentRowIndex][4] || '',
+            `$${installmentRowMatch[5]}` || tableData.rows[installmentRowIndex][5] || '',
+            installmentRowMatch[6] || tableData.rows[installmentRowIndex][6] || '',
+            `$${installmentRowMatch[7]}` || tableData.rows[installmentRowIndex][7] || ''
+          ];
+        } else {
+          // Add a new Installment row
+          tableData.rows.push([
+            'Installment',
+            installmentRowMatch[1] || '',
+            installmentRowMatch[2] || '',
+            `$${installmentRowMatch[3]}` || '',
+            installmentRowMatch[4] || '',
+            `$${installmentRowMatch[5]}` || '',
+            installmentRowMatch[6] || '',
+            `$${installmentRowMatch[7]}` || ''
+          ]);
+        }
+      }
     }
     
     await worker.terminate();
@@ -423,21 +502,22 @@ function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableDat
       
     if (totalRowIndex >= 0) {
       console.log('Found Total row, applying special processing');
-      // Look for Total row values in the raw text - this captures more values correctly
-      const totalRowPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-?\$[\d,]+)\s+\$?([\d,]+)\s+(\d+\.?\d*%?)\s+\$?([\d,]+)/i;
+      
+      // First try the most complete pattern that includes negative values
+      const totalRowPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+(\d+\.?\d*%?)\s+\$?([\d,]+)/i;
       
       // Search for the Total row in the full OCR text
       const totalMatch = ocrResult.text.match(totalRowPattern);
       
       if (totalMatch) {
-        console.log('Found detailed Total row match in OCR text:', totalMatch);
+        console.log('Found detailed Total row match in OCR text with negative Available:', totalMatch);
         // Replace values in the Total row with the matched values
         dataRows[totalRowIndex] = [
           'Total',
           totalMatch[1] || dataRows[totalRowIndex][1], // Open
           totalMatch[2] || dataRows[totalRowIndex][2], // With Balance
           `$${totalMatch[3]}` || dataRows[totalRowIndex][3], // Total Balance
-          totalMatch[4] || dataRows[totalRowIndex][4], // Available
+          totalMatch[4] || dataRows[totalRowIndex][4], // Available (already has -$)
           `$${totalMatch[5]}` || dataRows[totalRowIndex][5], // Credit Limit
           totalMatch[6] || dataRows[totalRowIndex][6], // Debt-to-Credit
           `$${totalMatch[7]}` || dataRows[totalRowIndex][7]  // Payment
@@ -454,24 +534,59 @@ function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableDat
           dataRows[totalRowIndex][2] = simpleTotalMatch[2]; // With Balance  
           dataRows[totalRowIndex][3] = `$${simpleTotalMatch[3]}`; // Total Balance
           
-          // Try to find negative Available value separately
+          // Try to find negative Available value separately with improved pattern
           const negativeAvail = ocrResult.text.match(/total.*?(-\$[\d,]+)/i);
           if (negativeAvail) {
-            dataRows[totalRowIndex][4] = negativeAvail[1]; // Available
+            dataRows[totalRowIndex][4] = negativeAvail[1]; // Available with negative sign
           }
           
-          // Try to find Credit Limit value separately  
+          // Try to find Credit Limit value separately with improved pattern  
           const creditLimit = ocrResult.text.match(/total.*?-\$[\d,]+.*?\$?([\d,]+)/i);
           if (creditLimit) {
             dataRows[totalRowIndex][5] = `$${creditLimit[1]}`; // Credit Limit
           }
           
-          // Try to find payment value separately
+          // Try to find Debt-to-Credit value separately
+          const debtCredit = ocrResult.text.match(/total.*?([\d\.]+%)/i);
+          if (debtCredit) {
+            dataRows[totalRowIndex][6] = debtCredit[1]; // Debt-to-Credit
+          }
+          
+          // Try to find payment value separately with improved pattern
           const payment = ocrResult.text.match(/total.*?\$([\d,]+).*?payment/i);
           if (payment) {
             dataRows[totalRowIndex][7] = `$${payment[1]}`; // Payment
           }
         }
+      }
+    }
+    
+    // Special processing for the Installment row too
+    const installmentRowIndex = dataRows.findIndex(row => 
+      row[0].toLowerCase().includes('installment'));
+      
+    if (installmentRowIndex >= 0) {
+      console.log('Found Installment row, applying special processing');
+      
+      // Try the complete pattern that includes negative values
+      const installmentPattern = /installment\s+(\d+)\s+(\d+)\s+\$?([\d,]+)\s+(-\$[\d,]+)\s+\$?([\d,]+)\s+(\d+\.?\d*%?)\s+\$?([\d,]+)/i;
+      
+      // Search for the Installment row in the full OCR text
+      const installmentMatch = ocrResult.text.match(installmentPattern);
+      
+      if (installmentMatch) {
+        console.log('Found detailed Installment row match in OCR text with negative Available:', installmentMatch);
+        // Replace values in the Installment row with the matched values
+        dataRows[installmentRowIndex] = [
+          'Installment',
+          installmentMatch[1] || dataRows[installmentRowIndex][1], // Open
+          installmentMatch[2] || dataRows[installmentRowIndex][2], // With Balance
+          `$${installmentMatch[3]}` || dataRows[installmentRowIndex][3], // Total Balance
+          installmentMatch[4] || dataRows[installmentRowIndex][4], // Available (already has -$)
+          `$${installmentMatch[5]}` || dataRows[installmentRowIndex][5], // Credit Limit
+          installmentMatch[6] || dataRows[installmentRowIndex][6], // Debt-to-Credit
+          `$${installmentMatch[7]}` || dataRows[installmentRowIndex][7]  // Payment
+        ];
       }
     }
     
