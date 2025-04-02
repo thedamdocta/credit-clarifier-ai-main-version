@@ -3,8 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, CheckCircle, AlertCircle, Info, Cpu } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Info, Cpu, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { isModelLoading, getModelLoadingDuration, resetModelLoadingState } from "@/lib/ai/modelPipelines";
+import { toast } from "sonner";
 
 interface LogEntry {
   message: string;
@@ -23,6 +26,45 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
   const [isExpanded, setIsExpanded] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [modelLoadingTime, setModelLoadingTime] = useState<number | null>(null);
+  const [modelLoadingProgress, setModelLoadingProgress] = useState(0);
+  const [modelLoadingTimeout, setModelLoadingTimeout] = useState(false);
+
+  // Check if model is loading and update UI accordingly
+  useEffect(() => {
+    if (!isVisible) return;
+    
+    let interval: NodeJS.Timeout;
+    
+    if (isModelLoading()) {
+      setModelLoadingTime(Date.now());
+      
+      interval = setInterval(() => {
+        const duration = getModelLoadingDuration();
+        
+        // Calculate a visual progress that maxes out at 90%
+        // since we don't know the actual progress
+        const visualProgress = Math.min(90, duration * 1.5);
+        setModelLoadingProgress(visualProgress);
+        
+        // After 45 seconds, show timeout warning
+        if (duration > 45 && !modelLoadingTimeout) {
+          setModelLoadingTimeout(true);
+          setLogs(prevLogs => [
+            ...prevLogs,
+            {
+              message: "Model loading is taking longer than expected. You may need to refresh the page if it doesn't complete soon.",
+              timestamp: new Date(),
+              type: 'warning'
+            }
+          ]);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isVisible, isModelLoading, modelLoadingTimeout]);
 
   useEffect(() => {
     if (isVisible && !isSubscribed) {
@@ -69,7 +111,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
               setCurrentOperation('Credit bureau identified');
             } else if (message.includes('AI-first parsing')) {
               setCurrentOperation('Processing with AI models...');
-            } else if (message.includes('Loading NER model')) {
+            } else if (message.includes('Loading NER model') || message.includes('Loading text classification model')) {
               // Start tracking model loading time
               if (modelLoadingTime === null) {
                 setModelLoadingTime(Date.now());
@@ -88,6 +130,12 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
             }
           } else if (type === 'error') {
             setHasError(true);
+            
+            // Add more specific error handling
+            if (message.includes('timed out') && message.includes('model')) {
+              setCurrentOperation('Model loading timed out');
+              setModelLoadingTimeout(true);
+            }
           }
         }
       };
@@ -109,7 +157,11 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
             message.includes('AI') ||
             message.includes('parsing') ||
             message.includes('bureau') ||
-            message.includes('model')) {
+            message.includes('model') ||
+            message.includes('loading') ||
+            message.includes('timeout') ||
+            message.includes('Error') ||
+            message.includes('timed out')) {
           logCapture(message, 'info');
         }
       };
@@ -141,7 +193,8 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
         'PDF loaded with',
         'bureau identified',
         'Extracted text from PDF',
-        'PDF successfully processed'
+        'PDF successfully processed',
+        'model loaded in'
       ];
       
       // Check model loading progress
@@ -176,6 +229,9 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
                 type: 'warning'
               }
             ]);
+            
+            // At this point, we should consider it a timeout
+            setModelLoadingTimeout(true);
           }
         }
       }, 1000);
@@ -209,6 +265,34 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
     }
   }, [isVisible, isSubscribed, modelLoadingTime]);
 
+  // Function to handle retry when model loading times out
+  const handleRetryModelLoading = () => {
+    // Reset model loading state
+    resetModelLoadingState();
+    
+    // Reset our component state
+    setModelLoadingTime(null);
+    setModelLoadingProgress(0);
+    setModelLoadingTimeout(false);
+    setHasError(false);
+    
+    // Add a log entry
+    setLogs(prevLogs => [
+      ...prevLogs,
+      {
+        message: "Retrying model loading...",
+        timestamp: new Date(),
+        type: 'info'
+      }
+    ]);
+    
+    // Show toast
+    toast.info("Retrying AI model loading. Please wait...");
+    
+    // Set current operation
+    setCurrentOperation('Retrying AI model loading...');
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -241,12 +325,36 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
         {isExpanded && (
           <>
             {modelLoadingTime !== null && (
-              <div className="mb-2 text-sm bg-yellow-50 border border-yellow-200 rounded p-2 flex items-center gap-2">
-                <Cpu className="h-4 w-4 text-yellow-600" />
-                <span>
-                  AI model loading in progress. This can take 30-60 seconds on first run. 
-                  The page may appear unresponsive but processing continues.
-                </span>
+              <div className="mb-2 text-sm bg-yellow-50 border border-yellow-200 rounded p-2 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Cpu className="h-4 w-4 text-yellow-600" />
+                  <span>
+                    AI model loading in progress. This can take 30-60 seconds on first run. 
+                    {modelLoadingTimeout && " Loading is taking longer than expected."}
+                  </span>
+                </div>
+                
+                <div className="w-full">
+                  <Progress value={modelLoadingProgress} className="h-2 mb-1" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0s</span>
+                    <span>30s</span>
+                    <span>60s</span>
+                  </div>
+                </div>
+                
+                {modelLoadingTimeout && (
+                  <div className="mt-1">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="bg-white"
+                      onClick={handleRetryModelLoading}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry Model Loading
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
             

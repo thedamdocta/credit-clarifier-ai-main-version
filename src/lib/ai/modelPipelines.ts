@@ -7,12 +7,46 @@ import { TEXT_CLASSIFICATION_MODEL, NER_MODEL } from './config';
 let classifierPromise: Promise<any> | null = null;
 let nerPromise: Promise<any> | null = null;
 let modelLoadStartTime: number | null = null;
+let modelLoadingTimeoutId: NodeJS.Timeout | null = null;
+
+// Custom error for model loading timeout
+class ModelLoadingTimeoutError extends Error {
+  constructor(modelType: string) {
+    super(`${modelType} model loading timed out after 60 seconds`);
+    this.name = 'ModelLoadingTimeoutError';
+  }
+}
 
 // Helper function to log model loading durations
 const logModelLoadingTime = (modelType: string, startTime: number) => {
   const duration = Date.now() - startTime;
   console.log(`${modelType} model loaded in ${(duration / 1000).toFixed(1)}s`);
   return duration;
+};
+
+// Helper function to setup model loading timeout
+const setupModelLoadingTimeout = (modelType: string): Promise<never> => {
+  return new Promise((_, reject) => {
+    // Clear any existing timeout
+    if (modelLoadingTimeoutId) {
+      clearTimeout(modelLoadingTimeoutId);
+    }
+    
+    // Set a new timeout (60 seconds)
+    modelLoadingTimeoutId = setTimeout(() => {
+      console.error(`${modelType} model loading timed out after 60 seconds`);
+      toast.error(`${modelType} model loading timed out. Try refreshing the page.`);
+      reject(new ModelLoadingTimeoutError(modelType));
+    }, 60000);
+  });
+};
+
+// Helper function to clear the model loading timeout
+const clearModelLoadingTimeout = () => {
+  if (modelLoadingTimeoutId) {
+    clearTimeout(modelLoadingTimeoutId);
+    modelLoadingTimeoutId = null;
+  }
 };
 
 // Helper function to load the text classification model
@@ -23,19 +57,29 @@ export const getClassifier = async () => {
     modelLoadStartTime = startTime;
     
     try {
-      classifierPromise = pipeline('text-classification', TEXT_CLASSIFICATION_MODEL)
+      // Create a timeout promise that will reject if the model takes too long to load
+      const timeoutPromise = setupModelLoadingTimeout('Classification');
+      
+      // Create the pipeline promise
+      const pipelinePromise = pipeline('text-classification', TEXT_CLASSIFICATION_MODEL)
         .then(model => {
+          clearModelLoadingTimeout();
           logModelLoadingTime('Classification', startTime);
           return model;
-        })
+        });
+      
+      // Race the pipeline and timeout promises
+      classifierPromise = Promise.race([pipelinePromise, timeoutPromise])
         .catch(error => {
           console.error('Error loading classification model:', error);
-          toast.error('Error loading text classification model');
+          toast.error('Error loading text classification model. Try again with a smaller file.');
+          classifierPromise = null; // Reset so we can try again
           throw error;
         });
     } catch (error) {
       console.error('Error initializing classification model pipeline:', error);
       toast.error('Failed to initialize model pipeline');
+      classifierPromise = null; // Reset so we can try again
       throw error;
     }
   }
@@ -50,23 +94,29 @@ export const getNER = async () => {
     modelLoadStartTime = startTime;
     
     try {
-      nerPromise = pipeline('token-classification', NER_MODEL)
+      // Create a timeout promise that will reject if the model takes too long to load
+      const timeoutPromise = setupModelLoadingTimeout('NER');
+      
+      // Create the pipeline promise
+      const pipelinePromise = pipeline('token-classification', NER_MODEL)
         .then(model => {
+          clearModelLoadingTimeout();
           const duration = logModelLoadingTime('NER', startTime);
-          // If loading takes too long, warn the user
-          if (duration > 30000) {
-            console.warn('NER model loading took longer than expected');
-          }
           return model;
-        })
+        });
+      
+      // Race the pipeline and timeout promises
+      nerPromise = Promise.race([pipelinePromise, timeoutPromise])
         .catch(error => {
           console.error('Error loading NER model:', error);
-          toast.error('Error loading entity recognition model');
+          toast.error('Error loading entity recognition model. Try again with a smaller file.');
+          nerPromise = null; // Reset so we can try again
           throw error;
         });
     } catch (error) {
       console.error('Error initializing NER model pipeline:', error);
       toast.error('Failed to initialize NER pipeline');
+      nerPromise = null; // Reset so we can try again
       throw error;
     }
   }
@@ -82,4 +132,13 @@ export const isModelLoading = () => {
 export const getModelLoadingDuration = () => {
   if (!modelLoadStartTime) return 0;
   return Math.floor((Date.now() - modelLoadStartTime) / 1000);
+};
+
+// Function to reset model loading state (for recovery after errors)
+export const resetModelLoadingState = () => {
+  classifierPromise = null;
+  nerPromise = null;
+  modelLoadStartTime = null;
+  clearModelLoadingTimeout();
+  console.log('Model loading state has been reset');
 };
