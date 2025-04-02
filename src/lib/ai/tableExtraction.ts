@@ -63,7 +63,7 @@ export async function extractTableFromImage(
       console.log('Successfully extracted table with Tesseract:', extractedTable);
       
       // Check specifically if the text contains credit account table keywords
-      // Ensure we handle cases where text might be undefined
+      // Safely handle the potential undefined text property
       const textLower = extractedTable.text ? extractedTable.text.toLowerCase() : '';
       const hasTableKeywords = 
         (textLower.includes('revolving') || textLower.includes('mortgage') || textLower.includes('installment')) && 

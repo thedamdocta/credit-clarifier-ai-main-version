@@ -1,3 +1,4 @@
+
 import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
@@ -50,13 +51,12 @@ export async function extractTableWithTesseract(
     });
     
     // Configure Tesseract for better table detection
+    // Only use parameters that are supported in the current version
     await worker.loadLanguage('eng');
     await worker.initialize('eng');
     
-    // Set page segmentation mode to detect tables and organized text
-    // Only use supported parameters in Tesseract.js v4
+    // Set page segmentation mode using only supported parameters
     await worker.setParameters({
-      tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Auto detect orientation and script detection
       preserve_interword_spaces: '1', // Preserve spaces between words
       tessjs_create_hocr: '1', // Create HOCR output for better structure understanding
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$,.%- ', // Limit characters to improve accuracy

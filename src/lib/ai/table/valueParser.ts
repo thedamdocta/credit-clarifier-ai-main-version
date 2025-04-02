@@ -22,8 +22,15 @@ export function parseNumericValue(value: any): string | null {
   // Handle "x" or empty string as null
   if (strValue === 'x' || strValue === '') return null;
   
+  // Handle case where value is just a dollar sign
+  if (strValue === '$') return '$0';
+  
   // Extract only digits and at most one decimal point
-  const numericValue = strValue.replace(/[^0-9.]/g, '');
+  const numericPattern = /[-0-9,.]+/;
+  const matches = strValue.match(numericPattern);
+  if (!matches) return null;
+  
+  const numericValue = matches[0].replace(/[^0-9.-]/g, '');
   
   // If we have an empty string after removing non-numeric chars, return null
   if (!numericValue) return null;
@@ -48,17 +55,26 @@ export function parseCurrencyValue(value: any): string | null {
   // Handle "x" or empty string as null
   if (strValue === 'x' || strValue === '') return null;
   
-  // Check if we already have a dollar sign
-  const hasDollarSign = strValue.includes('$');
+  // Handle negative values consistently
+  const isNegative = strValue.startsWith('-') || strValue.includes('-$');
   
   // Extract digits, commas, and period for decimal point
-  let numericPart = strValue.replace(/[^0-9,.]/g, '');
+  const numericPattern = /[-0-9,.]+/;
+  const matches = strValue.match(numericPattern);
+  if (!matches) return null;
   
-  // If we just have a comma or empty string, return $0
-  if (!numericPart || numericPart === ',') return '$0';
+  let numericPart = matches[0].replace(/[^0-9.]/g, '');
   
-  // Format with dollar sign
-  return hasDollarSign ? strValue : `$${numericPart}`;
+  // If we just have empty string, return $0
+  if (!numericPart) return '$0';
+  
+  // Format with dollar sign and handle negative values
+  if (isNegative) {
+    return `-$${numericPart}`;
+  } else {
+    // Check if we already have a dollar sign
+    return strValue.includes('$') ? strValue : `$${numericPart}`;
+  }
 }
 
 /**
@@ -78,8 +94,12 @@ export function parsePercentageValue(value: any): string | null {
   // Check if we already have a percent sign
   const hasPercentSign = strValue.includes('%');
   
-  // Extract digits and period for decimal point
-  const numericPart = strValue.replace(/[^0-9.]/g, '');
+  // Extract numeric part using a pattern to handle various formats
+  const numericPattern = /[-0-9,.]+/;
+  const matches = strValue.match(numericPattern);
+  if (!matches) return null;
+  
+  const numericPart = matches[0].replace(/[^0-9.]/g, '');
   
   // If we have an empty string after removing non-numeric chars, return null
   if (!numericPart) return null;
