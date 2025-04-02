@@ -199,9 +199,10 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
         return;
       }
       
-      // For zero values, only keep zeros for open and withBalance in Revolving accounts
-      // All other zeros should be "x"
+      // For zero values - we ONLY keep zeros for open and withBalance in Revolving
+      // All other zeros should be "x" including Mortgage and Other rows
       if (rawValueStr === '0' || rawValueStr === '$0') {
+        // ONLY Revolving should show "0" for Open and WithBalance
         if (accountType === 'revolving' && (headerKey === 'open' || headerKey === 'withBalance')) {
           formattedRow[header] = "0";
         } else if (accountType === 'total' || accountType === 'installment') {
@@ -209,7 +210,7 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
           const knownValues = getSpecificRowValues(accountType);
           formattedRow[header] = knownValues && knownValues[headerKey] ? knownValues[headerKey] : "x";
         } else {
-          // For all other cases, zeros display as "x"
+          // For all other cases, show zeros as "x"
           formattedRow[header] = "x";
         }
         return;
@@ -237,7 +238,12 @@ export function formatTableForDisplay(tableData: ExtractedTable): FormattedTable
       
       // For actual values, format them properly by column type
       if (headerKey === 'open' || headerKey === 'withBalance') {
-        formattedRow[header] = parseNumericValue(rawValueStr) || "x";
+        // Only Revolving should keep "0" values, all other account types should show "x" for 0
+        if (rawValueStr === '0' && accountType !== 'revolving') {
+          formattedRow[header] = "x";
+        } else {
+          formattedRow[header] = parseNumericValue(rawValueStr) || "x";
+        }
       }
       else if (headerKey === 'totalBalance' || headerKey === 'available' || 
               headerKey === 'creditLimit' || headerKey === 'payment') {

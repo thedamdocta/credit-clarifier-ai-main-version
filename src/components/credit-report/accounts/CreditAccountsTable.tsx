@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -127,16 +126,9 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       }
     }
     
-    // For Mortgage and Other account types, only allow real zeros for open and withBalance fields
-    // and show "x" for everything else that's empty or zero
+    // For Mortgage and Other account types, ALWAYS show "x" for empty, zero or null values
+    // Never show "0" even for open and withBalance in these account types
     if (accountType === "Mortgage" || accountType === "Other") {
-      if (fieldName === 'open' || fieldName === 'withBalance') {
-        if (value === "0" || value === 0) {
-          return "0";
-        }
-      }
-      
-      // For all other fields or zero values, show "x"
       if (!value || value === "" || value === "0" || value === "$0" || 
           value === "," || value === "$," || value === "$-" || value === "$." ||
           value === "0.0%") {
@@ -257,9 +249,13 @@ function applySpecialCaseDetection(summaries: AccountSummary[]): AccountSummary[
       if (!enhancedSummary.payment) enhancedSummary.payment = "$543";
     }
     
-    // For other account types, only set specific fields to "0" if they're empty
-    // and only for open and withBalance columns
-    if ((summary.accountType === "Revolving" || summary.accountType === "Mortgage" || summary.accountType === "Other")) {
+    // For Mortgage and Other, NEVER set "0" values, keep them null so they display as "x"
+    if (summary.accountType === "Mortgage" || summary.accountType === "Other") {
+      // Don't set any specific values, let them stay as null to display as "x"
+    }
+    
+    // Only keep "0" for Revolving open and withBalance columns
+    if (summary.accountType === "Revolving") {
       if (!enhancedSummary.open) enhancedSummary.open = "0";
       if (!enhancedSummary.withBalance) enhancedSummary.withBalance = "0";
       // Don't set other fields to zero, leave them as null so they'll display as "x"

@@ -1,8 +1,10 @@
+
 /**
  * Safely formats cell values for the account summary tables
  */
 export const formatAccountValue = (value: any): string => {
-  // Special explicit handling for 0 values - display as "0" not "x"
+  // Special handling for "0" values - we pass them through as "0"
+  // but only for specific account types and columns (handled in the component)
   if (value === 0 || value === "0") {
     return "0";
   }
@@ -25,9 +27,9 @@ export const formatDollarAmount = (value: any): string => {
     return "x"; 
   }
   
-  // Special handling for 0 - display as "$0"
-  if (value === 0 || value === "0") {
-    return "$0";
+  // Special handling for 0 - display as "x" not "$0"
+  if (value === 0 || value === "0" || value === "$0") {
+    return "x";
   }
   
   // Handle OCR errors and placeholders
@@ -70,9 +72,9 @@ export const formatPercentageValue = (value: any): string => {
     return "x";
   }
   
-  // Special handling for 0
-  if (value === 0 || value === "0") {
-    return "0.0%";
+  // Special handling for 0 - display as "x" not "0.0%"
+  if (value === 0 || value === "0" || value === "0%" || value === "0.0%") {
+    return "x";
   }
   
   // Handle OCR errors and placeholders
