@@ -56,8 +56,11 @@ export async function extractCreditAccountsTableImage(report: any): Promise<stri
     // If we already have a current image for this report, use it
     if (currentReportImage) {
       console.log("Using cached table image");
-      // Log it for the parser debugger
-      parsingLogger.logTableImageExtracted(currentReportImage);
+      // Log it for debugging
+      parsingLogger.logEvent('table_image_extracted', { 
+        imageUrlLength: currentReportImage.length,
+        fromCache: true
+      });
       return currentReportImage;
     }
 
@@ -106,8 +109,11 @@ export async function extractCreditAccountsTableImage(report: any): Promise<stri
     // When image is found, store it for reuse
     if (tableImage) {
       currentReportImage = tableImage;
-      // Log it for the parser debugger
-      parsingLogger.logTableImageExtracted(tableImage);
+      // Log it for debugging
+      parsingLogger.logEvent('table_image_extracted', { 
+        imageUrlLength: tableImage.length,
+        fromCache: false
+      });
     }
     
     return tableImage;
@@ -127,7 +133,7 @@ export function saveExtractedReportData(data: any): void {
   extractedReportData = data;
 }
 
-// Export function to set extracted report data (originally missing)
+// Function to set extracted report data
 export function setExtractedReportData(data: any): void {
   extractedReportData = data;
 }

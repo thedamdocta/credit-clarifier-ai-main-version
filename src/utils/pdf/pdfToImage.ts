@@ -1,4 +1,3 @@
-
 import { parsingLogger } from "@/utils/parsingLogger";
 
 /**
@@ -59,7 +58,7 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     console.log(`Successfully converted page ${pageNum} to image, data URL length: ${imageData.length}`);
     
     // Log the extracted image for debugging
-    parsingLogger.logTableImageExtracted(imageData);
+    parsingLogger.logEvent('table_image_extracted', { imageUrlLength: imageData.length });
     
     return imageData;
   } catch (error) {
