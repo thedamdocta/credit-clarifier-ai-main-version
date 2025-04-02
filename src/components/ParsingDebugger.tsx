@@ -22,8 +22,8 @@ const ParsingDebugger = ({ isVisible = false, onClose }: ParsingDebuggerProps) =
   // Load parsing events on mount
   useEffect(() => {
     if (isVisible) {
-      // Get parsing events using the getEvents method
-      setEvents(parsingLogger.getEvents());
+      // Get parsing events using getLogs method which is definitely available
+      setEvents(parsingLogger.getLogs());
       
       // Get current report if available
       try {
@@ -168,7 +168,10 @@ const ParsingDebugger = ({ isVisible = false, onClose }: ParsingDebuggerProps) =
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={() => parsingLogger.clearEvents()}
+          onClick={() => {
+            parsingLogger.logs = []; // Directly reset logs array
+            setEvents([]);
+          }}
         >
           Clear Logs
         </Button>

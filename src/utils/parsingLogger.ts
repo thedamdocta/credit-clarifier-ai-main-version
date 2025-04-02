@@ -2,7 +2,7 @@
 // Simple class for logging parsing activities
 
 class ParsingLogger {
-  private logs: any[] = [];
+  public logs: any[] = []; // Changed to public for direct access
   private parsingStartTime: number = 0;
   private reportId: string = '';
   private textLength: number = 0;
@@ -144,12 +144,12 @@ class ParsingLogger {
     return this.logs;
   }
 
-  // Added method to get events (same as getLogs but renamed for compatibility)
+  // This method is used by ParsingDebugger component
   getEvents() {
     return this.logs;
   }
 
-  // Added method to clear events
+  // This method is used by ParsingDebugger component
   clearEvents() {
     this.logs = [];
     return true;
