@@ -510,8 +510,6 @@ import { parseNumericValue, parseCurrencyValue, parsePercentageValue } from './t
  * Create a default table structure when header detection fails
  */
 export function createSimulatedTableData() {
-  // Create a simple table structure with headers and empty rows
-  // This is only used in development when all other extraction methods fail
   return {
     headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
     rows: [
@@ -565,6 +563,7 @@ export function createSimulatedTableData() {
         'Debt-to-Credit': '',
         'Payment': ''
       }
-    ]
+    ],
+    imageUrl: ''
   };
 }
