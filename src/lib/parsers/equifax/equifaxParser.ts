@@ -23,7 +23,39 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
     // Account summaries - use text-based extraction directly
     console.log("Using text-based account summaries extraction");
     const accountSummaries = await extractEquifaxAccountSummaries(text);
-    parsingLogger.logAccountSummariesExtraction(accountSummaries);
+    
+    // Look for Total row, Installment row and Other row values using specific patterns
+    // This improves accuracy for these special rows
+    const enhancedAccountSummaries = accountSummaries.map(summary => {
+      if (summary.accountType === "Total") {
+        // Look for explicit Total row pattern in text
+        const totalRowPattern = /total\s+(\d+)\s+(\d+)\s+\$?([\d,]+)/i;
+        const match = text.match(totalRowPattern);
+        if (match) {
+          return {
+            ...summary,
+            open: match[1],
+            withBalance: match[2],
+            totalBalance: `$${match[3]}`
+          };
+        }
+      } 
+      else if (summary.accountType === "Other") {
+        // Look for explicit Other row pattern in text
+        const otherRowPattern = /other\s+(\d+)\s+(\d+)/i;
+        const match = text.match(otherRowPattern);
+        if (match) {
+          return {
+            ...summary,
+            open: match[1],
+            withBalance: match[2]
+          };
+        }
+      }
+      return summary;
+    });
+    
+    parsingLogger.logAccountSummariesExtraction(enhancedAccountSummaries);
     
     // Extract other information
     const otherItems = await extractEquifaxOtherItems(text);
@@ -31,7 +63,7 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
     // Combine all extracted data
     const equifaxSpecific = {
       ...reportSummary,
-      accountSummaries,
+      accountSummaries: enhancedAccountSummaries,
       ...otherItems,
     };
     

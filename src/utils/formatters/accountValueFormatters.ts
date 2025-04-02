@@ -27,7 +27,7 @@ export const formatDollarAmount = (value: any): string => {
   }
   
   // Special handling for 0 - display as "$0"
-  if (value === 0 || value === "0") {
+  if (value === 0 || value === "0" || value === "," || value === "$,") {
     return "$0";
   }
 
@@ -67,7 +67,7 @@ export const formatPercentageValue = (value: any): string => {
   }
   
   // Special handling for 0
-  if (value === 0 || value === "0" || value === "0%") {
+  if (value === 0 || value === "0" || value === "0%" || value === "," || value === "%") {
     return "0.0%";
   }
   
@@ -143,7 +143,6 @@ export const extractCellContent = (line: string, startPos: number, endPos: numbe
   
   // Enhanced detection for standalone "0" values
   if (substring.trim() === "0" || /\b0\b/.test(substring)) {
-    console.log("Found standalone '0' value in cell:", substring);
     return "0";
   }
   
@@ -157,7 +156,7 @@ export const extractNumericValue = (cellContent: string | null): string | null =
   if (!cellContent) return null;
   
   // Check for exactly "0" with word boundaries (handles the Revolving row case in your example)
-  if (cellContent.trim() === "0" || /\b0\b/.test(cellContent)) {
+  if (cellContent.trim() === "0" || /\b0\b/.test(cellContent) || cellContent === ",") {
     return "0";
   }
   
@@ -175,6 +174,11 @@ export const extractNumericValue = (cellContent: string | null): string | null =
  */
 export const extractDollarValue = (cellContent: string | null): string | null => {
   if (!cellContent) return null;
+  
+  // Return "$0" for zero value indicators like "0", ",", or "$,"
+  if (cellContent.trim() === "0" || cellContent.trim() === "," || cellContent.trim() === "$,") {
+    return "$0";
+  }
   
   // Check if there's any dollar sign in this cell section
   if (cellContent.includes('$')) {
@@ -205,6 +209,11 @@ export const extractDollarValue = (cellContent: string | null): string | null =>
  */
 export const extractPercentageValue = (cellContent: string | null): string | null => {
   if (!cellContent) return null;
+  
+  // Return "0.0%" for zero value indicators
+  if (cellContent.trim() === "0" || cellContent.trim() === "," || cellContent.trim() === "%") {
+    return "0.0%";
+  }
   
   // Check if there's any percentage sign in this cell section
   if (cellContent.includes('%')) {

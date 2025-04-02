@@ -21,7 +21,7 @@ export function parseNumericValue(value: string | null): string | null {
   
   // Handle common OCR errors like ',' or '.' instead of number
   if (normalized === ',' || normalized === '.') {
-    return null;  // Return null for error values, not "0"
+    return '0';  // Return '0' for these common OCR error values for standalone commas or periods
   }
 
   // Handle single character OCR errors that should be numbers
@@ -51,11 +51,11 @@ export function parseCurrencyValue(value: string | null): string | null {
   
   // Special handling for empty-looking currency values (like just a comma or period)
   if (normalized === '$,' || normalized === '$.' || normalized === '$-') {
-    return null;  // Return null for truly empty values
+    return '$0';  // Return '$0' for these common OCR error values
   }
   
   // Handle explicit zero values with various formats
-  if (normalized === '$0' || normalized === '$O' || normalized === '$o') {
+  if (normalized === '$0' || normalized === '$O' || normalized === '$o' || normalized === '0' || normalized === ',') {
     return '$0';  // Keep zero values as "$0"
   }
   
@@ -97,7 +97,7 @@ export function parsePercentageValue(value: string | null): string | null {
   
   // Handle empty percentage values
   if (normalized === '%' || normalized === '.%') {
-    return null;  // Return null for truly empty values
+    return '0.0%';  // Return formatted zero for empty percentage values
   }
   
   // Handle explicit zero percentage values

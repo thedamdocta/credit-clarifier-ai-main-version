@@ -47,28 +47,48 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           // Create a clean object to avoid duplication
           const cleanedSummary = { ...summary };
           
-          // Don't treat "0" values as empty, regardless of row type
-          if (summary.open === "0") {
-            cleanedSummary.open = "0";
-          } 
-          else if (summary.open === ',' || summary.open === '' || summary.open === null) {
-            cleanedSummary.open = null;
-          }
-          
-          // Same for withBalance field
-          if (summary.withBalance === "0") {
-            cleanedSummary.withBalance = "0";
-          } 
-          else if (summary.withBalance === ',' || summary.withBalance === '' || summary.withBalance === null) {
-            cleanedSummary.withBalance = null;
-          }
-          
-          // Same for totalBalance field
-          if (summary.totalBalance === "$0") {
-            cleanedSummary.totalBalance = "$0";
-          }
-          else if (summary.totalBalance === '$,' || summary.totalBalance === '$' || summary.totalBalance === '' || summary.totalBalance === null) {
-            cleanedSummary.totalBalance = null;
+          // For specific account types like "Other", treat zeros explicitly
+          if (summary.accountType === "Other" || summary.accountType === "Total") {
+            // For "Other" or "Total" rows, preserve "0" values
+            if (summary.open === "0" || summary.open === "," || summary.open === 0) {
+              cleanedSummary.open = "0";
+            }
+            
+            if (summary.withBalance === "0" || summary.withBalance === "," || summary.withBalance === 0) {
+              cleanedSummary.withBalance = "0";
+            }
+            
+            if (summary.totalBalance === "$0" || summary.totalBalance === "$," || 
+                summary.totalBalance === "0" || summary.totalBalance === ",") {
+              cleanedSummary.totalBalance = "$0";
+            }
+          } else {
+            // For regular rows, handle zero values normally
+            // Don't treat "0" values as empty, regardless of row type
+            if (summary.open === "0" || summary.open === 0) {
+              cleanedSummary.open = "0";
+            } 
+            else if (summary.open === ',' || summary.open === '' || summary.open === null) {
+              cleanedSummary.open = null;
+            }
+            
+            // Same for withBalance field
+            if (summary.withBalance === "0" || summary.withBalance === 0) {
+              cleanedSummary.withBalance = "0";
+            } 
+            else if (summary.withBalance === ',' || summary.withBalance === '' || summary.withBalance === null) {
+              cleanedSummary.withBalance = null;
+            }
+            
+            // Same for totalBalance field
+            if (summary.totalBalance === "$0" || summary.totalBalance === "0" || summary.totalBalance === 0) {
+              cleanedSummary.totalBalance = "$0";
+            }
+            else if (summary.totalBalance === '$,' || summary.totalBalance === '$' || 
+                     summary.totalBalance === ',' || summary.totalBalance === '' || 
+                     summary.totalBalance === null) {
+              cleanedSummary.totalBalance = null;
+            }
           }
           
           // Special processing for Total row - preserve all values
@@ -122,15 +142,29 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string, accountType: string) => {
-    // For explicit zeros (like "0" or "$0"), always display them, not "x"
-    if (value === "0" || value === 0 || value === "$0") {
+    // Special handling for zero values
+    if (value === "0" || value === 0 || value === "$0" || value === "," || value === "$,") {
+      // Always correctly format zero values
+      if (fieldName === 'open' || fieldName === 'withBalance') return "0";
+      if (fieldName === 'totalBalance' || fieldName === 'available' || 
+          fieldName === 'creditLimit' || fieldName === 'payment') return "$0";
       if (fieldName === 'debtToCredit') return "0.0%";
-      return value === "$0" ? "$0" : "0";
     }
     
     // Special handling for Total row - don't display "x" for values that exist
     if (accountType === "Total" && value !== null && value !== undefined && value !== '') {
       return formatter(value);
+    }
+    
+    // Special handling for the Other row
+    if (accountType === "Other") {
+      // For "Other" row, show zeros as "0" not "x"
+      if (value === "0" || value === 0 || value === "," || value === "$,") {
+        if (fieldName === 'open' || fieldName === 'withBalance') return "0";
+        if (fieldName === 'totalBalance' || fieldName === 'available' || 
+            fieldName === 'creditLimit' || fieldName === 'payment') return "$0";
+        if (fieldName === 'debtToCredit') return "0.0%";
+      }
     }
     
     // Special handling for the Installment row - preserve all values, especially negatives
