@@ -1,3 +1,4 @@
+
 /**
  * Safely formats cell values for the account summary tables
  */
@@ -157,7 +158,6 @@ export const extractNumericValue = (cellContent: string | null): string | null =
   
   // Check for exactly "0" with word boundaries (handles the Revolving row case in your example)
   if (cellContent.trim() === "0" || /\b0\b/.test(cellContent)) {
-    console.log("Found standalone '0' value in numeric extraction");
     return "0";
   }
   

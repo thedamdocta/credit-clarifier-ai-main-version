@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -46,32 +47,47 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           // Create a clean object to avoid duplication
           const cleanedSummary = { ...summary };
           
-          // For "Other" row, preserve explicit "0" values but clean up empty/error values
-          if (summary.accountType === "Other") {
-            // If it's explicitly "0", keep it as "0"
-            if (summary.open === "0") {
-              cleanedSummary.open = "0";
-            } 
-            // Otherwise clear error values or empty strings
-            else if (summary.open === ',' || summary.open === '' || summary.open === null) {
-              cleanedSummary.open = null;
-            }
-            
-            // Same for withBalance field
-            if (summary.withBalance === "0") {
-              cleanedSummary.withBalance = "0";
-            } 
-            else if (summary.withBalance === ',' || summary.withBalance === '' || summary.withBalance === null) {
-              cleanedSummary.withBalance = null;
-            }
-            
-            // Same for totalBalance field
-            if (summary.totalBalance === "$0") {
-              cleanedSummary.totalBalance = "$0";
-            }
-            else if (summary.totalBalance === '$,' || summary.totalBalance === '$' || summary.totalBalance === '' || summary.totalBalance === null) {
-              cleanedSummary.totalBalance = null;
-            }
+          // Don't treat "0" values as empty, regardless of row type
+          if (summary.open === "0") {
+            cleanedSummary.open = "0";
+          } 
+          else if (summary.open === ',' || summary.open === '' || summary.open === null) {
+            cleanedSummary.open = null;
+          }
+          
+          // Same for withBalance field
+          if (summary.withBalance === "0") {
+            cleanedSummary.withBalance = "0";
+          } 
+          else if (summary.withBalance === ',' || summary.withBalance === '' || summary.withBalance === null) {
+            cleanedSummary.withBalance = null;
+          }
+          
+          // Same for totalBalance field
+          if (summary.totalBalance === "$0") {
+            cleanedSummary.totalBalance = "$0";
+          }
+          else if (summary.totalBalance === '$,' || summary.totalBalance === '$' || summary.totalBalance === '' || summary.totalBalance === null) {
+            cleanedSummary.totalBalance = null;
+          }
+          
+          // Special processing for Total row - preserve all values
+          if (summary.accountType === "Total") {
+            // For Total row, we want to display any values that exist, not just zeroes
+            // This preserves real sum values for the Total row
+            if (summary.available) cleanedSummary.available = summary.available;
+            if (summary.creditLimit) cleanedSummary.creditLimit = summary.creditLimit; 
+            if (summary.debtToCredit) cleanedSummary.debtToCredit = summary.debtToCredit;
+            if (summary.payment) cleanedSummary.payment = summary.payment;
+          }
+          
+          // Special processing for Installment row - preserve all values, especially the negative values
+          if (summary.accountType === "Installment") {
+            // For Installment row, preserve values that might be negative
+            if (summary.available) cleanedSummary.available = summary.available;
+            if (summary.creditLimit) cleanedSummary.creditLimit = summary.creditLimit;
+            if (summary.debtToCredit) cleanedSummary.debtToCredit = summary.debtToCredit;
+            if (summary.payment) cleanedSummary.payment = summary.payment;
           }
           
           // Handle negative values in Available column - should be displayed as negative
@@ -106,27 +122,24 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   
   // Function to render a cell value with proper formatting based on data type
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string, accountType: string) => {
-    // Special handling for Total row - display "x" for empty cells
-    if (accountType === "Total" && (value === null || value === undefined || value === '')) {
-      return "x";
+    // For explicit zeros (like "0" or "$0"), always display them, not "x"
+    if (value === "0" || value === 0 || value === "$0") {
+      if (fieldName === 'debtToCredit') return "0.0%";
+      return value === "$0" ? "$0" : "0";
     }
     
-    // CRITICAL: Special handling for "Other" row explicit zeros
-    if (accountType === "Other") {
-      // For numeric fields (open, withBalance) - show "0" if value is explicitly "0"
-      if ((fieldName === 'open' || fieldName === 'withBalance') && (value === "0" || value === 0)) {
-        return "0";
-      }
-      
-      // For currency fields (totalBalance) - show "$0" if value is explicitly "$0"
-      if (fieldName === 'totalBalance' && (value === "$0" || value === 0)) {
-        return "$0";
-      }
+    // Special handling for Total row - don't display "x" for values that exist
+    if (accountType === "Total" && value !== null && value !== undefined && value !== '') {
+      return formatter(value);
     }
     
-    // For zero values in non-Other rows - explicitly check string "0" as well as number 0
-    if ((value === 0 || value === "0") && accountType !== "Other") {
-      return fieldName === "debtToCredit" ? "0.0%" : "0";
+    // Special handling for the Installment row - preserve all values, especially negatives
+    if (accountType === "Installment" && value !== null && value !== undefined && value !== '') {
+      // Ensure negative values in Available are shown correctly
+      if (fieldName === "available" && typeof value === "string" && value.includes("-")) {
+        return formatter(value);
+      }
+      return formatter(value);
     }
     
     // Handle common OCR errors

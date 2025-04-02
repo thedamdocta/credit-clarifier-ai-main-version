@@ -14,11 +14,6 @@ export function parseNumericValue(value: string | null): string | null {
   // Normalize the value
   const normalized = value.toString().trim();
   
-  // Special handling for Total row - preserve nulls instead of converting to 0
-  if (normalized.toLowerCase() === 'total') {
-    return null;
-  }
-  
   // Handle explicit zeros - always return "0" as a string, not numeric 0
   if (normalized === '0' || normalized === 'O' || normalized === 'o') {
     return '0';
