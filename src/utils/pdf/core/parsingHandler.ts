@@ -23,37 +23,24 @@ export async function handleParsing(
     // Add toast to indicate parsing has started
     toast.info("Analyzing credit data...", { duration: 5000 });
     
-    // Parse the extracted text with the unique report ID
-    // but don't let it block UI for too long
+    // Parse the extracted text with a shorter timeout
     const parsePromise = async () => {
       try {
-        // Wrap in a worker-like structure using setTimeout to prevent UI blocking
-        return await new Promise<CreditReport | null>((resolve) => {
-          // Use setTimeout to move parsing off the main thread
-          setTimeout(async () => {
-            try {
-              const result = await parsePDFContent(extractedText, useAI);
-              resolve(result);
-            } catch (parseError) {
-              console.error("Error in parse promise:", parseError);
-              resolve(null);
-            }
-          }, 10); // Very small timeout, just to get off the main thread
-        });
-      } catch (error) {
-        console.error("Parsing error:", error);
-        throw error;
+        return await parsePDFContent(extractedText, useAI);
+      } catch (parseError) {
+        console.error("Error in parse promise:", parseError);
+        return null;
       }
     };
     
-    // Wait for parsing with a longer timeout - this is where most freezes happen
+    // Use a shorter timeout for parsing to prevent UI freezing
     const parsedReport = await Promise.race([
       parsePromise(),
       new Promise<CreditReport | null>((resolve) => 
         setTimeout(() => {
           console.log("Parsing taking too long, continuing with basic data");
           resolve(null);
-        }, 40000) // 40 second timeout
+        }, 20000) // Reduced from 40s to 20s timeout
       )
     ]);
     
@@ -75,7 +62,8 @@ export async function handleParsing(
         window.currentPdfData = {
           reportId: uniqueReportId,
           fileName: file.name,
-          extractedText: extractedText.substring(0, 1000) // Store preview
+          // Only store a preview of text to reduce memory usage
+          extractedText: extractedText.substring(0, 500) 
         };
       }
       

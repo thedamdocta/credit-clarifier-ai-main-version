@@ -98,9 +98,3 @@ export const parsePDFContent = async (extractedText: string, useAI: boolean = fa
     return fallbackReport;
   }
 };
-
-// Re-export all the extracted functions for backward compatibility
-export * from "./patterns/documentPatterns";
-export * from "./accounts/accountSummaries";
-export * from "./bureaus/equifaxEnhancer";
-export { parsePDFContent };

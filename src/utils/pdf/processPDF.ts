@@ -53,6 +53,14 @@ export const processPDFDocument = async (
     // Check file size and warn for large files
     const fileSizeMB = checkFileSizeAndWarn(file);
     
+    // For very large files, use simplified processing
+    if (fileSizeMB > 30) {
+      toast.info("Using simplified processing for this large file", { duration: 5000 });
+      await handleBasicProcessing(uniqueReportId, file, "Large file - text extraction skipped", onPDFUploaded);
+      completeProgressTracking();
+      return;
+    }
+    
     // Wrap file reading in a Promise with a small delay to prevent UI freezing
     const readFilePromise = async () => {
       await new Promise(resolve => setTimeout(resolve, 50)); // Yield to UI
@@ -72,13 +80,19 @@ export const processPDFDocument = async (
       
       // Memory management - release array buffer after PDF is loaded to free memory
       // @ts-ignore - This is a hack to free memory
-      let nullArray = null;
+      typedarray = null;
       
-      // Yield control back to browser to prevent UI freeze
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Limit processing for very large documents
+      if (numPages > 100) {
+        toast.info("This document has many pages. Using simplified processing.", { duration: 6000 });
+        const basicText = `Large document with ${numPages} pages - using simplified processing`;
+        await handleBasicProcessing(uniqueReportId, file, basicText, onPDFUploaded);
+        completeProgressTracking();
+        return;
+      }
       
       // Extract images in a separate chunk to prevent UI freezing
-      if (useImageExtraction) {
+      if (useImageExtraction && numPages < 50) {
         // Yield control back to browser before image extraction
         await new Promise(resolve => setTimeout(resolve, 100));
         
@@ -108,7 +122,8 @@ export const processPDFDocument = async (
         // Continue with whatever text we extracted
       }
       
-      // Handle parsing with worker-like processing to prevent UI freezes
+      // Simplified parsing for performance
+      updateProgress(80);
       const parsedReport = await handleParsing(
         extractedText,
         uniqueReportId,
@@ -147,6 +162,3 @@ export const processPDFDocument = async (
     callbacks.setUploadProgress(0);
   }
 };
-
-// Import the renamed function from extractText.ts
-import { setPDFData } from './extractText';
