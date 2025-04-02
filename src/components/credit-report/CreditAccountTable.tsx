@@ -12,7 +12,8 @@ import {
   RefreshCw,
   Check,
   Loader2,
-  Eye
+  Eye,
+  List
 } from 'lucide-react';
 import { usePdfExtraction } from '@/hooks/usePdfExtraction';
 import { extractTableData } from '@/utils/tableExtraction';
@@ -20,6 +21,7 @@ import TableImageView from './TableImageView';
 import AccountDataTable from './AccountDataTable';
 import { AccountData } from '@/types/accountData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ExtractionProcessLog from './ExtractionProcessLog';
 
 interface CreditAccountTableProps {
   reportId?: string;
@@ -31,6 +33,7 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
   const [validationStatus, setValidationStatus] = useState<'none' | 'success' | 'error'>('none');
   const [extractionAttempts, setExtractionAttempts] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("image");
+  const [showProcessLog, setShowProcessLog] = useState(false);
   
   // Use our simplified PDF extraction hook
   const { 
@@ -52,6 +55,7 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
     try {
       setIsExtracting(true);
       setExtractionAttempts(prev => prev + 1);
+      setShowProcessLog(true); // Show process log when extraction starts
       
       toast.info("Analyzing credit account table...");
       
@@ -160,22 +164,38 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
     extractPdfImages();
   };
   
+  // Toggle process log visibility
+  const toggleProcessLog = () => {
+    setShowProcessLog(!showProcessLog);
+  };
+  
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Credit Accounts</CardTitle>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="image" className="flex items-center gap-1">
-              <ImageIcon className="h-4 w-4" />
-              Image
-            </TabsTrigger>
-            <TabsTrigger value="table" className="flex items-center gap-1">
-              <TableIcon className="h-4 w-4" />
-              Table
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={toggleProcessLog}
+            className="flex items-center gap-1"
+          >
+            <List className="h-4 w-4" />
+            {showProcessLog ? "Hide Process" : "Show Process"}
+          </Button>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="image" className="flex items-center gap-1">
+                <ImageIcon className="h-4 w-4" />
+                Image
+              </TabsTrigger>
+              <TabsTrigger value="table" className="flex items-center gap-1">
+                <TableIcon className="h-4 w-4" />
+                Table
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </CardHeader>
       
       <CardContent>
@@ -183,6 +203,9 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
           <p>
             Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.
           </p>
+          
+          {/* Real-time process log */}
+          <ExtractionProcessLog isVisible={showProcessLog} />
           
           {/* Status alerts */}
           {validationStatus === 'success' && (
@@ -258,7 +281,7 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
           <div className="flex flex-wrap gap-2 pt-4 justify-end">
             <Button 
               variant="outline" 
-              onClick={handleRefreshPages}
+              onClick={() => handleRefreshPages()}
               disabled={isProcessing || isExtracting}
             >
               {isProcessing ? (
