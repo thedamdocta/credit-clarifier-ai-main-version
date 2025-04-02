@@ -88,6 +88,7 @@ export async function extractTableWithTesseract(imageUrl: string): Promise<Extra
     const tableData = extractTableFromOCRResult(result.data);
     if (tableData) {
       tableData.text = fullText;
+      tableData.imageUrl = imageUrl; // Store the source image URL
     }
     
     await worker.terminate();

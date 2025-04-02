@@ -1,3 +1,4 @@
+
 import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
@@ -96,6 +97,7 @@ export function extractTableStructureFromText(text: string) {
 export async function extractTableFromImage(imageUrl: string) {
   try {
     console.log('Starting table extraction from image:', imageUrl);
+    parsingLogger.logEvent('Table extraction started', { tableImageUrl: imageUrl });
     
     if (!imageUrl) {
       console.log('No image URL provided for table extraction');
@@ -127,7 +129,8 @@ export async function extractTableFromImage(imageUrl: string) {
             'Credit Limit': summary.creditLimit || '$0',
             'Debt-to-Credit': summary.debtToCredit || '0%',
             'Payment': summary.payment || '$0'
-          }))
+          })),
+          imageUrl: imageUrl // Add the image URL to the result
         };
         
         return tableFormat;
@@ -152,10 +155,16 @@ export async function extractTableFromImage(imageUrl: string) {
     
     // Use Tesseract OCR with enhanced settings for better table detection
     const extractedTable = await extractTableWithTesseract(imageUrl);
-    parsingLogger.logEvent('Tesseract extraction result', { success: !!extractedTable });
+    parsingLogger.logEvent('Tesseract extraction result', { 
+      success: !!extractedTable,
+      extractionResult: extractedTable
+    });
     
     if (extractedTable) {
       console.log('Successfully extracted table with Tesseract:', extractedTable);
+      
+      // Add the image URL to the result
+      extractedTable.imageUrl = imageUrl;
       
       // Convert to the expected format
       const formattedTable = {
@@ -166,7 +175,8 @@ export async function extractTableFromImage(imageUrl: string) {
             rowObject[header] = row[index] || '';
           });
           return rowObject;
-        })
+        }),
+        imageUrl: imageUrl // Add the image URL here too
       };
       
       // Special handling for total row - ensure we extract it properly
@@ -248,7 +258,11 @@ export async function extractTableFromImage(imageUrl: string) {
     const tableStructure = extractedTable?.text ? extractTableStructureFromText(extractedTable.text) : null;
     
     if (tableStructure) {
-      return tableStructure;
+      // Add the image URL to the result
+      return {
+        ...tableStructure,
+        imageUrl: imageUrl
+      };
     }
     
     // If all extraction methods fail, return null
@@ -257,7 +271,11 @@ export async function extractTableFromImage(imageUrl: string) {
     // Fall back to simulated data for development purposes only
     if (process.env.NODE_ENV === 'development') {
       console.log('Development environment detected, falling back to simulated data');
-      return createSimulatedTableData();
+      const simulatedData = createSimulatedTableData();
+      if (simulatedData) {
+        simulatedData.imageUrl = imageUrl; // Add the image URL to simulated data
+      }
+      return simulatedData;
     }
     
     return null;

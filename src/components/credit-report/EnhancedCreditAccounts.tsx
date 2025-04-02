@@ -28,19 +28,14 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   const [initialAccountDataFound, setInitialAccountDataFound] = useState(false);
   const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   
-  // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
-  // Set up initial account summaries and try extraction on first load
   useEffect(() => {
     if (report && report.reportId) {
-      // Always reset current image state when a new report is loaded
       resetCurrentReportImage();
       
-      // This is a new report, so reset all extraction state
       console.log('New report detected, resetting extraction state:', report.reportId);
       
-      // Reset states for new report
       setAccountSummaries([]);
       setAttemptedExtraction(false);
       setExtractionFailed(false);
@@ -49,12 +44,9 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setTableImageUrl(null);
       setInitialAccountDataFound(false);
       
-      // Added explicit log to see when extraction is triggered
       console.log('Auto-triggering extraction for new report on component mount');
       
-      // Check if the report already has account summaries
       if (report.accountSummaries && report.accountSummaries.length > 0) {
-        // Check if these account summaries have any real data
         const hasRealData = report.accountSummaries.some(summary => 
           (summary.open && summary.open !== "0") || 
           (summary.withBalance && summary.withBalance !== "0") || 
@@ -68,41 +60,33 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         }
       }
       
-      // Ensure we always trigger a fresh extraction for the current report
-      // Add a slight delay to ensure DOM is ready with any uploaded images
       const extractionTimer = setTimeout(() => {
-        handleEnhancedExtraction(false); // Important: Set forceManualExtraction to false for auto-start
-      }, 2000); // Increased delay to 2000ms to ensure DOM is fully loaded
+        handleEnhancedExtraction(false);
+      }, 2000);
       
-      // Clear the timer on cleanup
       return () => clearTimeout(extractionTimer);
     }
-  }, [report?.reportId]); // Only trigger when reportId changes to ensure it's a truly new report
+  }, [report?.reportId]);
   
-  // Create properly ordered account summaries with empty values for missing types
   const createOrderedAccountSummaries = (sourceSummaries: AccountSummary[]) => {
     const orderedSummaries: AccountSummary[] = [];
     
-    // First create a map of existing account summaries by type
     const summariesByType = new Map<string, AccountSummary>();
     
     if (sourceSummaries && sourceSummaries.length > 0) {
       sourceSummaries.forEach(summary => {
         if (summary.accountType) {
-          // Preserve all existing data including null values
           summariesByType.set(summary.accountType, { ...summary });
         }
       });
     }
     
-    // Then create our final list in the required order, creating empty entries for missing types
     requiredAccountTypes.forEach(accountType => {
       const existingSummary = summariesByType.get(accountType);
       
       if (existingSummary) {
         const isTotalRow = accountType.toLowerCase() === 'total';
         
-        // Compare values to "0" as string to avoid type errors
         const isZeroOpen = existingSummary.open === "0" || 
                            (typeof existingSummary.open === 'string' && existingSummary.open === "0") ||
                            (typeof existingSummary.open === 'number' && existingSummary.open === 0);
@@ -111,10 +95,8 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
                                  (typeof existingSummary.withBalance === 'string' && existingSummary.withBalance === "0") ||
                                  (typeof existingSummary.withBalance === 'number' && existingSummary.withBalance === 0);
         
-        // Add the summary with consistent string types
         orderedSummaries.push({
           ...existingSummary,
-          // Consistently convert all values to strings if they exist, or null if they don't
           open: isZeroOpen ? "0" : existingSummary.open !== null ? String(existingSummary.open) : null,
           withBalance: isZeroWithBalance ? "0" : existingSummary.withBalance !== null ? String(existingSummary.withBalance) : null,
           totalBalance: existingSummary.totalBalance !== null ? String(existingSummary.totalBalance) : null,
@@ -124,7 +106,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           debtToCredit: existingSummary.debtToCredit !== null ? String(existingSummary.debtToCredit) : null
         });
       } else {
-        // Create default entry with null values for missing account types
         orderedSummaries.push({
           accountType,
           totalAccounts: null,
@@ -144,7 +125,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     console.log('Setting ordered account summaries:', orderedSummaries);
     setAccountSummaries(orderedSummaries);
     
-    // Check if this data is likely to be sample data or empty data
     const hasActualData = hasRealData(orderedSummaries);
     const isSampleDataDetected = isSampleData(orderedSummaries);
     
@@ -152,11 +132,9 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     setExtractionFailed(!hasActualData);
   };
   
-  // Check if account summaries have actual data (more stringent check)
   const hasRealData = (summaries: AccountSummary[]) => {
     if (!summaries || summaries.length === 0) return false;
     
-    // At least one non-Total row must have non-zero, non-null values
     return summaries.some(summary => 
       summary.accountType.toLowerCase() !== 'total' && (
         (summary.open !== null && summary.open !== "" && summary.open !== "0") || 
@@ -167,7 +145,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     );
   };
   
-  // Check if data is likely sample data based on characteristic values
   const isSampleData = (summaries: AccountSummary[]) => {
     if (!summaries || summaries.length === 0) return false;
     
@@ -184,7 +161,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     return hasRevolvingSample && hasInstallmentSample;
   };
   
-  // Two-stage enhanced table extraction
   const handleEnhancedExtraction = async (forceManualExtraction: boolean = true) => {
     try {
       setIsProcessing(true);
@@ -192,7 +168,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setAttemptedExtraction(true);
       setExtractionAttempts(prev => prev + 1);
       
-      // Only reset sample data state on manual extraction
       if (forceManualExtraction) {
         setUsingSampleData(false);
       }
@@ -202,7 +177,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       }
       console.log("Starting enhanced extraction process for report:", report?.reportId);
       
-      // Always check if we have any parsed data in the report first
       if (report.accountSummaries && report.accountSummaries.length > 0) {
         const existingDataHasValues = hasRealData(report.accountSummaries);
         
@@ -217,25 +191,25 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         }
       }
       
-      // Stage 1: Get the table image 
       console.log("Attempting to extract table image from PDF");
       const newTableImageUrl = await extractCreditAccountsTableImage(report);
       console.log("Table image extraction result:", newTableImageUrl ? "Success" : "Failed");
       setTableImageUrl(newTableImageUrl);
       
+      if (newTableImageUrl) {
+        parsingLogger.logEvent('Table image extracted', { tableImageUrl: newTableImageUrl });
+      }
+      
       if (!newTableImageUrl) {
         console.log("No table image found, attempting text-based extraction");
         
-        // Check if the report has text-based data we can parse
         if (report.rawText && report.rawText.length > 0) {
-          // Look for credit account table patterns in the text
           const tablePattern = /\b(account\s+type|revolving|mortgage|installment|total).+(\d+)\s+(\d+)\s+\$?([\d,]+)/i;
           if (tablePattern.test(report.rawText)) {
             if (forceManualExtraction) {
               toast.info("Attempting to extract data from report text");
             }
             
-            // Parse existing report account summaries if available
             if (report.accountSummaries && report.accountSummaries.length > 0) {
               if (hasRealData(report.accountSummaries)) {
                 console.log("Using account summaries from report text:", report.accountSummaries);
@@ -250,7 +224,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           }
         }
         
-        // If we couldn't get data from the text, check for cached data
         const cachedData = getExtractedReportData();
         if (cachedData && cachedData.accountSummaries && hasRealData(cachedData.accountSummaries)) {
           console.log("Using account summaries from cached data");
@@ -262,10 +235,8 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           return;
         }
         
-        // Always create empty account summaries - don't default to sample data
         console.log("No account data available - using empty state");
         
-        // Create empty account summaries (no sample data)
         const emptySummaries: AccountSummary[] = requiredAccountTypes.map(accountType => ({
           accountType,
           totalAccounts: null,
@@ -293,7 +264,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       
       console.log("Using table image URL for extraction:", newTableImageUrl);
       
-      // Stage 2: Extract table data using template-based approach
       console.log("Attempting to extract table data from image");
       const tableData = await extractTableFromImage(newTableImageUrl);
       console.log("Table extraction result:", tableData);
@@ -301,7 +271,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       if (tableData && tableData.rows && tableData.rows.length > 0) {
         console.log("Extracted table data:", tableData);
         
-        // Convert to account summaries
         const extractedSummaries = convertTableToAccountSummaries(tableData);
         console.log("Converted to account summaries:", extractedSummaries);
         
@@ -311,7 +280,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
             toast.success("Successfully extracted account data");
           }
           
-          // Update the state
           createOrderedAccountSummaries(extractedSummaries);
           setExtractionFailed(false);
           setUsingSampleData(false);
@@ -322,7 +290,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
             toast.error("Extraction failed. Please upload a clearer image or try a different credit report.");
           }
           
-          // Still use the extracted data even if it's not great
           createOrderedAccountSummaries(extractedSummaries);
         }
       } else {
@@ -332,7 +299,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           toast.error("Table extraction failed");
         }
         
-        // Create empty account summaries with no data
         const emptySummaries: AccountSummary[] = requiredAccountTypes.map(accountType => ({
           accountType,
           totalAccounts: null,
@@ -356,7 +322,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         toast.error("Error during data extraction");
       }
       
-      // Create empty account summaries with no data
       const emptySummaries: AccountSummary[] = requiredAccountTypes.map(accountType => ({
         accountType,
         totalAccounts: null,
@@ -378,7 +343,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   };
   
   const triggerPdfUpload = () => {
-    // Assuming there's a PDF uploader somewhere in the app
     const fileInput = document.querySelector('input[type="file"][accept=".pdf"]') as HTMLInputElement;
     if (fileInput) {
       fileInput.click();

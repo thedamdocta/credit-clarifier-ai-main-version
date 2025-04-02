@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { parsingLogger } from "@/utils/parsingLogger";
-import { Bug, Code, Table } from "lucide-react";
+import { Bug, Code, Table, Image } from "lucide-react";
 import CreditAccounts from "@/components/credit-report/CreditAccounts";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,6 +18,7 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
   const [summary, setSummary] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(isVisible);
   const [debugReport, setDebugReport] = useState<CreditReport | null>(null);
+  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   
   useEffect(() => {
     // Update logs every second while parsing is in progress
@@ -33,6 +33,22 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
         if (reportLog && reportLog.report) {
           setDebugReport(reportLog.report);
         }
+        
+        // Look for table image URL in logs
+        const imageLog = currentLogs.find(log => log.details && log.details.tableImageUrl);
+        if (imageLog && imageLog.details && imageLog.details.tableImageUrl) {
+          setTableImageUrl(imageLog.details.tableImageUrl);
+        }
+        
+        // Also check for extraction results with image URLs
+        const extractionLog = currentLogs.find(log => 
+          log.details && log.details.extractionResult && 
+          log.details.extractionResult.imageUrl);
+        if (extractionLog && extractionLog.details && 
+            extractionLog.details.extractionResult && 
+            extractionLog.details.extractionResult.imageUrl) {
+          setTableImageUrl(extractionLog.details.extractionResult.imageUrl);
+        }
       }
     }, 1000);
     
@@ -41,38 +57,32 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
   
   // Format value function for account summary table cells
   const formatValue = (value: string | number | undefined | null) => {
-    // Return empty string for null/undefined values
     if (value === undefined || value === null || value === '') {
       return ""; 
     }
     
-    // Convert value to string
     const stringValue = String(value);
     
-    // For values already properly formatted with $ or -$, return as is
     if (typeof stringValue === 'string' && (stringValue.startsWith('$') || stringValue.startsWith('-$'))) {
       return stringValue;
     }
     
-    // For numerical values or numeric strings that should be dollar amounts
     if (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value.replace(/[^0-9.-]/g, ''))))) {
       let numericValue: number;
       
       if (typeof value === 'number') {
         numericValue = value;
       } else {
-        // Extract numeric value from string, preserving negative sign
         const cleanedValue = value.replace(/[^0-9.-]/g, '');
         numericValue = parseFloat(cleanedValue);
       }
       
-      // Format according to sign
       return numericValue < 0 ? 
         `-$${Math.abs(numericValue).toLocaleString()}` : 
         `$${numericValue.toLocaleString()}`;
     }
     
-    return value; // Return as is if it's not a numeric value
+    return value;
   };
 
   // Utility function to check if a cell value exists
@@ -117,6 +127,10 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
           <TabsTrigger value="accounts" className="flex items-center">
             <Table className="h-4 w-4 mr-2" />
             Account Table
+          </TabsTrigger>
+          <TabsTrigger value="image" className="flex items-center">
+            <Image className="h-4 w-4 mr-2" />
+            Table Image
           </TabsTrigger>
           <TabsTrigger value="logs">Raw Logs</TabsTrigger>
         </TabsList>
@@ -246,6 +260,31 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
             ) : (
               <div className="text-center py-4 text-muted-foreground">
                 No account summary data available yet
+              </div>
+            )}
+          </CardContent>
+        </TabsContent>
+        
+        <TabsContent value="image">
+          <CardContent className="pt-4">
+            <div className="text-xs text-muted-foreground mb-2">
+              Extracted Table Image
+            </div>
+            {tableImageUrl ? (
+              <div className="border rounded-md overflow-hidden">
+                <img 
+                  src={tableImageUrl} 
+                  alt="Extracted table" 
+                  className="w-full h-auto"
+                />
+                <div className="p-2 bg-muted/20 text-xs">
+                  <p>Image URL length: {tableImageUrl.length} characters</p>
+                  <p>Image type: {tableImageUrl.startsWith('data:image') ? 'Data URL' : 'Remote URL'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground border rounded-md">
+                No table image has been extracted yet
               </div>
             )}
           </CardContent>
