@@ -40,6 +40,13 @@ export const processExtractedText = async (
     console.log("Processing extracted text to create structured credit report");
     parsingLogger.logEvent("AI parsing started", { reportId: uniqueReportId });
     
+    // For large text, truncate to prevent memory issues
+    let textToProcess = extractedText;
+    if (textToProcess && textToProcess.length > 500000) {
+      console.log(`Text is very large (${textToProcess.length} chars), truncating for processing`);
+      textToProcess = textToProcess.substring(0, 500000);
+    }
+    
     // Create a fully compliant CreditReport object with all required properties
     const parsedReport: CreditReport = {
       reportId: uniqueReportId,
@@ -56,7 +63,7 @@ export const processExtractedText = async (
       publicRecords: [],
       collections: [],
       creditScores: [],
-      rawText: extractedText,
+      rawText: textToProcess,
       fileName: file.name,
       accountSummaries: createDefaultAccountSummaries()
     };
@@ -76,28 +83,44 @@ export const processExtractedText = async (
   }
 };
 
-// Function to extract credit accounts using OCR
+// Function to extract credit accounts using OCR with better error handling
 export const extractCreditAccountsWithOCR = async (report: any): Promise<string | null> => {
   try {
     console.log("Attempting to extract credit accounts using OCR");
     
-    // First, try to extract the table image
-    let tableImageUrl = await extractCreditAccountsTableImage(report);
+    // First, try to extract the table image with a timeout
+    const tableExtractionPromise = extractCreditAccountsTableImage(report);
+    const tableTimeout = new Promise<null>((resolve) => {
+      setTimeout(() => {
+        console.log("Table image extraction timed out");
+        resolve(null);
+      }, 10000); // 10 second timeout
+    });
+    
+    const tableImageUrl = await Promise.race([tableExtractionPromise, tableTimeout]);
     
     if (!tableImageUrl) {
-      console.warn("No table image found, OCR extraction skipped");
+      console.warn("No table image found or extraction timed out, OCR extraction skipped");
       return null;
     }
     
-    // Use OCR to extract text from the table image
-    const ocrText = await extractTextFromImage(tableImageUrl);
+    // Use OCR to extract text from the table image with a timeout
+    const ocrPromise = extractTextFromImage(tableImageUrl);
+    const ocrTimeout = new Promise<null>((resolve) => {
+      setTimeout(() => {
+        console.log("OCR extraction timed out");
+        resolve(null);
+      }, 15000); // 15 second timeout
+    });
+    
+    const ocrText = await Promise.race([ocrPromise, ocrTimeout]);
     
     if (!ocrText) {
-      console.warn("OCR extraction failed");
+      console.warn("OCR extraction failed or timed out");
       return null;
     }
     
-    console.log("OCR extraction successful:", ocrText);
+    console.log("OCR extraction successful:", ocrText.substring(0, 200) + "...");
     return ocrText;
   } catch (error) {
     console.error("Error extracting credit accounts with OCR:", error);
