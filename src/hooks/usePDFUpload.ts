@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
-import { loadedModels, isModelLoading, getModelLoadingDuration } from "@/lib/ai/modelPipelines";
 
 interface UsePDFUploadProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -15,46 +14,12 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelsLoaded, setModelsLoaded] = useState(true); // Always set to true to avoid loading
   const [modelLoadRetries, setModelLoadRetries] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Maximum file size to process without warning (in MB)
   const MAX_RECOMMENDED_FILE_SIZE = 50;
-
-  // Check if models are preloaded at initialization with improved retry logic
-  useEffect(() => {
-    // Check if models are already loaded
-    if (typeof loadedModels === 'object') {
-      const anyModelLoaded = loadedModels.ner || loadedModels.classifier;
-      setModelsLoaded(anyModelLoaded);
-      
-      if (anyModelLoaded) {
-        console.log("AI models already loaded, ready for processing");
-      }
-    }
-    
-    // Set up a periodic check for loaded models with limited retries
-    const checkInterval = setInterval(() => {
-      if (typeof loadedModels === 'object' && (loadedModels.ner || loadedModels.classifier)) {
-        setModelsLoaded(true);
-        clearInterval(checkInterval);
-      } else {
-        // Increment retry counter
-        setModelLoadRetries(prev => {
-          const newCount = prev + 1;
-          // After 60 seconds (30 checks at 2s interval), stop checking
-          if (newCount > 30) {
-            console.log("Giving up on model loading checks after 60s");
-            clearInterval(checkInterval);
-          }
-          return newCount;
-        });
-      }
-    }, 2000); // Check every 2 seconds instead of 1s to reduce overhead
-    
-    return () => clearInterval(checkInterval);
-  }, []);
 
   const processPDF = async (file: File) => {
     try {
@@ -79,7 +44,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
       setTimeout(async () => {
         try {
           // Process the PDF file with enhanced image extraction
-          await processPDFDocument(file, useAI, {
+          await processPDFDocument(file, false, {  // Always set useAI to false
             setCurrentFile,
             setUploadProgress,
             onPDFUploaded,

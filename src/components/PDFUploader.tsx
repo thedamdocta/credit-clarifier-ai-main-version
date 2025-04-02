@@ -7,7 +7,6 @@ import PDFProgressDisplay from "./PDFProgressDisplay";
 import ExtractionProcessLog from "./credit-report/ExtractionProcessLog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Info, CheckCircle, Settings } from "lucide-react";
-import { isModelLoading, getModelLoadingDuration, loadedModels } from "@/lib/ai/modelPipelines";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -20,9 +19,9 @@ interface PDFUploaderProps {
 const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: parentIsProcessing }) => {
   const [showProcessLog, setShowProcessLog] = useState(false);
   const [showStartupInfo, setShowStartupInfo] = useState(false);
-  const [modelsReady, setModelsReady] = useState(false);
+  const [modelsReady, setModelsReady] = useState(true); // Always set to true
   const [hasShownLargeFileWarning, setHasShownLargeFileWarning] = useState(false);
-  const [useAI, setUseAI] = useState(false); // Disabled by default for better performance
+  const [useAI, setUseAI] = useState(false); // Always disabled
   const [showSettings, setShowSettings] = useState(false);
   const [useImageExtraction, setUseImageExtraction] = useState(true);
   
@@ -39,41 +38,12 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
     triggerFileInput
   } = usePDFUpload({ 
     onPDFUploaded, 
-    useAI, // Pass the AI toggle state
-    useImageExtraction // Pass image extraction toggle state
+    useAI: false, // Always pass false
+    useImageExtraction
   });
   
   // Combine both processing states
   const combinedIsProcessing = parentIsProcessing || localIsProcessing;
-
-  // Check if we should show the AI loading warning
-  useEffect(() => {
-    const checkIfModelLoading = () => {
-      if (isModelLoading()) {
-        // Only show the startup info on first load
-        if (!showStartupInfo) {
-          setShowStartupInfo(true);
-        }
-      } else if (typeof loadedModels === 'object' && (loadedModels.ner || loadedModels.classifier)) {
-        // If at least one model is loaded
-        setModelsReady(true);
-        // After 3 seconds, hide the startup info if it was showing
-        if (showStartupInfo) {
-          setTimeout(() => setShowStartupInfo(false), 3000);
-        }
-      }
-    };
-    
-    // Only check if AI is enabled
-    if (useAI) {
-      // Check initially
-      checkIfModelLoading();
-      
-      // And then every 3 seconds (reduced from every 2s)
-      const interval = setInterval(checkIfModelLoading, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [showStartupInfo, useAI]);
 
   // Show process log when processing starts
   React.useEffect(() => {
@@ -81,7 +51,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
       setShowProcessLog(true);
       
       // Show large file warning if current file is large
-      if (currentFile && currentFile.size > 15 * 1024 * 1024 && !hasShownLargeFileWarning) { // Reduced from 20MB to 15MB
+      if (currentFile && currentFile.size > 15 * 1024 * 1024 && !hasShownLargeFileWarning) {
         setHasShownLargeFileWarning(true);
       }
     } else {
@@ -97,13 +67,13 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
       uploadProgress >= 40 && 
       uploadProgress < 95 && 
       currentFile && 
-      currentFile.size > 15 * 1024 * 1024 // Reduced from 20MB to 15MB
+      currentFile.size > 15 * 1024 * 1024
     );
   };
 
   // Toggle performance mode
   const togglePerformanceMode = (checked: boolean) => {
-    setUseAI(!checked);
+    // Do nothing - AI is always disabled
   };
 
   return (
@@ -121,20 +91,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
           
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="performance-mode">Performance Mode</Label>
-              <p className="text-xs text-muted-foreground">
-                Disable AI features for faster processing
-              </p>
-            </div>
-            <Switch
-              id="performance-mode"
-              checked={!useAI}
-              onCheckedChange={togglePerformanceMode}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
               <Label htmlFor="image-extraction">Image Extraction</Label>
               <p className="text-xs text-muted-foreground">
                 Extract images from PDF pages
@@ -146,13 +102,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
               onCheckedChange={(checked) => setUseImageExtraction(checked)}
             />
           </div>
-          
-          <Alert variant="default" className="bg-blue-50 border-blue-200 py-2">
-            <Info className="h-4 w-4 text-blue-500" />
-            <AlertDescription className="text-xs text-blue-800">
-              Performance mode is recommended for large PDF files.
-            </AlertDescription>
-          </Alert>
         </div>
       )}
       
@@ -163,33 +112,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
             <span className="text-xs">Performance Settings</span>
           </Button>
         </div>
-      )}
-      
-      {showStartupInfo && useAI && (
-        <Alert variant={modelsReady ? "default" : "default"} 
-               className={modelsReady ? "bg-green-50 border-green-200 mb-4" : "bg-blue-50 border-blue-200 mb-4"}>
-          {modelsReady ? (
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          ) : (
-            <Info className="h-4 w-4 text-blue-500" />
-          )}
-          <AlertDescription className={modelsReady ? "text-green-800" : "text-blue-800"}>
-            {modelsReady ? (
-              <>
-                <p className="font-medium">AI models loaded successfully</p>
-                <p className="text-sm">The application is ready for PDF processing with enhanced AI capabilities.</p>
-              </>
-            ) : (
-              <>
-                <p className="font-medium">AI models loading in background</p>
-                <p className="text-sm">
-                  AI models are being downloaded (~15-60MB) in the background. 
-                  Consider enabling Performance Mode for faster processing.
-                </p>
-              </>
-            )}
-          </AlertDescription>
-        </Alert>
       )}
       
       <div
@@ -229,7 +151,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <AlertDescription className="text-amber-800">
             This is a large PDF file. Processing may take several minutes.
-            Consider enabling Performance Mode in settings for faster processing.
           </AlertDescription>
         </Alert>
       )}

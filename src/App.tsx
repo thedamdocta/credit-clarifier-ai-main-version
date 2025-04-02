@@ -7,19 +7,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/Layout";
-import { useEffect } from "react";
-import { preloadAIModels } from "@/lib/ai/modelPipelines";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Preload AI models as early as possible in the application lifecycle
-  useEffect(() => {
-    preloadAIModels().catch(err => 
-      console.error("Failed to preload AI models:", err)
-    );
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
