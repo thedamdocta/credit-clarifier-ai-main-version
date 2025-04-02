@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -45,14 +44,21 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
         // Clean up any problematic data before setting state
         const cleanedSummaries = accountSummaries.map(summary => ({
           ...summary,
-          // Fix comma values in the "Other" row
-          open: summary.open === ',' ? '0' : summary.open,
-          withBalance: summary.withBalance === ',' ? '0' : summary.withBalance,
-          totalBalance: summary.totalBalance === '$,' ? '$0' : summary.totalBalance,
-          // Handle negative values that should be positive
+          // Empty rows handling - specifically for "Other" row
+          // If accountType is "Other", don't auto-set to 0
+          open: summary.accountType === "Other" && (summary.open === ',' || summary.open === '0') ? 
+            null : summary.open,
+          withBalance: summary.accountType === "Other" && (summary.withBalance === ',' || summary.withBalance === '0') ? 
+            null : summary.withBalance,
+          totalBalance: summary.accountType === "Other" && (summary.totalBalance === '$,' || summary.totalBalance === '$0') ? 
+            null : summary.totalBalance,
+          // Special handling for Total row - preserve null values
+          open: summary.accountType === "Total" ? summary.open : summary.open,
+          withBalance: summary.accountType === "Total" ? summary.withBalance : summary.withBalance,
+          totalBalance: summary.accountType === "Total" ? summary.totalBalance : summary.totalBalance,
+          // Handle negative values in Available column - should be displayed as negative
           available: summary.available && summary.available.includes('-') ? 
-            '$' + summary.available.replace('-$', '').replace('-', '') : 
-            summary.available
+            summary.available : summary.available
         }));
         
         setStableData(cleanedSummaries);
@@ -78,7 +84,12 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   );
   
   // Function to render a cell value with proper formatting based on data type
-  const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
+  const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string, accountType: string) => {
+    // Special handling for Total row - display "x" for empty cells
+    if (accountType === "Total" && (value === null || value === undefined || value === '')) {
+      return "x";
+    }
+    
     // For zero values - explicitly check string "0" as well as number 0
     if (value === 0 || value === "0") {
       return fieldName === "debtToCredit" ? "0.0%" : "0";
@@ -86,17 +97,26 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     
     // Handle common OCR errors
     if (value === ',' || value === '.') {
-      return "0";
+      return "x";  // Display x instead of 0 for Other row
     }
     
     // Handle "$," error specifically
     if (value === "$," || value === "$-" || value === "$." || value === "$0") {
+      if (accountType === "Other") {
+        return "x";  // Display x for empty Other row
+      }
       return "$0";
     }
     
     // Display "x" for null, undefined, or empty strings
     if (value === null || value === undefined || value === '') {
       return "x";
+    }
+    
+    // Handle the case where Available is negative
+    if (fieldName === "available" && typeof value === "string" && value.includes("-")) {
+      // Keep the negative sign - this is valid for Available
+      return formatter(value);
     }
     
     // For actual values, format them properly
@@ -154,13 +174,13 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
                   <Badge variant="outline" className="ml-2 text-xs">Sample</Badge>
                 )}
               </TableCell>
-              <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>
-              <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue('available', summary.available, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount)}</TableCell>
-              <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatPercentageValue)}</TableCell>
-              <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount)}</TableCell>
+              <TableCell>{renderCellValue('open', summary.open, formatAccountValue, summary.accountType)}</TableCell>
+              <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue, summary.accountType)}</TableCell>
+              <TableCell>{renderCellValue('totalBalance', summary.totalBalance, formatDollarAmount, summary.accountType)}</TableCell>
+              <TableCell>{renderCellValue('available', summary.available, formatDollarAmount, summary.accountType)}</TableCell>
+              <TableCell>{renderCellValue('creditLimit', summary.creditLimit, formatDollarAmount, summary.accountType)}</TableCell>
+              <TableCell>{renderCellValue('debtToCredit', summary.debtToCredit, formatPercentageValue, summary.accountType)}</TableCell>
+              <TableCell>{renderCellValue('payment', summary.payment, formatDollarAmount, summary.accountType)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

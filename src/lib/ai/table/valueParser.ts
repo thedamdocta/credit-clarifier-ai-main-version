@@ -14,6 +14,11 @@ export function parseNumericValue(value: string | null): string | null {
   // Normalize the value
   const normalized = value.toString().trim();
   
+  // Special handling for Total row - preserve nulls instead of converting to 0
+  if (normalized.toLowerCase() === 'total') {
+    return null;
+  }
+  
   // Handle "0" values (including common OCR misreads)
   if (normalized === '0' || normalized === 'O' || normalized === 'o') {
     return '0';
@@ -49,9 +54,9 @@ export function parseCurrencyValue(value: string | null): string | null {
   // Normalize the value
   let normalized = value.toString().trim();
   
-  // Handle common OCR errors
+  // Special handling for empty-looking currency values (like just a comma or period)
   if (normalized === '$,' || normalized === '$.' || normalized === '$-') {
-    return '$0';
+    return null;  // Return null instead of '$0' for truly empty values
   }
   
   // Handle zero values with various formats
@@ -59,10 +64,12 @@ export function parseCurrencyValue(value: string | null): string | null {
     return '$0';
   }
   
-  // Check if this is a negative value that should be positive
-  // Available and Credit Limit values are often incorrectly read with negative signs
+  // Check if this is a negative value that should be displayed as is
+  // (negative values should be preserved in Available column)
+  let isNegative = false;
   if (normalized.includes('-$') || (normalized.includes('-') && normalized.includes('$'))) {
-    // Remove the negative sign for these values as they should be positive
+    isNegative = true;
+    // Remove the negative sign temporarily for processing
     normalized = normalized.replace('-', '');
   }
   
@@ -76,11 +83,11 @@ export function parseCurrencyValue(value: string | null): string | null {
   if (matches) {
     // Use the captured group which has just the number part
     const numericPart = matches[1];
-    return `$${numericPart}`;
+    return isNegative ? `-$${numericPart}` : `$${numericPart}`;
   }
 
   // If all else fails, return the normalized string
-  return normalized;
+  return isNegative ? `-${normalized}` : normalized;
 }
 
 /**
@@ -93,9 +100,9 @@ export function parsePercentageValue(value: string | null): string | null {
   // Normalize the value
   const normalized = value.toString().trim();
   
-  // Handle common OCR errors
+  // Handle empty percentage values
   if (normalized === '%' || normalized === '.%') {
-    return '0.0%';
+    return null;  // Return null instead of '0.0%' for truly empty values
   }
   
   // Check if it contains a number and % sign
