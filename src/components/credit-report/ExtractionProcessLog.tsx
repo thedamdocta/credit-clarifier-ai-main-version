@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Loader2, CheckCircle, AlertCircle, Info } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, CheckCircle, AlertCircle, Info, Cpu } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface LogEntry {
   message: string;
   timestamp: Date;
-  type: 'info' | 'success' | 'error' | 'warning';
+  type: 'info' | 'success' | 'error' | 'warning' | 'progress';
 }
 
 interface ExtractionProcessLogProps {
@@ -19,6 +20,9 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [currentOperation, setCurrentOperation] = useState<string>('');
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [modelLoadingTime, setModelLoadingTime] = useState<number | null>(null);
 
   useEffect(() => {
     if (isVisible && !isSubscribed) {
@@ -50,7 +54,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
           ].slice(-100)); // Keep only the last 100 logs for performance
           
           // Update current operation based on specific keywords
-          if (type === 'info') {
+          if (type === 'info' || type === 'success') {
             if (message.includes('Processing PDF document')) {
               setCurrentOperation('Initializing PDF processing...');
             } else if (message.includes('PDF loaded with')) {
@@ -66,8 +70,24 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
             } else if (message.includes('AI-first parsing')) {
               setCurrentOperation('Processing with AI models...');
             } else if (message.includes('Loading NER model')) {
-              setCurrentOperation('Setting up AI models for data extraction...');
+              // Start tracking model loading time
+              if (modelLoadingTime === null) {
+                setModelLoadingTime(Date.now());
+              }
+              setCurrentOperation('Loading AI models for data extraction...');
+              
+              // Add a progress log entry to show this might take time
+              setLogs(prevLogs => [
+                ...prevLogs,
+                {
+                  message: "AI model loading can take 30-60 seconds on first run...",
+                  timestamp: new Date(),
+                  type: 'progress'
+                }
+              ]);
             }
+          } else if (type === 'error') {
+            setHasError(true);
           }
         }
       };
@@ -124,6 +144,42 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
         'PDF successfully processed'
       ];
       
+      // Check model loading progress
+      const modelLoadingInterval = setInterval(() => {
+        if (modelLoadingTime !== null) {
+          const elapsedSeconds = Math.floor((Date.now() - modelLoadingTime) / 1000);
+          
+          if (elapsedSeconds === 20) {
+            setLogs(prevLogs => [
+              ...prevLogs,
+              {
+                message: "Still loading AI models... this can take time on first run",
+                timestamp: new Date(),
+                type: 'progress'
+              }
+            ]);
+          } else if (elapsedSeconds === 40) {
+            setLogs(prevLogs => [
+              ...prevLogs,
+              {
+                message: "AI model loading is taking longer than expected. Please be patient...",
+                timestamp: new Date(),
+                type: 'warning'
+              }
+            ]);
+          } else if (elapsedSeconds === 60) {
+            setLogs(prevLogs => [
+              ...prevLogs,
+              {
+                message: "If processing doesn't complete soon, you may need to refresh and try again with a smaller PDF",
+                timestamp: new Date(),
+                type: 'warning'
+              }
+            ]);
+          }
+        }
+      }, 1000);
+      
       // Check regularly for success events
       const checkSuccessInterval = setInterval(() => {
         setLogs(prevLogs => {
@@ -147,16 +203,17 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
         console.error = originalConsoleError;
         console.warn = originalConsoleWarn;
         clearInterval(checkSuccessInterval);
+        clearInterval(modelLoadingInterval);
         setIsSubscribed(false);
       };
     }
-  }, [isVisible, isSubscribed]);
+  }, [isVisible, isSubscribed, modelLoadingTime]);
 
   if (!isVisible) return null;
 
   return (
-    <Card className="border-t-4 border-t-blue-500 bg-blue-50/50 mt-4">
-      <div className="p-4">
+    <Card className={`border-t-4 ${hasError ? 'border-t-red-500 bg-red-50/50' : 'border-t-blue-500 bg-blue-50/50'} mt-4`}>
+      <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             {currentOperation && (
@@ -166,40 +223,66 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
               </div>
             )}
           </h3>
-          <Badge variant="outline" className="text-xs">
-            {logs.length} events
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              {logs.length} events
+            </Badge>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="h-6 w-6 p-0"
+            >
+              {isExpanded ? '−' : '+'}
+            </Button>
+          </div>
         </div>
         
-        <ScrollArea className="h-[200px] w-full rounded border p-2 bg-white">
-          <div className="space-y-0.5">
-            {logs.map((log, index) => (
-              <div 
-                key={index} 
-                className={`text-xs py-1 border-l-2 pl-2 ${
-                  log.type === 'error' ? 'border-red-500 text-red-600 bg-red-50' :
-                  log.type === 'success' ? 'border-green-500 text-green-600 bg-green-50' :
-                  log.type === 'warning' ? 'border-yellow-500 text-yellow-600 bg-yellow-50' :
-                  'border-blue-500 bg-blue-50/50'
-                }`}
-              >
-                <div className="flex items-start">
-                  <span className="text-slate-500 mr-2 min-w-[60px] text-[10px]">
-                    {log.timestamp.toLocaleTimeString()}
-                  </span>
-                  <span className="mr-1.5">
-                    {log.type === 'error' ? <AlertCircle className="h-3 w-3 text-red-500" /> : 
-                     log.type === 'success' ? <CheckCircle className="h-3 w-3 text-green-500" /> :
-                     log.type === 'warning' ? <AlertCircle className="h-3 w-3 text-yellow-500" /> :
-                     <Info className="h-3 w-3 text-blue-500" />}
-                  </span>
-                  <span className="flex-1 break-all">{log.message}</span>
-                </div>
+        {isExpanded && (
+          <>
+            {modelLoadingTime !== null && (
+              <div className="mb-2 text-sm bg-yellow-50 border border-yellow-200 rounded p-2 flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-yellow-600" />
+                <span>
+                  AI model loading in progress. This can take 30-60 seconds on first run. 
+                  The page may appear unresponsive but processing continues.
+                </span>
               </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
+            )}
+            
+            <ScrollArea className="h-[200px] w-full rounded border p-2 bg-white">
+              <div className="space-y-0.5">
+                {logs.map((log, index) => (
+                  <div 
+                    key={index} 
+                    className={`text-xs py-1 border-l-2 pl-2 ${
+                      log.type === 'error' ? 'border-red-500 text-red-600 bg-red-50' :
+                      log.type === 'success' ? 'border-green-500 text-green-600 bg-green-50' :
+                      log.type === 'warning' ? 'border-yellow-500 text-yellow-600 bg-yellow-50' :
+                      log.type === 'progress' ? 'border-purple-500 text-purple-600 bg-purple-50' :
+                      'border-blue-500 bg-blue-50/50'
+                    }`}
+                  >
+                    <div className="flex items-start">
+                      <span className="text-slate-500 mr-2 min-w-[60px] text-[10px]">
+                        {log.timestamp.toLocaleTimeString()}
+                      </span>
+                      <span className="mr-1.5">
+                        {log.type === 'error' ? <AlertCircle className="h-3 w-3 text-red-500" /> : 
+                         log.type === 'success' ? <CheckCircle className="h-3 w-3 text-green-500" /> :
+                         log.type === 'warning' ? <AlertCircle className="h-3 w-3 text-yellow-500" /> :
+                         log.type === 'progress' ? <Cpu className="h-3 w-3 text-purple-500" /> :
+                         <Info className="h-3 w-3 text-blue-500" />}
+                      </span>
+                      <span className="flex-1 break-all">{log.message}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </>
+        )}
+      </CardContent>
     </Card>
   );
 };

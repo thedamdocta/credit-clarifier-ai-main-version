@@ -43,7 +43,18 @@ const AccountDataTable: React.FC<AccountDataTableProps> = ({ data }) => {
       if (typeof value === 'string' && value.startsWith('$')) return value;
       
       // If it's a number or numeric string that needs formatting
-      const numValue = typeof value === 'number' ? value : Number(String(value).replace(/[^0-9.-]/g, ''));
+      let numValue: number;
+      
+      if (typeof value === 'number') {
+        numValue = value;
+      } else if (typeof value === 'string') {
+        // Remove any non-numeric characters except decimal point
+        const cleanedValue = String(value).replace(/[^0-9.-]/g, '');
+        numValue = parseFloat(cleanedValue);
+      } else {
+        return String(value);
+      }
+      
       if (!isNaN(numValue)) {
         return `$${numValue.toLocaleString()}`;
       }

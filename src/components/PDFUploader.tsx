@@ -75,9 +75,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
       </div>
       
       {/* Always show process log when processing is active */}
-      {(showProcessLog || combinedIsProcessing) && (
-        <ExtractionProcessLog isVisible={true} />
-      )}
+      <ExtractionProcessLog isVisible={combinedIsProcessing || showProcessLog} />
     </div>
   );
 };
