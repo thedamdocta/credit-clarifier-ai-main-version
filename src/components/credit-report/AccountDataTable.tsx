@@ -34,18 +34,18 @@ const AccountDataTable: React.FC<AccountDataTableProps> = ({ data }) => {
   };
   
   const getCellValue = (row: AccountData, header: string): string => {
-    const key = header.toLowerCase().replace(/-/g, '').replace(/ /g, '') as keyof AccountData;
-    
-    if (key === 'accounttype') return row.accountType || '';
-    if (key === 'open') return row.open || '';
-    if (key === 'withbalance') return row.withBalance || '';
-    if (key === 'totalbalance') return row.totalBalance || '';
-    if (key === 'available') return row.available || '';
-    if (key === 'creditlimit') return row.creditLimit || '';
-    if (key === 'debttocredit') return row.debtToCredit || '';
-    if (key === 'payment') return row.payment || '';
-    
-    return '';
+    // Map the header to the corresponding property in AccountData
+    switch(header) {
+      case "Account Type": return row.accountType || '';
+      case "Open": return row.open || '';
+      case "With Balance": return row.withBalance || '';
+      case "Total Balance": return row.totalBalance || '';
+      case "Available": return row.available || '';
+      case "Credit Limit": return row.creditLimit || '';
+      case "Debt-to-Credit": return row.debtToCredit || '';
+      case "Payment": return row.payment || '';
+      default: return '';
+    }
   };
 
   return (

@@ -154,6 +154,11 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
       ]);
     }
   }, [reportId]);
+
+  // Handler for the refresh button
+  const handleRefreshPages = () => {
+    extractPdfImages();
+  };
   
   return (
     <Card>
@@ -253,7 +258,7 @@ const CreditAccountTable: React.FC<CreditAccountTableProps> = ({ reportId }) => 
           <div className="flex flex-wrap gap-2 pt-4 justify-end">
             <Button 
               variant="outline" 
-              onClick={extractPdfImages} 
+              onClick={handleRefreshPages} 
               disabled={isProcessing || isExtracting}
             >
               {isProcessing ? (
