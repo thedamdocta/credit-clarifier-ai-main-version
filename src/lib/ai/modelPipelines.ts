@@ -1,5 +1,5 @@
 
-import { pipeline } from '@huggingface/transformers';
+import { pipeline, type ProgressCallback, type PretrainedModelOptions } from '@huggingface/transformers';
 import { toast } from 'sonner';
 
 // Model loading status tracking
@@ -23,6 +23,12 @@ export const resetModelLoadingState = (): void => {
   modelLoadingInProgress = false;
   modelLoadingStartTime = null;
   // Don't reset skipAIProcessing here - it should persist
+};
+
+// Reset skip AI flag - added to allow retrying AI after failures
+export const resetSkipAIFlag = (): void => {
+  skipAIProcessing = false;
+  console.log("AI processing has been re-enabled");
 };
 
 // Central function to manage model loading
@@ -79,8 +85,8 @@ const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>)
     skipAIProcessing = true; // Skip future AI processing if loading fails
     
     // Show a toast when model loading fails
-    toast.error(`Failed to load AI model. Using simplified processing instead.`, {
-      duration: 5000,
+    toast.error(`Failed to load AI model. Using simplified processing instead. Try refreshing the page to retry.`, {
+      duration: 8000,
     });
     
     return null;
@@ -90,18 +96,28 @@ const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>)
   }
 };
 
+// Custom progress callback to handle the new interface
+const createProgressCallback = (): ProgressCallback => {
+  return (info) => {
+    // Access the progress value safely using type narrowing
+    if ('status' in info && info.status === 'progress') {
+      const progress = ('value' in info) ? info.value : 0;
+      console.log(`Model loading progress: ${Math.round(progress * 100)}%`);
+    }
+  };
+};
+
 // Load Named Entity Recognition (NER) model
 export const getNER = async () => {
   console.log("Getting NER model...");
   return manageModelLoading('ner', async () => {
     console.log("Loading NER model...");
     try {
-      return await pipeline('token-classification', 'Xenova/distilbert-base-cased-finetuned-conll03-english', {
-        quantized: true,
-        progress_callback: (progress) => {
-          console.log(`NER model loading progress: ${Math.round(progress.progress * 100)}%`);
-        }
-      });
+      const options: PretrainedModelOptions = {
+        progress_callback: createProgressCallback()
+      };
+      
+      return await pipeline('token-classification', 'Xenova/distilbert-base-cased-finetuned-conll03-english', options);
     } catch (error) {
       console.error("Unable to connect to AI model for NER:", error);
       return null;
@@ -115,12 +131,11 @@ export const getTextClassifier = async () => {
   return manageModelLoading('classifier', async () => {
     console.log("Loading text classification model...");
     try {
-      return await pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', {
-        quantized: true,
-        progress_callback: (progress) => {
-          console.log(`Text classification model loading progress: ${Math.round(progress.progress * 100)}%`);
-        }
-      });
+      const options: PretrainedModelOptions = {
+        progress_callback: createProgressCallback()
+      };
+      
+      return await pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', options);
     } catch (error) {
       console.error("Unable to connect to AI model for text classification:", error);
       return null;

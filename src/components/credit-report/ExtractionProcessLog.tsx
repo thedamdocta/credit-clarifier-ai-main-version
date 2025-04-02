@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, CheckCircle, AlertCircle, Info, Cpu, RefreshCw, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { isModelLoading, getModelLoadingDuration, resetModelLoadingState, shouldSkipAI } from "@/lib/ai/modelPipelines";
+import { isModelLoading, getModelLoadingDuration, resetModelLoadingState, shouldSkipAI, resetSkipAIFlag } from "@/lib/ai/modelPipelines";
 import { toast } from "sonner";
 
 interface LogEntry {
@@ -146,6 +146,18 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
             } else if (message.includes('Unable to connect to AI model')) {
               setCurrentOperation('Network error - continuing with basic processing');
               setHasError(true);
+            } else if (message.includes('AI processing has been re-enabled')) {
+              setIsAIDisabled(false);
+              setHasError(false);
+              setCurrentOperation('AI processing has been re-enabled');
+              setLogs(prevLogs => [
+                ...prevLogs,
+                {
+                  message: "AI processing has been re-enabled. Next PDF upload will use AI enhancement.",
+                  timestamp: new Date(),
+                  type: 'success'
+                }
+              ]);
             }
           } else if (type === 'error') {
             setHasError(true);
@@ -345,6 +357,29 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
     setCurrentOperation('Using standard extraction without AI...');
   };
 
+  // Function to re-enable AI processing
+  const handleReEnableAI = () => {
+    // Reset the skip AI flag
+    resetSkipAIFlag();
+    
+    // Update component state
+    setIsAIDisabled(false);
+    setHasError(false);
+    
+    // Add a log entry
+    setLogs(prevLogs => [
+      ...prevLogs,
+      {
+        message: "AI processing has been re-enabled",
+        timestamp: new Date(),
+        type: 'success'
+      }
+    ]);
+    
+    // Show toast
+    toast.success("AI enhancement has been re-enabled. Next PDF upload will use AI features.");
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -425,11 +460,21 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
             
             {isAIDisabled && (
               <div className="mb-2 text-sm bg-orange-50 border border-orange-200 rounded p-2">
-                <div className="flex items-center gap-2">
-                  <Ban className="h-4 w-4 text-orange-600" />
-                  <span className="text-orange-800">
-                    AI enhancement is disabled. Using standard extraction methods.
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Ban className="h-4 w-4 text-orange-600" />
+                    <span className="text-orange-800">
+                      AI enhancement is disabled. Using standard extraction methods.
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-white text-green-700 border-green-200 hover:bg-green-50"
+                    onClick={handleReEnableAI}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Re-enable AI
+                  </Button>
                 </div>
               </div>
             )}
