@@ -10,8 +10,17 @@ export interface NEREntity {
 
 export async function extractEntities(text: string): Promise<NEREntity[]> {
   try {
+    // Skip processing if text is empty or undefined
+    if (!text || text.length === 0) {
+      console.log("Empty text provided to extractEntities, skipping");
+      return [];
+    }
+    
     // Only process a limited amount of text to avoid freezing the browser
     const textToProcess = text.substring(0, 3000);
+    
+    console.log(`Extracting entities from text (${textToProcess.length} chars)`);
+    const startTime = performance.now();
     
     const ner = await getNER();
     
@@ -25,6 +34,9 @@ export async function extractEntities(text: string): Promise<NEREntity[]> {
     const results = await ner(textToProcess, {
       aggregation_strategy: 'simple'
     });
+    
+    const endTime = performance.now();
+    console.log(`Entity extraction completed in ${Math.round(endTime - startTime)}ms, found ${results.length} entities`);
     
     return results.map((result: any) => ({
       word: result.word,

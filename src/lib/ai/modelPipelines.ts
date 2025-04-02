@@ -1,190 +1,138 @@
 
 import { pipeline } from '@huggingface/transformers';
-import { toast } from "sonner";
-import { TEXT_CLASSIFICATION_MODEL, NER_MODEL } from './config';
+import { toast } from 'sonner';
 
-// Initialize model pipelines lazily
-let classifierPromise: Promise<any> | null = null;
-let nerPromise: Promise<any> | null = null;
-let modelLoadStartTime: number | null = null;
-let modelLoadingTimeoutId: NodeJS.Timeout | null = null;
-let modelLoadingErrors: number = 0;
+// Model loading status tracking
+let modelLoadingInProgress = false;
+let modelLoadingStartTime: number | null = null;
+let skipAIProcessing = false;
 
-// Maximum number of retries before giving up
-const MAX_MODEL_LOAD_RETRIES = 2;
-
-// Custom error for model loading timeout
-class ModelLoadingTimeoutError extends Error {
-  constructor(modelType: string) {
-    super(`${modelType} model loading timed out after 60 seconds`);
-    this.name = 'ModelLoadingTimeoutError';
-  }
-}
-
-// Helper function to log model loading durations
-const logModelLoadingTime = (modelType: string, startTime: number) => {
-  const duration = Date.now() - startTime;
-  console.log(`${modelType} model loaded in ${(duration / 1000).toFixed(1)}s`);
-  return duration;
+// Track which models are loaded to prevent redundant loading
+const loadedModels = {
+  ner: false,
+  classifier: false
 };
 
-// Helper function to setup model loading timeout
-const setupModelLoadingTimeout = (modelType: string): Promise<never> => {
-  return new Promise((_, reject) => {
-    // Clear any existing timeout
-    if (modelLoadingTimeoutId) {
-      clearTimeout(modelLoadingTimeoutId);
+// Get model loading status
+export const isModelLoading = (): boolean => modelLoadingInProgress;
+export const getModelLoadingDuration = (): number => {
+  return modelLoadingStartTime ? Math.floor((Date.now() - modelLoadingStartTime) / 1000) : 0;
+};
+export const shouldSkipAI = (): boolean => skipAIProcessing;
+export const resetModelLoadingState = (): void => {
+  modelLoadingInProgress = false;
+  modelLoadingStartTime = null;
+  // Don't reset skipAIProcessing here - it should persist
+};
+
+// Central function to manage model loading
+const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>): Promise<any | null> => {
+  // If we've decided to skip AI, return null immediately
+  if (skipAIProcessing) {
+    console.log(`Skipping ${modelType} model loading due to previous errors`);
+    return null;
+  }
+
+  // Check if model is already loaded
+  if (modelType === 'ner' && loadedModels.ner) {
+    console.log(`${modelType} model already loaded, reusing`);
+    return window.__cachedNERModel;
+  } else if (modelType === 'classifier' && loadedModels.classifier) {
+    console.log(`${modelType} model already loaded, reusing`);
+    return window.__cachedClassifierModel;
+  }
+
+  // Set loading status
+  if (!modelLoadingInProgress) {
+    modelLoadingInProgress = true;
+    modelLoadingStartTime = Date.now();
+    console.log(`Starting to load ${modelType} model...`);
+  } else {
+    console.log(`Another model is loading, will load ${modelType} after completion`);
+  }
+
+  try {
+    // Set timeout to prevent UI from being blocked for too long
+    const loadTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        console.error(`${modelType} model loading timed out after 60s`);
+        reject(new Error(`${modelType} model loading timed out`));
+      }, 60000); // 60 second timeout
+    });
+
+    // Load the model with timeout
+    const model = await Promise.race([loadFn(), loadTimeoutPromise]);
+    console.log(`${modelType} model loaded successfully after ${getModelLoadingDuration()} seconds`);
+    
+    // Mark this model as loaded
+    if (modelType === 'ner') {
+      loadedModels.ner = true;
+      if (window) window.__cachedNERModel = model;
+    } else if (modelType === 'classifier') {
+      loadedModels.classifier = true;
+      if (window) window.__cachedClassifierModel = model;
     }
     
-    // Set a new timeout (60 seconds)
-    modelLoadingTimeoutId = setTimeout(() => {
-      console.error(`${modelType} model loading timed out after 60 seconds`);
-      toast.error(`${modelType} model loading timed out. Try refreshing the page.`);
-      reject(new ModelLoadingTimeoutError(modelType));
-    }, 60000);
+    return model;
+  } catch (error) {
+    console.error(`Error loading ${modelType} model:`, error);
+    skipAIProcessing = true; // Skip future AI processing if loading fails
+    
+    // Show a toast when model loading fails
+    toast.error(`Failed to load AI model. Using simplified processing instead.`, {
+      duration: 5000,
+    });
+    
+    return null;
+  } finally {
+    modelLoadingInProgress = false;
+    modelLoadingStartTime = null;
+  }
+};
+
+// Load Named Entity Recognition (NER) model
+export const getNER = async () => {
+  console.log("Getting NER model...");
+  return manageModelLoading('ner', async () => {
+    console.log("Loading NER model...");
+    try {
+      return await pipeline('token-classification', 'Xenova/distilbert-base-cased-finetuned-conll03-english', {
+        quantized: true,
+        progress_callback: (progress) => {
+          console.log(`NER model loading progress: ${Math.round(progress.progress * 100)}%`);
+        }
+      });
+    } catch (error) {
+      console.error("Unable to connect to AI model for NER:", error);
+      return null;
+    }
   });
 };
 
-// Helper function to clear the model loading timeout
-const clearModelLoadingTimeout = () => {
-  if (modelLoadingTimeoutId) {
-    clearTimeout(modelLoadingTimeoutId);
-    modelLoadingTimeoutId = null;
-  }
-};
-
-// Helper function to handle model loading errors and provide fallback
-const handleModelLoadingError = (error: any, modelType: string) => {
-  clearModelLoadingTimeout();
-  modelLoadingErrors++;
-  
-  console.error(`Error loading ${modelType} model:`, error);
-  
-  // If we've tried too many times, show toast and continue without AI
-  if (modelLoadingErrors >= MAX_MODEL_LOAD_RETRIES) {
-    toast.error(`Unable to load AI models. Processing without AI enhancement.`);
-    return null;
-  }
-  
-  // Show toast with retry information
-  toast.error(`Error loading ${modelType} model. Will try again.`);
-  
-  // Return null to indicate failure but allow retries
-  return null;
-};
-
-// Helper function to load the text classification model with fallbacks
-export const getClassifier = async () => {
-  if (!classifierPromise) {
-    console.log('Loading text classification model...');
-    const startTime = Date.now();
-    modelLoadStartTime = startTime;
-    
+// Load text classification model
+export const getTextClassifier = async () => {
+  console.log("Getting text classifier model...");
+  return manageModelLoading('classifier', async () => {
+    console.log("Loading text classification model...");
     try {
-      // Create a timeout promise that will reject if the model takes too long to load
-      const timeoutPromise = setupModelLoadingTimeout('Classification');
-      
-      // Create the pipeline promise
-      const pipelinePromise = pipeline('text-classification', TEXT_CLASSIFICATION_MODEL)
-        .then(model => {
-          clearModelLoadingTimeout();
-          logModelLoadingTime('Classification', startTime);
-          modelLoadingErrors = 0; // Reset error count on success
-          return model;
-        });
-      
-      // Race the pipeline and timeout promises
-      classifierPromise = Promise.race([pipelinePromise, timeoutPromise])
-        .catch(error => {
-          // Handle specific JSON parsing errors that indicate network issues
-          if (error instanceof SyntaxError && error.message.includes('Unexpected token')) {
-            console.error('Network error loading classification model. The API might be unavailable.');
-            toast.error('Unable to connect to AI model server. Processing without AI enhancement.');
-            classifierPromise = null;
-            return null;
-          }
-          
-          const result = handleModelLoadingError(error, 'classification');
-          classifierPromise = null; // Reset so we can try again
-          return result;
-        });
+      return await pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', {
+        quantized: true,
+        progress_callback: (progress) => {
+          console.log(`Text classification model loading progress: ${Math.round(progress.progress * 100)}%`);
+        }
+      });
     } catch (error) {
-      console.error('Error initializing classification model pipeline:', error);
-      toast.error('Failed to initialize model pipeline');
-      classifierPromise = null; // Reset so we can try again
+      console.error("Unable to connect to AI model for text classification:", error);
       return null;
     }
+  });
+};
+
+// Add global declaration for cached models
+declare global {
+  interface Window {
+    __cachedNERModel: any;
+    __cachedClassifierModel: any;
+    gc?: () => void;
   }
-  return classifierPromise;
-};
-
-// Helper function to load the named entity recognition model with fallbacks
-export const getNER = async () => {
-  if (!nerPromise) {
-    console.log('Loading NER model...');
-    const startTime = Date.now();
-    modelLoadStartTime = startTime;
-    
-    try {
-      // Create a timeout promise that will reject if the model takes too long to load
-      const timeoutPromise = setupModelLoadingTimeout('NER');
-      
-      // Create the pipeline promise
-      const pipelinePromise = pipeline('token-classification', NER_MODEL)
-        .then(model => {
-          clearModelLoadingTimeout();
-          const duration = logModelLoadingTime('NER', startTime);
-          modelLoadingErrors = 0; // Reset error count on success
-          return model;
-        });
-      
-      // Race the pipeline and timeout promises
-      nerPromise = Promise.race([pipelinePromise, timeoutPromise])
-        .catch(error => {
-          // Handle specific JSON parsing errors that indicate network issues
-          if (error instanceof SyntaxError && error.message.includes('Unexpected token')) {
-            console.error('Network error loading NER model. The API might be unavailable.');
-            toast.error('Unable to connect to AI model server. Processing without AI enhancement.');
-            nerPromise = null;
-            return null;
-          }
-          
-          const result = handleModelLoadingError(error, 'NER');
-          nerPromise = null; // Reset so we can try again
-          return result;
-        });
-    } catch (error) {
-      console.error('Error initializing NER model pipeline:', error);
-      toast.error('Failed to initialize NER pipeline');
-      nerPromise = null; // Reset so we can try again
-      return null;
-    }
-  }
-  return nerPromise;
-};
-
-// Function to check if model loading is in progress
-export const isModelLoading = () => {
-  return (classifierPromise !== null || nerPromise !== null) && modelLoadStartTime !== null;
-};
-
-// Function to get model loading duration in seconds
-export const getModelLoadingDuration = () => {
-  if (!modelLoadStartTime) return 0;
-  return Math.floor((Date.now() - modelLoadStartTime) / 1000);
-};
-
-// Function to reset model loading state (for recovery after errors)
-export const resetModelLoadingState = () => {
-  classifierPromise = null;
-  nerPromise = null;
-  modelLoadStartTime = null;
-  clearModelLoadingTimeout();
-  modelLoadingErrors = 0;
-  console.log('Model loading state has been reset');
-};
-
-// Function to check if we've had too many errors and should skip AI
-export const shouldSkipAI = () => {
-  return modelLoadingErrors >= MAX_MODEL_LOAD_RETRIES;
-};
+}
