@@ -2,7 +2,7 @@
 // Re-export all AI utilities for easier imports
 export * from './config';
 export * from './modelPipelines';
-export { TextClassification } from './types';
+export type { TextClassification } from './types';
 export * from './textAnalysis';
 // Export everything from entityExtraction except extractNameWithAI to avoid conflict
 export { extractSSNWithAI, identifyBureauWithAI } from './entityExtraction';
