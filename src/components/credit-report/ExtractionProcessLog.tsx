@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, CheckCircle, AlertCircle, Info, Cpu, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Info, Cpu, RefreshCw, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { isModelLoading, getModelLoadingDuration, resetModelLoadingState } from "@/lib/ai/modelPipelines";
+import { isModelLoading, getModelLoadingDuration, resetModelLoadingState, shouldSkipAI } from "@/lib/ai/modelPipelines";
 import { toast } from "sonner";
 
 interface LogEntry {
@@ -28,6 +28,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
   const [modelLoadingTime, setModelLoadingTime] = useState<number | null>(null);
   const [modelLoadingProgress, setModelLoadingProgress] = useState(0);
   const [modelLoadingTimeout, setModelLoadingTimeout] = useState(false);
+  const [isAIDisabled, setIsAIDisabled] = useState(false);
 
   // Check if model is loading and update UI accordingly
   useEffect(() => {
@@ -46,13 +47,26 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
         const visualProgress = Math.min(90, duration * 1.5);
         setModelLoadingProgress(visualProgress);
         
-        // After 45 seconds, show timeout warning
-        if (duration > 45 && !modelLoadingTimeout) {
+        // After 30 seconds, show timeout warning
+        if (duration > 30 && !modelLoadingTimeout) {
           setModelLoadingTimeout(true);
           setLogs(prevLogs => [
             ...prevLogs,
             {
-              message: "Model loading is taking longer than expected. You may need to refresh the page if it doesn't complete soon.",
+              message: "Model loading is taking longer than expected. You may need to refresh or retry if it doesn't complete soon.",
+              timestamp: new Date(),
+              type: 'warning'
+            }
+          ]);
+        }
+        
+        // Check if AI should be skipped due to errors
+        if (shouldSkipAI() && !isAIDisabled) {
+          setIsAIDisabled(true);
+          setLogs(prevLogs => [
+            ...prevLogs,
+            {
+              message: "AI enhancement has been disabled due to connection issues. Processing will continue with standard extraction.",
               timestamp: new Date(),
               type: 'warning'
             }
@@ -64,7 +78,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isVisible, modelLoadingTimeout]);
+  }, [isVisible, modelLoadingTimeout, isAIDisabled]);
 
   useEffect(() => {
     if (isVisible && !isSubscribed) {
@@ -111,6 +125,8 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
               setCurrentOperation('Credit bureau identified');
             } else if (message.includes('AI-first parsing')) {
               setCurrentOperation('Processing with AI models...');
+            } else if (message.includes('Using simpler parsing')) {
+              setCurrentOperation('Using simplified data extraction...');
             } else if (message.includes('Loading NER model') || message.includes('Loading text classification model')) {
               // Start tracking model loading time
               if (modelLoadingTime === null) {
@@ -127,6 +143,9 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
                   type: 'progress'
                 }
               ]);
+            } else if (message.includes('Unable to connect to AI model')) {
+              setCurrentOperation('Network error - continuing with basic processing');
+              setHasError(true);
             }
           } else if (type === 'error') {
             setHasError(true);
@@ -135,6 +154,8 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
             if (message.includes('timed out') && message.includes('model')) {
               setCurrentOperation('Model loading timed out');
               setModelLoadingTimeout(true);
+            } else if (message.includes('network error') || message.includes('SyntaxError')) {
+              setCurrentOperation('Network error connecting to AI service');
             }
           }
         }
@@ -161,7 +182,9 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
             message.includes('loading') ||
             message.includes('timeout') ||
             message.includes('Error') ||
-            message.includes('timed out')) {
+            message.includes('timed out') ||
+            message.includes('network error') ||
+            message.includes('Unable to connect')) {
           logCapture(message, 'info');
         }
       };
@@ -274,6 +297,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
     setModelLoadingTime(null);
     setModelLoadingProgress(0);
     setModelLoadingTimeout(false);
+    setIsAIDisabled(false);
     setHasError(false);
     
     // Add a log entry
@@ -293,6 +317,34 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
     setCurrentOperation('Retrying AI model loading...');
   };
 
+  // Function to handle continuing without AI
+  const handleContinueWithoutAI = () => {
+    // Reset model loading state but flag AI as disabled
+    resetModelLoadingState();
+    setIsAIDisabled(true);
+    
+    // Reset our component state
+    setModelLoadingTime(null);
+    setModelLoadingProgress(0);
+    setModelLoadingTimeout(false);
+    
+    // Add a log entry
+    setLogs(prevLogs => [
+      ...prevLogs,
+      {
+        message: "Continuing without AI enhancement...",
+        timestamp: new Date(),
+        type: 'info'
+      }
+    ]);
+    
+    // Show toast
+    toast.info("Continuing with basic processing without AI enhancement.");
+    
+    // Set current operation
+    setCurrentOperation('Using standard extraction without AI...');
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -302,7 +354,11 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
           <h3 className="text-sm font-semibold flex items-center gap-2">
             {currentOperation && (
               <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-full border shadow-sm">
-                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                {isAIDisabled ? (
+                  <Ban className="h-4 w-4 text-red-500" />
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                )}
                 <span className="text-blue-800">{currentOperation}</span>
               </div>
             )}
@@ -324,7 +380,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
         
         {isExpanded && (
           <>
-            {modelLoadingTime !== null && (
+            {modelLoadingTime !== null && !isAIDisabled && (
               <div className="mb-2 text-sm bg-yellow-50 border border-yellow-200 rounded p-2 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <Cpu className="h-4 w-4 text-yellow-600" />
@@ -344,7 +400,7 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
                 </div>
                 
                 {modelLoadingTimeout && (
-                  <div className="mt-1">
+                  <div className="mt-1 flex flex-wrap gap-2">
                     <Button 
                       size="sm" 
                       variant="outline"
@@ -353,8 +409,28 @@ const ExtractionProcessLog: React.FC<ExtractionProcessLogProps> = ({ isVisible }
                     >
                       <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry Model Loading
                     </Button>
+                    
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="bg-white text-orange-700 border-orange-200 hover:bg-orange-50"
+                      onClick={handleContinueWithoutAI}
+                    >
+                      <Ban className="h-3.5 w-3.5 mr-1.5" /> Continue Without AI
+                    </Button>
                   </div>
                 )}
+              </div>
+            )}
+            
+            {isAIDisabled && (
+              <div className="mb-2 text-sm bg-orange-50 border border-orange-200 rounded p-2">
+                <div className="flex items-center gap-2">
+                  <Ban className="h-4 w-4 text-orange-600" />
+                  <span className="text-orange-800">
+                    AI enhancement is disabled. Using standard extraction methods.
+                  </span>
+                </div>
               </div>
             )}
             

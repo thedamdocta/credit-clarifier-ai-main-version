@@ -1,26 +1,44 @@
 
-import { getClassifier, getNER } from './modelPipelines';
-import { TextClassification, Entity } from './types';
+import { getNER } from './modelPipelines';
 
-// Function to analyze the sentiment of text
-export const analyzeSentiment = async (text: string): Promise<TextClassification> => {
-  try {
-    const classifier = await getClassifier();
-    const result = await classifier(text);
-    return result[0];
-  } catch (error) {
-    console.error('Error analyzing sentiment:', error);
-    return { label: 'UNKNOWN', score: 0 };
-  }
-};
+export interface Entity {
+  word: string;
+  entity: string;
+  score: number;
+}
 
-// Function to extract named entities from text
-export const extractEntities = async (text: string): Promise<Entity[]> => {
+export async function extractEntities(text: string): Promise<Entity[]> {
   try {
+    // Only process a limited amount of text to avoid freezing the browser
+    const textToProcess = text.substring(0, 3000);
+    
     const ner = await getNER();
-    return await ner(text);
+    
+    // If the model failed to load, return empty results
+    if (!ner) {
+      console.log("NER model not available, skipping entity extraction");
+      return [];
+    }
+    
+    // Process the text with the NER model
+    const results = await ner(textToProcess, {
+      aggregation_strategy: 'simple'
+    });
+    
+    return results.map((result: any) => ({
+      word: result.word,
+      entity: result.entity,
+      score: result.score
+    }));
   } catch (error) {
-    console.error('Error extracting entities:', error);
+    console.error("Error extracting entities:", error);
+    
+    // Check for network-related JSON parsing errors
+    if (error instanceof SyntaxError && error.message.includes('Unexpected token')) {
+      console.error("Network issue detected when connecting to AI service. Continuing without AI.");
+    }
+    
+    // Return empty array to allow processing to continue
     return [];
   }
-};
+}
