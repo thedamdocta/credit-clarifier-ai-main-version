@@ -1,3 +1,4 @@
+
 import { getNER } from './modelPipelines';
 
 // Renamed to NEREntity to avoid conflicts
@@ -24,6 +25,7 @@ export async function extractEntities(text: string): Promise<NEREntity[]> {
     // Yield to UI thread before heavy AI processing
     await new Promise(resolve => setTimeout(resolve, 0));
     
+    // Get model (will use already loaded model if available)
     const ner = await getNER();
     
     // If the model failed to load, return empty results

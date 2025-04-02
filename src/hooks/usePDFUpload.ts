@@ -1,7 +1,8 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
+import { loadedModels } from "@/lib/ai/modelPipelines";
 
 interface UsePDFUploadProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -13,12 +14,36 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false); // Add processing state
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if models are preloaded at initialization
+  useEffect(() => {
+    // Check if models are already loaded
+    if (typeof loadedModels === 'object') {
+      const anyModelLoaded = loadedModels.ner || loadedModels.classifier;
+      setModelsLoaded(anyModelLoaded);
+      
+      if (anyModelLoaded) {
+        console.log("AI models already loaded, ready for processing");
+      }
+    }
+    
+    // Set up a periodic check for loaded models
+    const checkInterval = setInterval(() => {
+      if (typeof loadedModels === 'object' && (loadedModels.ner || loadedModels.classifier)) {
+        setModelsLoaded(true);
+        clearInterval(checkInterval);
+      }
+    }, 1000);
+    
+    return () => clearInterval(checkInterval);
+  }, []);
 
   const processPDF = async (file: File) => {
     try {
-      setIsProcessing(true); // Set processing state to true
+      setIsProcessing(true);
       
       // Show initial upload started toast
       toast.info(`Processing ${file.name}`, {
@@ -36,7 +61,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
       console.error("PDF processing error:", error);
       toast.error("Failed to process the PDF. Please try a different file.");
     } finally {
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
     }
   };
 
@@ -50,7 +75,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDrivElement>) => {
     e.preventDefault();
     setIsDragging(false);
     
@@ -96,6 +121,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }
     uploadProgress,
     currentFile,
     isProcessing,
+    modelsLoaded,
     fileInputRef,
     handleDragOver,
     handleDragLeave,

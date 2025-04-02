@@ -1,3 +1,4 @@
+
 import { pipeline, type ProgressCallback, type PretrainedOptions } from '@huggingface/transformers';
 import { toast } from 'sonner';
 
@@ -5,6 +6,7 @@ import { toast } from 'sonner';
 let modelLoadingInProgress = false;
 let modelLoadingStartTime: number | null = null;
 let skipAIProcessing = false;
+let preloadingInitiated = false;
 
 // Track which models are loaded to prevent redundant loading
 const loadedModels = {
@@ -34,9 +36,9 @@ export const resetSkipAIFlag = (): void => {
 const supportsWebWorker = typeof window !== 'undefined' && typeof Worker !== 'undefined';
 
 // Central function to manage model loading
-const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>): Promise<any | null> => {
+const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>, isPreloading = false): Promise<any | null> => {
   // If we've decided to skip AI, return null immediately
-  if (skipAIProcessing) {
+  if (skipAIProcessing && !isPreloading) {
     console.log(`Skipping ${modelType} model loading due to previous errors`);
     return null;
   }
@@ -50,13 +52,16 @@ const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>)
     return window.__cachedClassifierModel;
   }
 
-  // Set loading status
+  // Set loading status (don't show UI indicators if preloading)
   if (!modelLoadingInProgress) {
     modelLoadingInProgress = true;
     modelLoadingStartTime = Date.now();
-    console.log(`Starting to load ${modelType} model...`);
+    console.log(`${isPreloading ? 'Preloading' : 'Loading'} ${modelType} model...`);
   } else {
-    console.log(`Another model is loading, will load ${modelType} after completion`);
+    console.log(`Another model is ${isPreloading ? 'preloading' : 'loading'}, will load ${modelType} after completion`);
+    if (!isPreloading) {
+      return null; // Don't queue up multiple actual loads, let the caller retry later
+    }
   }
 
   try {
@@ -87,12 +92,16 @@ const manageModelLoading = async (modelType: string, loadFn: () => Promise<any>)
     return model;
   } catch (error) {
     console.error(`Error loading ${modelType} model:`, error);
-    skipAIProcessing = true; // Skip future AI processing if loading fails
-    
-    // Show a toast when model loading fails
-    toast.error(`Failed to load AI model. Using simplified processing instead. Try refreshing the page to retry.`, {
-      duration: 8000,
-    });
+    if (!isPreloading) {
+      skipAIProcessing = true; // Skip future AI processing if loading fails but only for actual processing, not preloading
+      
+      // Show a toast when model loading fails during actual processing
+      toast.error(`Failed to load AI model. Using simplified processing instead. Try refreshing the page to retry.`, {
+        duration: 8000,
+      });
+    } else {
+      console.log(`Model preloading failed for ${modelType}, will try again during actual processing`);
+    }
     
     return null;
   } finally {
@@ -118,10 +127,10 @@ const createProgressCallback = (): ProgressCallback => {
 };
 
 // Load Named Entity Recognition (NER) model
-export const getNER = async () => {
-  console.log("Getting NER model...");
+export const getNER = async (isPreloading = false) => {
+  console.log(isPreloading ? "Preloading NER model..." : "Getting NER model...");
   return manageModelLoading('ner', async () => {
-    console.log("Loading NER model...");
+    console.log(isPreloading ? "Preloading NER model..." : "Loading NER model...");
     try {
       // Yield to UI before starting model load
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -137,14 +146,14 @@ export const getNER = async () => {
       console.error("Unable to connect to AI model for NER:", error);
       return null;
     }
-  });
+  }, isPreloading);
 };
 
 // Load text classification model
-export const getTextClassifier = async () => {
-  console.log("Getting text classifier model...");
+export const getTextClassifier = async (isPreloading = false) => {
+  console.log(isPreloading ? "Preloading text classifier model..." : "Getting text classifier model...");
   return manageModelLoading('classifier', async () => {
-    console.log("Loading text classification model...");
+    console.log(isPreloading ? "Preloading text classification model..." : "Loading text classification model...");
     try {
       // Yield to UI before starting model load
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -159,7 +168,37 @@ export const getTextClassifier = async () => {
       console.error("Unable to connect to AI model for text classification:", error);
       return null;
     }
-  });
+  }, isPreloading);
+};
+
+// Preload models function - can be called early in the app lifecycle
+export const preloadAIModels = async (): Promise<void> => {
+  if (preloadingInitiated) {
+    console.log("AI model preloading already initiated, skipping");
+    return;
+  }
+
+  preloadingInitiated = true;
+  console.log("Starting AI model preloading");
+
+  try {
+    // Start preloading the models in the background
+    // Use a slight delay to allow the app to initialize first
+    setTimeout(async () => {
+      try {
+        // Load models in sequence to avoid overwhelming the browser
+        await getNER(true);
+        // Small delay between models
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await getTextClassifier(true);
+        console.log("AI model preloading completed");
+      } catch (error) {
+        console.error("Error during model preloading:", error);
+      }
+    }, 2000);
+  } catch (error) {
+    console.error("Failed to initialize model preloading:", error);
+  }
 };
 
 // Add global declaration for cached models

@@ -6,8 +6,8 @@ import PDFUploadPlaceholder from "./PDFUploadPlaceholder";
 import PDFProgressDisplay from "./PDFProgressDisplay";
 import ExtractionProcessLog from "./credit-report/ExtractionProcessLog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Info } from "lucide-react";
-import { isModelLoading, getModelLoadingDuration } from "@/lib/ai/modelPipelines";
+import { AlertTriangle, Info, CheckCircle } from "lucide-react";
+import { isModelLoading, getModelLoadingDuration, loadedModels } from "@/lib/ai/modelPipelines";
 
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -17,6 +17,7 @@ interface PDFUploaderProps {
 const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: parentIsProcessing }) => {
   const [showProcessLog, setShowProcessLog] = useState(false);
   const [showStartupInfo, setShowStartupInfo] = useState(false);
+  const [modelsReady, setModelsReady] = useState(false);
   
   const {
     isDragging,
@@ -46,6 +47,13 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
         if (!showStartupInfo) {
           setShowStartupInfo(true);
         }
+      } else if (typeof loadedModels === 'object' && (loadedModels.ner || loadedModels.classifier)) {
+        // If at least one model is loaded
+        setModelsReady(true);
+        // After 5 seconds, hide the startup info if it was showing
+        if (showStartupInfo) {
+          setTimeout(() => setShowStartupInfo(false), 5000);
+        }
       }
     };
     
@@ -67,14 +75,28 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing: 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4">
       {showStartupInfo && (
-        <Alert variant="default" className="bg-blue-50 border-blue-200 mb-4">
-          <Info className="h-4 w-4 text-blue-500" />
-          <AlertDescription className="text-blue-800">
-            <p className="font-medium">First-time AI model initialization</p>
-            <p className="text-sm">
-              The first time you process a PDF, AI models need to be downloaded (~15-60MB). 
-              This may take 30-60 seconds, but will be faster on subsequent uses.
-            </p>
+        <Alert variant={modelsReady ? "default" : "default"} 
+               className={modelsReady ? "bg-green-50 border-green-200 mb-4" : "bg-blue-50 border-blue-200 mb-4"}>
+          {modelsReady ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <Info className="h-4 w-4 text-blue-500" />
+          )}
+          <AlertDescription className={modelsReady ? "text-green-800" : "text-blue-800"}>
+            {modelsReady ? (
+              <>
+                <p className="font-medium">AI models loaded successfully</p>
+                <p className="text-sm">The application is ready for PDF processing with enhanced AI capabilities.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">AI models loading in background</p>
+                <p className="text-sm">
+                  AI models are being downloaded (~15-60MB) in the background. 
+                  This may take 30-60 seconds, but will be faster on subsequent uses.
+                </p>
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}
