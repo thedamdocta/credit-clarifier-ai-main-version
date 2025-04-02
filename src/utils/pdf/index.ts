@@ -12,4 +12,6 @@ export * from './core/textExtraction';
 export * from './core/reportHandling';
 export * from './core/imageExtraction';
 export * from './core/parsingHandler';
-
+export * from './core/storageManager';
+export * from './core/textExtractionHelper';
+export * from './core/tableExtractor';
