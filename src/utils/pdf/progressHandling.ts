@@ -21,20 +21,26 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   // Start progress interval for better UX - with less frequent updates to reduce UI load
   progressInterval = setInterval(() => {
     setUploadProgress((prev) => {
+      // If progress is stalled near certain thresholds, give a small increment
+      // to show the user that processing is still happening
+      if ((prev >= 39 && prev <= 41) || (prev >= 59 && prev <= 61) || (prev >= 79 && prev <= 81)) {
+        return prev + 0.1;
+      }
+      
       // Only increment if not already complete and less aggressively
       if (prev >= 90) return prev;
       
       // Slow down as we approach higher percentages to avoid false completion
       let increment;
-      if (prev < 30) increment = 0.7;
-      else if (prev < 50) increment = 0.5;
-      else if (prev < 70) increment = 0.3;
+      if (prev < 30) increment = 0.5;
+      else if (prev < 50) increment = 0.3;
+      else if (prev < 70) increment = 0.2;
       else increment = 0.1;
       
       const newProgress = prev + increment;
       return newProgress > 90 ? 90 : newProgress;
     });
-  }, 600); // Less frequent updates (600ms instead of 400ms)
+  }, 800); // Less frequent updates (800ms) to reduce UI rendering burden
   
   // Function to clear the progress interval
   const clearProgressTracking = () => {

@@ -33,9 +33,15 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
     
     const numPages = pdfDocument.numPages;
     
-    console.log(`PDF has ${numPages} pages. Scanning all pages for credit accounts table...`);
+    console.log(`PDF has ${numPages} pages. Scanning for credit accounts table...`);
+    
+    // Set a maximum time for the extraction process
+    const startTime = Date.now();
+    const MAX_EXTRACTION_TIME = 20000; // 20 seconds maximum
     
     // First pass: Check all pages with keywords to find potential account table pages
+    // But limit to first 15 pages for performance in very large documents
+    const pagesToScan = Math.min(15, numPages);
     const pageScores: {pageNum: number, score: number}[] = [];
     
     // Comprehensive keywords that indicate credit account tables
@@ -51,9 +57,15 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
       'total', 'other', 'collection'
     ];
     
-    // Check all pages for keyword matches
-    console.log("First pass: Scanning all pages for keywords...");
-    for (let i = 1; i <= numPages; i++) {
+    // Check pages for keyword matches with timeout protection
+    console.log(`First pass: Scanning first ${pagesToScan} pages for keywords...`);
+    for (let i = 1; i <= pagesToScan; i++) {
+      // Check if we've exceeded our time budget
+      if (Date.now() - startTime > MAX_EXTRACTION_TIME) {
+        console.log("Image extraction taking too long, continuing process");
+        break;
+      }
+      
       try {
         const page = await pdfDocument.getPage(i);
         const textContent = await page.getTextContent();
@@ -88,8 +100,17 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
         console.log(`Page ${i} scored ${score} with matches: ${matchedKeywords.join(', ')}`);
         pageScores.push({pageNum: i, score});
         
+        // Clean up page data to free memory
+        if (page && page.cleanup) {
+          page.cleanup();
+        }
       } catch (error) {
         console.error(`Error scanning page ${i}:`, error);
+      }
+      
+      // Yield to UI thread occasionally to prevent freezing
+      if (i % 3 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 5));
       }
     }
     
@@ -97,8 +118,16 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
     pageScores.sort((a, b) => b.score - a.score);
     console.log("Pages ranked by relevance:", pageScores);
     
-    // Try to extract from the highest scored pages first
-    for (const {pageNum, score} of pageScores) {
+    // Try to extract from the highest scored pages first, but limit to top 3 for performance
+    const topPages = pageScores.slice(0, Math.min(3, pageScores.length));
+    
+    for (const {pageNum, score} of topPages) {
+      // Check if we've exceeded our time budget
+      if (Date.now() - startTime > MAX_EXTRACTION_TIME) {
+        console.log("Image extraction taking too long, continuing process");
+        break;
+      }
+      
       if (score >= 2) { // Only try pages with at least a decent score
         console.log(`Attempting to extract table image from high-scoring page ${pageNum} (score: ${score})`);
         const imageData = await convertPDFPageToImage(pdfDocument, pageNum);
@@ -111,25 +140,9 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
       }
     }
     
-    // If we couldn't find a good match with a score >= 2, try the top 3 pages
-    console.log("No high-scoring pages yielded good images, trying top 3 pages...");
-    const topPages = pageScores.slice(0, Math.min(3, pageScores.length));
-    
-    for (const {pageNum} of topPages) {
-      console.log(`Fallback: extracting image from page ${pageNum}`);
-      const imageData = await convertPDFPageToImage(pdfDocument, pageNum);
-      
-      if (imageData) {
-        console.log(`Fallback succeeded: extracted image from page ${pageNum}`);
-        setTableImageUrl(imageData);
-        return imageData;
-      }
-    }
-    
-    // Last resort: just try the first few pages
-    console.log("Last resort: trying first few pages...");
-    for (let i = 1; i <= Math.min(5, numPages); i++) {
-      try {
+    // Last resort: try one of the first few pages if we haven't exceeded our time budget
+    if (Date.now() - startTime <= MAX_EXTRACTION_TIME) {
+      for (let i = 1; i <= Math.min(3, numPages); i++) {
         // Skip pages we've already tried
         if (topPages.some(p => p.pageNum === i)) {
           continue;
@@ -143,12 +156,10 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
           setTableImageUrl(imageData);
           return imageData;
         }
-      } catch (error) {
-        console.error(`Error extracting image from page ${i}:`, error);
       }
     }
     
-    console.error("Failed to extract any useful table images from PDF");
+    console.log("Failed to extract any useful table images from PDF or timed out");
     return null;
   } catch (error) {
     console.error("Error extracting credit accounts table image:", error);

@@ -24,24 +24,32 @@ export async function handleParsing(
     // Add toast to indicate parsing has started
     toast.info("Analyzing credit data...", { duration: 5000 });
     
+    // For extremely large text, truncate it to prevent browser freezing
+    let textToProcess = extractedText;
+    if (textToProcess.length > 300000) { // ~300KB
+      console.log(`Text is very large (${textToProcess.length} chars), truncating for processing`);
+      textToProcess = textToProcess.substring(0, 300000);
+      toast.warning("Document was very large, analyzing first portion only", { duration: 5000 });
+    }
+    
     // Parse the extracted text with a shorter timeout
     const parsePromise = async () => {
       try {
-        return await parsePDFContent(extractedText, useAI);
+        return await parsePDFContent(textToProcess, useAI);
       } catch (parseError) {
         console.error("Error in parse promise:", parseError);
         return null;
       }
     };
     
-    // Use a shorter timeout for parsing to prevent UI freezing
+    // Use a timeout for parsing to prevent UI freezing
     const parsedReport = await Promise.race([
       parsePromise(),
       new Promise<CreditReport | null>((resolve) => 
         setTimeout(() => {
           console.log("Parsing taking too long, continuing with basic data");
           resolve(null);
-        }, 20000) // Reduced from 40s to 20s timeout
+        }, 25000) // 25s timeout
       )
     ]);
     
@@ -54,7 +62,14 @@ export async function handleParsing(
       // Ensure required properties exist before accessing them
       parsedReport.reportId = uniqueReportId;
       parsedReport.fileName = file.name;
-      parsedReport.rawText = extractedText; // Store the raw text for later use
+      
+      // Store only a reasonable amount of raw text to prevent memory issues
+      if (extractedText && extractedText.length > 500000) { // ~500KB
+        parsedReport.rawText = extractedText.substring(0, 500000) + 
+          "\n[Text truncated due to size limitations]";
+      } else {
+        parsedReport.rawText = extractedText;
+      }
       
       // Make sure accountSummaries exists to prevent errors
       if (!parsedReport.accountSummaries) {
