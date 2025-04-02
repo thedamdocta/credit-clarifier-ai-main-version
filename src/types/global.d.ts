@@ -8,6 +8,8 @@ interface Window {
     fileName: string;
     extractedText: string;
   };
+  currentPdf?: any; // Add this property to fix the TypeScript error
+  currentPdfPageImages?: string[]; // Add this property to fix the TypeScript error
 }
 
 // Extend the global Window interface
@@ -18,5 +20,7 @@ declare global {
       fileName: string;
       extractedText: string;
     };
+    currentPdf?: any; // Add this property to fix the TypeScript error
+    currentPdfPageImages?: string[]; // Add this property to fix the TypeScript error
   }
 }

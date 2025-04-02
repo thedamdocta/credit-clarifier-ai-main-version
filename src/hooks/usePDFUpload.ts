@@ -6,9 +6,10 @@ import { processPDFDocument } from "@/utils/pdf";
 interface UsePDFUploadProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   useAI: boolean;
+  useImageExtraction?: boolean; // Added this property to fix the TypeScript error
 }
 
-export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
+export const usePDFUpload = ({ onPDFUploaded, useAI, useImageExtraction = true }: UsePDFUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
@@ -20,7 +21,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
       setCurrentFile,
       setUploadProgress,
       onPDFUploaded,
-      useImageExtraction: true // Always enable image extraction for better table detection
+      useImageExtraction: useImageExtraction // Use the prop value instead of hardcoding
     });
   };
 
