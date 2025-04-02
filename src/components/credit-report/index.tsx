@@ -1,3 +1,4 @@
+
 import React from 'react';
 import NewCreditAccounts from './NewCreditAccounts';
 import { CreditReport } from '@/lib/types/creditReport';
@@ -16,7 +17,7 @@ const CreditReportComponent: React.FC<CreditReportComponentProps> = ({ report })
   return (
     <div className="space-y-6">
       {isLargeReport && (
-        <Alert variant="warning">
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Large Report Detected</AlertTitle>
           <AlertDescription>
