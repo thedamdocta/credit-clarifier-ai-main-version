@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -47,18 +46,25 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           // Create a clean object to avoid duplication
           const cleanedSummary = { ...summary };
           
-          // Empty rows handling - specifically for "Other" row
+          // Only clear values for "Other" row if it's not explicitly "0"
           if (summary.accountType === "Other") {
-            if (summary.open === ',' || summary.open === '0') {
+            // Keep "0" values as "0" - only clear commas and empty values
+            if (summary.open === ',' || summary.open === '') {
               cleanedSummary.open = null;
+            } else if (summary.open === '0') {
+              cleanedSummary.open = "0";
             }
             
-            if (summary.withBalance === ',' || summary.withBalance === '0') {
+            if (summary.withBalance === ',' || summary.withBalance === '') {
               cleanedSummary.withBalance = null;
+            } else if (summary.withBalance === '0') {
+              cleanedSummary.withBalance = "0";
             }
             
-            if (summary.totalBalance === '$,' || summary.totalBalance === '$0') {
+            if (summary.totalBalance === '$,' || summary.totalBalance === '$' || summary.totalBalance === '') {
               cleanedSummary.totalBalance = null;
+            } else if (summary.totalBalance === '$0') {
+              cleanedSummary.totalBalance = "$0";
             }
           }
           
@@ -97,6 +103,16 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     // Special handling for Total row - display "x" for empty cells
     if (accountType === "Total" && (value === null || value === undefined || value === '')) {
       return "x";
+    }
+    
+    // Handle "Other" row zeros - display as "0" not "x"
+    if (accountType === "Other" && (value === 0 || value === "0")) {
+      if (fieldName === "open" || fieldName === "withBalance") {
+        return "0";
+      }
+      if (fieldName === "totalBalance" && value === "$0") {
+        return "$0";
+      }
     }
     
     // For zero values - explicitly check string "0" as well as number 0

@@ -26,7 +26,7 @@ export function parseNumericValue(value: string | null): string | null {
   
   // Handle common OCR errors like ',' or '.' instead of number
   if (normalized === ',' || normalized === '.') {
-    return null;  // Changed from '0' to null for "Other" row support
+    return null;  // Keeps returning null for error values
   }
 
   // Handle single character OCR errors that should be numbers
@@ -112,7 +112,7 @@ export function parsePercentageValue(value: string | null): string | null {
     const num = parseFloat(matches[1]);
     // Handle NaN
     if (isNaN(num)) {
-      return null;  // Changed from '0.0%' to null to properly handle empty cells
+      return null;  // Keeps returning null for error values
     }
     return `${num.toFixed(1)}%`;
   }
@@ -123,7 +123,7 @@ export function parsePercentageValue(value: string | null): string | null {
     const num = parseFloat(normalized);
     // Handle NaN
     if (isNaN(num)) {
-      return null;  // Changed from '0.0%' to null to properly handle empty cells
+      return null;  // Keeps returning null for error values
     }
     return `${num.toFixed(1)}%`;
   }
