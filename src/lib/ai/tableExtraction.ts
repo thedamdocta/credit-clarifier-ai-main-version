@@ -62,10 +62,8 @@ export async function extractTableFromImage(
     
     // Try OpenAI extraction first if available
     try {
-      // Check for OpenAI API key in localStorage
-      const apiKey = localStorage.getItem('openai_api_key');
-      
-      if (apiKey && apiKey.startsWith('sk-')) {
+      // Check if OpenAI API can be used (either user key or hardcoded key)
+      if (canUseOpenAI()) {
         console.log('OpenAI API key found, attempting extraction with OpenAI');
         const openaiExtractedData = await extractTableWithOpenAI(imageUrl);
         

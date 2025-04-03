@@ -1,14 +1,25 @@
+
 import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
+
+// Hardcoded API key as fallback (replace with your actual key)
+// NOTE: This is not the ideal approach for production. Consider moving this to a server-side implementation.
+const HARDCODED_API_KEY = 'sk-your-actual-api-key-here'; // Replace with your actual OpenAI API key
 
 // OpenAI API for credit report OCR and extraction
 export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountSummary[] | null> => {
   try {
-    // Check if we have an API key configured
-    const apiKey = localStorage.getItem('openai_api_key');
+    // First check for user-provided API key
+    let apiKey = localStorage.getItem('openai_api_key');
     
+    // If no user key, fall back to hardcoded key
     if (!apiKey) {
-      console.log('No OpenAI API key found in local storage');
+      console.log('No user API key found, using hardcoded key');
+      apiKey = HARDCODED_API_KEY;
+    }
+    
+    if (!apiKey || !apiKey.startsWith('sk-')) {
+      console.log('No valid OpenAI API key available');
       return null;
     }
     
@@ -139,7 +150,7 @@ export const OpenAIConfigForm: React.FC = () => {
   return (
     <div className="p-4 border rounded-md mb-4">
       <h3 className="font-medium mb-2">OpenAI API Configuration</h3>
-      <p className="text-sm mb-2">Add your OpenAI API key to enable advanced table extraction</p>
+      <p className="text-sm mb-2">OpenAI API key is optional - the app has a built-in key</p>
       <div className="flex gap-2">
         <input 
           type="password" 
@@ -156,6 +167,7 @@ export const OpenAIConfigForm: React.FC = () => {
         </button>
       </div>
       {saved && <p className="text-green-600 text-xs mt-1">API key saved!</p>}
+      <p className="text-xs text-muted-foreground mt-2">You can use your own key or rely on the built-in key</p>
     </div>
   );
 };
@@ -163,5 +175,5 @@ export const OpenAIConfigForm: React.FC = () => {
 // Check if we can use OpenAI extraction
 export const canUseOpenAI = (): boolean => {
   const apiKey = localStorage.getItem('openai_api_key');
-  return !!apiKey && apiKey.startsWith('sk-');
+  return (!!apiKey && apiKey.startsWith('sk-')) || !!HARDCODED_API_KEY.startsWith('sk-');
 };
