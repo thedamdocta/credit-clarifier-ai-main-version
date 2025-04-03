@@ -1,4 +1,4 @@
-
+import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
 
 // OpenAI API for credit report OCR and extraction
@@ -127,8 +127,8 @@ If you can't extract a specific value, set it to null. Be extremely precise with
 
 // Component for managing OpenAI API key
 export const OpenAIConfigForm: React.FC = () => {
-  const [apiKey, setApiKey] = React.useState(localStorage.getItem('openai_api_key') || '');
-  const [saved, setSaved] = React.useState(false);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
+  const [saved, setSaved] = useState(false);
   
   const handleSave = () => {
     localStorage.setItem('openai_api_key', apiKey);

@@ -3,7 +3,7 @@ import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
 import { calculateCreditAccountsTableScore } from './tableDetection';
 import { trainParser } from './table/valueParser';
-import { extractTableWithOpenAI } from './openai/openaiService';
+import { extractTableWithOpenAI, canUseOpenAI } from './openai/openaiService';
 
 /**
  * Enhanced table extraction with improved targeting for Credit Accounts tables
