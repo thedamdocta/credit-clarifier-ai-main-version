@@ -3,9 +3,11 @@ import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
 import { calculateCreditAccountsTableScore } from './tableDetection';
 import { trainParser } from './table/valueParser';
+import { extractTableWithOpenAI } from './openai/openaiService';
 
 /**
  * Enhanced table extraction with improved targeting for Credit Accounts tables
+ * Uses multiple extraction methods including OpenAI when available
  * @param imageUrl - The URL of the image to extract table from
  * @param targetTableName - The name of the target table to extract (default: "Credit Accounts")
  */
@@ -58,6 +60,50 @@ export async function extractTableFromImage(
       }
     }
     
+    // Try OpenAI extraction first if available
+    try {
+      // Check for OpenAI API key in localStorage
+      const apiKey = localStorage.getItem('openai_api_key');
+      
+      if (apiKey && apiKey.startsWith('sk-')) {
+        console.log('OpenAI API key found, attempting extraction with OpenAI');
+        const openaiExtractedData = await extractTableWithOpenAI(imageUrl);
+        
+        if (openaiExtractedData && openaiExtractedData.length > 0) {
+          console.log('Successfully extracted data with OpenAI:', openaiExtractedData);
+          
+          // Convert to the expected format
+          const formattedTable = {
+            headers: ['Account Type', 'Open', 'With Balance', 'Total Balance', 'Available', 'Credit Limit', 'Debt-to-Credit', 'Payment'],
+            rows: openaiExtractedData.map(summary => ({
+              'Account Type': summary.accountType,
+              'Open': summary.open || '',
+              'With Balance': summary.withBalance || '',
+              'Total Balance': summary.totalBalance || '',
+              'Available': summary.available || '',
+              'Credit Limit': summary.creditLimit || '',
+              'Debt-to-Credit': summary.debtToCredit || '',
+              'Payment': summary.payment || ''
+            })),
+            matchScore: 0.9, // High confidence for OpenAI
+            extractionMethod: 'openai'
+          };
+          
+          // Train the local parser with this successful extraction to improve future results
+          trainParser(openaiExtractedData);
+          
+          return formattedTable;
+        }
+        
+        console.log('OpenAI extraction unsuccessful, falling back to Tesseract');
+      } else {
+        console.log('No OpenAI API key available, using Tesseract');
+      }
+    } catch (error) {
+      console.error('Error with OpenAI extraction:', error);
+      console.log('Falling back to Tesseract extraction');
+    }
+    
     // Use enhanced Tesseract OCR to extract table data from the image with improved settings
     console.log(`Using enhanced Tesseract OCR to extract ${targetTableName} table from image`);
     const extractedTable = await extractTableWithTesseract(imageUrl, targetTableName);
@@ -95,7 +141,8 @@ export async function extractTableFromImage(
             });
             return rowObject;
           }),
-          matchScore: extractedTable.matchScore || 0
+          matchScore: extractedTable.matchScore || 0,
+          extractionMethod: 'tesseract'
         };
         
         return formattedTable;
@@ -119,6 +166,7 @@ export async function extractTableFromImage(
         const tableData = extractTableStructureFromText(extractedText, targetTableName);
         if (tableData) {
           tableData.matchScore = textScore;
+          tableData.extractionMethod = 'text-pattern';
           return tableData;
         }
       }

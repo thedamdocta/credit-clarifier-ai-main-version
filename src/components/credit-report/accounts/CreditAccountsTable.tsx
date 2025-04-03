@@ -3,12 +3,13 @@ import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
 import { formatAccountValue, formatDollarAmount, formatPercentageValue } from "@/utils/formatters/accountValueFormatters";
-import { AlertCircle, Info, Upload, Save } from "lucide-react";
+import { AlertCircle, Info, Upload, Save, Brain } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isZeroValue, formatValueForDisplay, parseFlexibleValue, parseNumericValue, parseCurrencyValue, parsePercentageValue, trainParser } from "@/lib/ai/table/valueParser";
 import useTrainingExamples from "@/hooks/useTrainingExamples";
+import { OpenAIConfigForm, canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
@@ -21,7 +22,8 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
 }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
   const [stableData, setStableData] = useState<AccountSummary[]>(accountSummaries);
-  const { addTrainingExamples, isTraining } = useTrainingExamples();
+  const [showOpenAIConfig, setShowOpenAIConfig] = useState(false);
+  const { addTrainingExamples, isTraining, examples, resetTrainingExamples } = useTrainingExamples();
   
   // If we receive new account summaries with actual data, update our stable data
   useEffect(() => {
@@ -148,13 +150,27 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           </AlertDescription>
         </Alert>
       )}
+
+      {showOpenAIConfig && (
+        <div className="mb-4">
+          <OpenAIConfigForm />
+        </div>
+      )}
       
-      <div className="flex justify-end mb-2">
+      <div className="flex justify-between mb-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => setShowOpenAIConfig(!showOpenAIConfig)}
+        >
+          <Brain className="h-4 w-4 mr-2" />
+          {showOpenAIConfig ? 'Hide OpenAI Config' : 'Configure OpenAI'}
+        </Button>
+        
         {!hasNoData && !isSampleData && (
           <Button 
             variant="outline" 
-            size="sm" 
-            className="ml-auto"
+            size="sm"
             onClick={handleTrainWithCurrentData}
             disabled={isTraining}
           >
@@ -163,6 +179,22 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           </Button>
         )}
       </div>
+
+      {examples && examples.length > 0 && (
+        <div className="mb-2 flex justify-end">
+          <p className="text-xs text-muted-foreground mr-2">
+            {examples.length} training examples stored
+          </p>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-5 text-xs"
+            onClick={resetTrainingExamples}
+          >
+            Reset
+          </Button>
+        </div>
+      )}
       
       <Table>
         <TableHeader>
@@ -200,6 +232,15 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           ))}
         </TableBody>
       </Table>
+      
+      {canUseOpenAI() && (
+        <div className="mt-2 flex items-center justify-end">
+          <Badge variant="outline" className="bg-green-50">
+            <Brain className="h-3 w-3 mr-1 text-green-600" />
+            <span className="text-xs text-green-700">OpenAI Enhanced</span>
+          </Badge>
+        </div>
+      )}
     </div>
   );
 };
