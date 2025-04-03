@@ -1,22 +1,17 @@
+
 import React, { useState } from 'react';
 import { Account } from '@/lib/types/creditReport';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
+import { Badge } from "@/components/ui/badge";
 import { 
   Search, 
   Filter, 
   X, 
   AlertCircle, 
-  CreditCard, 
-  ArrowUpDown, 
-  ChevronDown, 
+  CreditCard,
+  ChevronDown,
+  ArrowUpDown
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -27,7 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import AccountDetail from './AccountDetail';
 
 interface AccountsDetailListProps {
@@ -97,21 +91,13 @@ const AccountDetailsList: React.FC<AccountsDetailListProps> = ({ accounts }) => 
   
   if (!accounts || accounts.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <CreditCard className="mr-2 h-5 w-5" />
-            Account Details
-          </CardTitle>
-          <CardDescription>No accounts found in the credit report</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center py-6">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground">No account data available</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-8">
+        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+        <h3 className="font-medium text-lg mb-1">No Accounts Found</h3>
+        <p className="text-muted-foreground">
+          No account data is available in your credit report.
+        </p>
+      </div>
     );
   }
 
@@ -166,209 +152,212 @@ const AccountDetailsList: React.FC<AccountsDetailListProps> = ({ accounts }) => 
     );
   }
 
-  // Otherwise, show the accounts list
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <CreditCard className="mr-2 h-5 w-5" />
-          Account Details
-        </CardTitle>
-        <CardDescription>
-          Detailed information about each account in your credit report
-        </CardDescription>
-        
-        <div className="flex flex-col sm:flex-row gap-2 mt-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search accounts..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-9 w-9 p-0"
-                onClick={() => setSearchTerm("")}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-          
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="sm:w-auto">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filter
-                  {(statusFilter || typeFilter) && (
-                    <Badge variant="secondary" className="ml-2">
-                      {(statusFilter && typeFilter) ? '2' : '1'}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Filter Accounts</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                    Status
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setStatusFilter(null)}>
-                    <span className="flex items-center justify-between w-full">
-                      All Statuses
-                      {statusFilter === null && <Badge variant="outline">✓</Badge>}
-                    </span>
-                  </DropdownMenuItem>
-                  {uniqueStatuses.map((status, i) => (
-                    <DropdownMenuItem key={i} onClick={() => setStatusFilter(status || null)}>
-                      <span className="flex items-center justify-between w-full">
-                        {status || 'Unknown'}
-                        {statusFilter === status && <Badge variant="outline">✓</Badge>}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-                
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                    Account Type
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setTypeFilter(null)}>
-                    <span className="flex items-center justify-between w-full">
-                      All Types
-                      {typeFilter === null && <Badge variant="outline">✓</Badge>}
-                    </span>
-                  </DropdownMenuItem>
-                  {uniqueTypes.map((type, i) => (
-                    <DropdownMenuItem key={i} onClick={() => setTypeFilter(type || null)}>
-                      <span className="flex items-center justify-between w-full">
-                        {type || 'Unknown'}
-                        {typeFilter === type && <Badge variant="outline">✓</Badge>}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="sm:w-auto">
-                  <ArrowUpDown className="mr-2 h-4 w-4" />
-                  Sort
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSortOrder('default')}>
-                  <span className="flex items-center justify-between w-full">
-                    Default (Negative First)
-                    {sortOrder === 'default' && <Badge variant="outline">✓</Badge>}
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortOrder('asc')}>
-                  <span className="flex items-center justify-between w-full">
-                    A-Z
-                    {sortOrder === 'asc' && <Badge variant="outline">✓</Badge>}
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortOrder('desc')}>
-                  <span className="flex items-center justify-between w-full">
-                    Z-A
-                    {sortOrder === 'desc' && <Badge variant="outline">✓</Badge>}
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+    <div>
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search accounts..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-9 w-9 p-0"
+              onClick={() => setSearchTerm("")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {filteredAccounts.map((account, index) => {
-            const isNegative = isNegativeAccount(account);
-            
-            return (
-              <div
-                key={index}
-                className={`border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors ${
-                  isNegative ? 'border-red-300 bg-red-50/50' : ''
-                }`}
-                onClick={() => setSelectedAccount(account)}
-              >
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-medium text-lg">
-                        {account.accountName || 'Unknown Account'}
-                      </h3>
-                      {isNegative && (
-                        <Badge variant="destructive" className="uppercase text-xs">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Negative
-                        </Badge>
-                      )}
-                      {account.status && (
-                        <Badge variant={isNegative ? "outline" : "secondary"}>
-                          {account.status}
-                        </Badge>
-                      )}
+        
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="sm:w-auto">
+                <Filter className="mr-2 h-4 w-4" />
+                Filter
+                {(statusFilter || typeFilter) && (
+                  <Badge variant="secondary" className="ml-2">
+                    {(statusFilter && typeFilter) ? '2' : '1'}
+                  </Badge>
+                )}
+                <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Filter Accounts</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Status
+                </DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setStatusFilter(null)}>
+                  <span className="flex items-center justify-between w-full">
+                    All Statuses
+                    {statusFilter === null && <Badge variant="outline">✓</Badge>}
+                  </span>
+                </DropdownMenuItem>
+                {uniqueStatuses.map((status, i) => (
+                  <DropdownMenuItem key={i} onClick={() => setStatusFilter(status || null)}>
+                    <span className="flex items-center justify-between w-full">
+                      {status || 'Unknown'}
+                      {statusFilter === status && <Badge variant="outline">✓</Badge>}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Account Type
+                </DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setTypeFilter(null)}>
+                  <span className="flex items-center justify-between w-full">
+                    All Types
+                    {typeFilter === null && <Badge variant="outline">✓</Badge>}
+                  </span>
+                </DropdownMenuItem>
+                {uniqueTypes.map((type, i) => (
+                  <DropdownMenuItem key={i} onClick={() => setTypeFilter(type || null)}>
+                    <span className="flex items-center justify-between w-full">
+                      {type || 'Unknown'}
+                      {typeFilter === type && <Badge variant="outline">✓</Badge>}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="sm:w-auto">
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                Sort
+                <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSortOrder('default')}>
+                <span className="flex items-center justify-between w-full">
+                  Default (Negative First)
+                  {sortOrder === 'default' && <Badge variant="outline">✓</Badge>}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOrder('asc')}>
+                <span className="flex items-center justify-between w-full">
+                  A-Z
+                  {sortOrder === 'asc' && <Badge variant="outline">✓</Badge>}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOrder('desc')}>
+                <span className="flex items-center justify-between w-full">
+                  Z-A
+                  {sortOrder === 'desc' && <Badge variant="outline">✓</Badge>}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      
+      <div className="space-y-4">
+        {filteredAccounts.map((account, index) => {
+          const isNegative = isNegativeAccount(account);
+          const accountStatus = account.status || "Not Specified";
+          const extraInfo = account.activityDesignator || 
+                           (account.paymentHistory && account.paymentHistory.length > 0 ? "Payment history available" : "");
+          
+          return (
+            <div
+              key={index}
+              className={`border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors ${
+                isNegative ? 'border-red-300 bg-red-50/50' : ''
+              }`}
+              onClick={() => setSelectedAccount(account)}
+            >
+              <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium text-lg">
+                      {account.accountName || 'Unknown Account'}
+                    </h3>
+                    {isNegative && (
+                      <Badge variant="destructive" className="uppercase text-xs">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Negative
+                      </Badge>
+                    )}
+                    {accountStatus && (
+                      <Badge variant={isNegative ? "outline" : "secondary"}>
+                        {accountStatus}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    {account.accountType || 'Unknown Type'} • #{account.accountNumber || 'Unknown'}
+                  </div>
+                  
+                  {extraInfo && (
+                    <div className="text-sm mt-1">{extraInfo}</div>
+                  )}
+                  
+                  {account.termsFrequency && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Terms Frequency: {account.termsFrequency} {account.termDuration ? `• Term Duration: ${account.termDuration}` : ''}
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {account.accountType || 'Unknown Type'} • #{account.accountNumber || 'Unknown'}
+                  )}
+                </div>
+                
+                <div className="flex items-center space-x-8">
+                  <div className="text-right">
+                    <div className="text-sm text-muted-foreground">Balance</div>
+                    <div className="font-medium">
+                      {account.balance || account.reportedBalance || '$0'}
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-6">
-                    <div>
-                      <div className="text-sm text-muted-foreground">Balance</div>
-                      <div className="font-medium">
-                        {account.balance || account.reportedBalance || '$0'}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-sm text-muted-foreground">Opened</div>
-                      <div className="font-medium">{account.openDate || 'Unknown'}</div>
-                    </div>
+                  <div className="text-right">
+                    <div className="text-sm text-muted-foreground">Opened</div>
+                    <div className="font-medium">{account.openDate || 'Not Found'}</div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-          
-          {filteredAccounts.length === 0 && (
-            <div className="text-center py-8">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-              <h3 className="font-medium text-lg mb-1">No matching accounts</h3>
-              <p className="text-muted-foreground text-sm">
-                Try adjusting your search or filters
-              </p>
-              <Button 
-                variant="ghost" 
-                className="mt-4"
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter(null);
-                  setTypeFilter(null);
-                }}
-              >
-                Reset Filters
-              </Button>
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          );
+        })}
+        
+        {filteredAccounts.length === 0 && (
+          <div className="text-center py-8">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+            <h3 className="font-medium text-lg mb-1">No matching accounts</h3>
+            <p className="text-muted-foreground text-sm">
+              Try adjusting your search or filters
+            </p>
+            <Button 
+              variant="ghost" 
+              className="mt-4"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter(null);
+                setTypeFilter(null);
+              }}
+            >
+              Reset Filters
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
