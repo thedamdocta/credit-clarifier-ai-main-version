@@ -42,7 +42,7 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
         <div className="flex justify-between items-center">
           <CardTitle className="text-base font-medium flex items-center">
             <Shield className="h-4 w-4 mr-2 text-green-600" />
-            Enhanced Credit Table Extraction
+            Add Your API Key
             {canUseOpenAI() && (
               <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
                 <CheckCircle className="h-3 w-3 mr-1" /> Ready
@@ -51,7 +51,7 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
           </CardTitle>
         </div>
         <CardDescription>
-          Enhanced table extraction powered by OpenAI
+          Enhanced table extraction for better results
         </CardDescription>
       </CardHeader>
       <CardContent>
