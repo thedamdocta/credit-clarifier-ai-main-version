@@ -6,6 +6,7 @@ import ReportSummary from "./credit-report/ReportSummary";
 import OtherItems from "./credit-report/OtherItems";
 import DisputeInformation from "./credit-report/DisputeInformation";
 import EnhancedCreditAccounts from "./credit-report/EnhancedCreditAccounts";
+import AccountsDetailView from "./credit-report/AccountsDetailView";
 
 interface EquifaxCreditReportProps {
   report: CreditReport;
@@ -17,6 +18,7 @@ const EquifaxCreditReport: React.FC<EquifaxCreditReportProps> = ({ report }) => 
       <ReportConfirmation report={report} />
       <ReportSummary report={report} />
       <EnhancedCreditAccounts report={report} />
+      <AccountsDetailView report={report} />
       <OtherItems report={report} />
       <DisputeInformation />
     </div>

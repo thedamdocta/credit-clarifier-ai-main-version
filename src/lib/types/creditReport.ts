@@ -1,4 +1,3 @@
-
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -13,6 +12,57 @@ export interface Account {
   totalAccounts?: number;
   openAccounts?: number;
   closedAccounts?: number;
+  
+  // Extended account details
+  isNegative?: boolean;
+  comments?: string[];
+  contactInfo?: {
+    name?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    phone?: string;
+  };
+  
+  // Summary information
+  reportedBalance?: string;
+  availableCredit?: string;
+  activityDesignator?: string;
+  
+  // Account History
+  balanceHistory?: { [key: string]: { [key: string]: string } };
+  scheduledPaymentHistory?: { [key: string]: { [key: string]: string } };
+  actualPaymentHistory?: { [key: string]: { [key: string]: string } };
+  creditLimitHistory?: { [key: string]: { [key: string]: string } };
+  pastDueHistory?: { [key: string]: { [key: string]: string } };
+  
+  // Payment History
+  paymentHistoryPatterns?: {
+    [key: string]: { [key: string]: string | boolean };
+  };
+  monthsReviewed?: number;
+  
+  // Account Details
+  highCredit?: string;
+  termsFrequency?: string;
+  termDuration?: string;
+  dateReported?: string;
+  dateLastPayment?: string;
+  dateLastActivity?: string;
+  scheduledPaymentAmount?: string;
+  actualPaymentAmount?: string;
+  amountPastDue?: string;
+  delinquencyFirstReported?: string;
+  creditorClassification?: string;
+  chargeOffAmount?: string;
+  dateOfFirstDelinquency?: string;
+  dateClosed?: string;
+  loanType?: string;
+  paymentResponsibility?: string;
+  deferredPaymentStartDate?: string;
+  balloonPaymentDate?: string;
+  balloonPaymentAmount?: string;
 }
 
 export interface PersonalInfo {
