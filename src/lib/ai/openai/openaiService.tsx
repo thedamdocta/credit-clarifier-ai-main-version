@@ -31,64 +31,21 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     let imageBlob: Blob;
     
     try {
-      if (imageUrl.startsWith('data:')) {
-        // For data URLs, create a new image element to load it properly
-        const img = new Image();
-        const loadPromise = new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error('Failed to load image from data URL'));
-          img.src = imageUrl;
-        });
-        
-        // Wait for the image to load
-        await loadPromise;
-        
-        // Create a canvas to draw the image
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          throw new Error('Failed to get canvas context');
+      // For regular URLs, use fetch with cache control
+      const response = await fetch(imageUrl, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache'
         }
-        
-        // Draw the image to the canvas
-        ctx.drawImage(img, 0, 0);
-        
-        // Get the blob from the canvas
-        imageBlob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob((blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Failed to convert canvas to blob'));
-            }
-          }, 'image/png');
-        });
-        
-        console.log('Successfully converted data URL to blob');
-      } else {
-        // For regular URLs, use fetch with cache control
-        const response = await fetch(imageUrl, {
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          },
-          mode: 'cors', // Try with CORS mode
-          cache: 'no-cache'
-        });
-        
-        if (!response.ok) {
-          console.error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-        }
-        
-        imageBlob = await response.blob();
-        console.log('Successfully fetched image as blob');
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
+      
+      imageBlob = await response.blob();
+      console.log('Successfully fetched image as blob');
     } catch (error) {
       console.error('Error fetching image:', error);
       toast.error('Failed to process the image. Check your network connection and try again.');
@@ -123,12 +80,7 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     try {
       console.log('Making OpenAI API call for image extraction...');
       
-      // Set a longer timeout for the API call
-      const timeoutPromise = new Promise<null>((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API call timed out after 45 seconds')), 45000)
-      );
-      
-      const fetchPromise = fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -177,9 +129,6 @@ If you see empty cells or missing values, set them to null in the JSON.`
           max_tokens: 1000
         }),
       });
-
-      // Race between fetch and timeout
-      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -341,4 +290,3 @@ export const canUseOpenAI = (): boolean => {
   
   return hasUserKey || hasHardcodedKey;
 };
-

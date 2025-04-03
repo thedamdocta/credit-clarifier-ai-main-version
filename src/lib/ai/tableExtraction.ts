@@ -13,10 +13,7 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
     if (canUseOpenAI()) {
       console.log("OpenAI API is available, attempting AI-based extraction");
       try {
-        // Add cache busting to the image URL to prevent caching issues
-        const cacheBustedImageUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}cache=${Date.now()}`;
-        
-        const openAIResults = await extractTableWithOpenAI(cacheBustedImageUrl);
+        const openAIResults = await extractTableWithOpenAI(imageUrl);
         
         if (openAIResults && openAIResults.length > 0) {
           console.log("Successfully extracted table with OpenAI");

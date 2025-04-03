@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
@@ -52,38 +51,40 @@ export const handleEnhancedExtraction = async (
       
       if (newTableImageUrl) {
         console.log("Using table image URL for extraction:", newTableImageUrl);
-        
-        // Add a cache-busting parameter to the URL
-        const cacheBustUrl = `${newTableImageUrl}${newTableImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
-        
-        // First try OpenAI extraction if available (highest quality results)
-        if (canUseOpenAI()) {
-          console.log("Attempting extraction with OpenAI");
-          
-          try {
-            const openAIResults = await extractTableWithOpenAI(cacheBustUrl);
+
+        // For regular image URLs (not data: URLs), proceed with OpenAI extraction
+        if (!newTableImageUrl.startsWith('data:')) {
+          // First try OpenAI extraction if available (highest quality results)
+          if (canUseOpenAI()) {
+            console.log("Attempting extraction with OpenAI");
             
-            if (openAIResults && openAIResults.length > 0 && hasRealData(openAIResults)) {
-              console.log("Successfully extracted data with OpenAI:", openAIResults);
-              if (forceManualExtraction) {
-                toast.success("Successfully extracted account data with AI");
-              }
+            try {
+              const openAIResults = await extractTableWithOpenAI(newTableImageUrl);
               
-              createOrderedAccountSummaries(openAIResults, onDataExtracted, requiredAccountTypes, false);
-              setIsProcessing(false);
-              return;
-            } else {
-              console.log("OpenAI extraction failed or returned no real data, falling back to local extraction");
+              if (openAIResults && openAIResults.length > 0 && hasRealData(openAIResults)) {
+                console.log("Successfully extracted data with OpenAI:", openAIResults);
+                if (forceManualExtraction) {
+                  toast.success("Successfully extracted account data with AI");
+                }
+                
+                createOrderedAccountSummaries(openAIResults, onDataExtracted, requiredAccountTypes, false);
+                setIsProcessing(false);
+                return;
+              } else {
+                console.log("OpenAI extraction failed or returned no real data, falling back to local extraction");
+              }
+            } catch (error) {
+              console.error("Error during OpenAI extraction:", error);
+              toast.error("OpenAI extraction failed. Trying alternative method...");
             }
-          } catch (error) {
-            console.error("Error during OpenAI extraction:", error);
-            toast.error("OpenAI extraction failed. Trying alternative method...");
           }
+        } else {
+          console.error("Cannot use data URL directly with OpenAI API. Need to convert it first.");
         }
         
         // Fall back to local table extraction
         try {
-          const tableData = await extractTableFromImage(cacheBustUrl);
+          const tableData = await extractTableFromImage(newTableImageUrl);
           
           if (tableData && tableData.rows && tableData.rows.length > 0) {
             console.log("Extracted table data:", tableData);
