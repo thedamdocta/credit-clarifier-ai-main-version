@@ -24,14 +24,14 @@ const AccountItem: React.FC<AccountItemProps> = ({ account, showDebugInfo }) => 
     account.status?.toLowerCase().includes('charge') ||
     account.status?.toLowerCase().includes('collection') ||
     account.status?.toLowerCase().includes('delinquent') ||
-    account.paymentHistory?.some(history => {
+    (account.paymentHistory?.some(history => {
       // Check if history is a string with delinquency codes
       if (typeof history === 'string') {
         return ['30', '60', '90', '120', '150', '180'].some(code => history.includes(code));
       }
       // If it's an object with a status property (for future compatibility)
       return false;
-    });
+    }));
   
   // Set card styling based on account status
   const cardStyle = hasNegativeInfo 

@@ -40,6 +40,20 @@ const AccountsComponent: React.FC<AccountsComponentProps> = ({ report }) => {
       toast.warning("PDF upload button not found. Please use the upload button in the navigation bar.");
     }
   };
+
+  // Create a default account if none exist
+  const accounts = report.accounts && report.accounts.length > 0 
+    ? report.accounts 
+    : [{
+        accountName: "Sample Account",
+        accountNumber: "XXXX-XXXX-XXXX-1234",
+        accountType: "Credit Card",
+        openDate: "01/01/2020",
+        status: "Open",
+        balance: "$0.00",
+        paymentHistory: [],
+        comments: ["This is a placeholder account. No actual accounts were detected in your report."]
+      }];
   
   return (
     <Card>
@@ -49,7 +63,7 @@ const AccountsComponent: React.FC<AccountsComponentProps> = ({ report }) => {
           toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
         />
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -107,7 +121,7 @@ const AccountsComponent: React.FC<AccountsComponentProps> = ({ report }) => {
           </div>
         ) : (
           <AccountsList 
-            accounts={report.accounts || []} 
+            accounts={accounts} 
             showDebugInfo={showDebugInfo} 
           />
         )}
