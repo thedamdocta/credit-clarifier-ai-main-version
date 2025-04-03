@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +23,7 @@ const Index = () => {
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingComplete, setProcessingComplete] = useState(false);
   const [dataReady, setDataReady] = useState(false);
+  const [showUploadProgress, setShowUploadProgress] = useState(true);
   const { toast } = useToast();
   
   const handleTabChange = (value: string) => {
@@ -84,9 +84,15 @@ const Index = () => {
     // First mark processing as complete
     setIsProcessing(false);
     
-    // Then mark data as ready after a short delay
+    // Keep showing the progress display for a bit longer before navigating
     setTimeout(() => {
+      // Then mark data as ready after a delay
       setDataReady(true);
+      
+      // Keep the progress visible for a short time after processing completes
+      setTimeout(() => {
+        setShowUploadProgress(false);
+      }, 2000);
     }, 1000);
   };
   
@@ -105,7 +111,7 @@ const Index = () => {
             `Your ${creditReport.bureau} credit report is ready to view.` :
             `Your credit report is ready to view.`,
         });
-      }, 500);
+      }, 1000);
     }
   }, [dataReady, creditReport, isProcessing]);
 
@@ -187,9 +193,9 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {isProcessing && creditReport ? (
+                {isProcessing && creditReport && !showUploadProgress ? (
                   <div className="py-8 flex flex-col items-center justify-center">
-                    <Loader2 className="h-12 w-12 text-muted-foreground mb-4 animate-spin" />
+                    <Loader2 className="h-12 w-12 text-credit-blue mb-4 animate-spin" />
                     <p className="text-muted-foreground">Extracting account data from your credit report...</p>
                     <p className="text-xs text-muted-foreground mt-2">Please wait while we process your report.</p>
                   </div>

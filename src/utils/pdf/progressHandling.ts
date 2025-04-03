@@ -20,9 +20,9 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
     setUploadProgress(value);
   };
   
-  // Start progress interval for better UX - slower if requested
-  const updateInterval = slowDownProgress ? 300 : 150; // Slower updates for longer processes
-  const incrementAmount = slowDownProgress ? 0.5 : 2; // Even smaller increments for longer processes
+  // Start progress interval for better UX - slower to make progress more visible
+  const updateInterval = slowDownProgress ? 400 : 250; // Slower updates for better visibility 
+  const incrementAmount = slowDownProgress ? 0.2 : 0.5; // Smaller increments for smoother progress
   
   // Cap progress at different levels based on extraction stages
   // Stop at 85% for table extraction, 95% for general processing
@@ -52,20 +52,26 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
     clearInterval(progressInterval);
   };
   
-  // Function to complete progress tracking
+  // Function to complete progress tracking - make transition to 100% slower
   const completeProgressTracking = () => {
     clearProgressTracking();
     
-    // Animate to 100% with a slight delay to show completion
-    setTimeout(() => {
-      setUploadProgress(100);
+    // Animate to 100% with a series of steps for smoother transition
+    let currentProgress = 95;
+    const completeInterval = setInterval(() => {
+      currentProgress += 1;
+      setUploadProgress(currentProgress);
       
-      // Only trigger onCompleteCallback after progress reaches 100%
-      if (onCompleteCallback) {
-        // Delay navigation slightly to show 100% progress state
-        setTimeout(onCompleteCallback, 800);
+      if (currentProgress >= 100) {
+        clearInterval(completeInterval);
+        
+        // Only trigger onCompleteCallback after progress reaches 100% and a delay
+        if (onCompleteCallback) {
+          // Delay navigation more significantly to show 100% progress state
+          setTimeout(onCompleteCallback, 1500);
+        }
       }
-    }, 200);
+    }, 300); // Slow transition to 100%
   };
   
   // Function to handle errors in progress tracking
@@ -78,7 +84,12 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   
   // Function to update progress to a specific stage
   const updateProgressStage = (stage: keyof typeof stageCaps) => {
-    setUploadProgress(stageCaps[stage]);
+    // For smoother transitions, start from current progress and increment
+    setUploadProgress((current) => {
+      const target = stageCaps[stage];
+      // Only update if target is higher than current
+      return current < target ? target : current;
+    });
   };
   
   return {

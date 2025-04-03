@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { usePDFUpload } from "@/hooks/usePDFUpload";
@@ -26,6 +25,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
   const [extractionStarted, setExtractionStarted] = useState(false);
+  const [keepShowingProgress, setKeepShowingProgress] = useState(false);
   
   const {
     isDragging,
@@ -47,6 +47,9 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       // Mark that extraction has started, but don't navigate yet
       setExtractionStarted(true);
       
+      // Show progress until we're ready to navigate
+      setKeepShowingProgress(true);
+      
       // Only set readyToNavigate after a suitable delay to allow account extraction to happen
       setTimeout(() => {
         setReadyToNavigate(true);
@@ -59,15 +62,20 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       setExtractionStarted(false);
       setIsProcessing(true);
       setProcessingMessage(undefined); // Reset message to use default based on progress
+      setKeepShowingProgress(false);
     },
     onProcessingComplete: () => {
       console.log("All processing complete including table extraction");
+      
+      // Keep showing progress for a bit longer even after processing is complete
+      setKeepShowingProgress(true);
       
       // Only navigate if extraction has started and we're ready
       if (extractionStarted) {
         // Add a small delay before navigation to ensure all data is loaded
         setTimeout(() => {
           console.log("Navigation delay completed, triggering navigation");
+          setKeepShowingProgress(false);
           onProcessingComplete();
         }, 1500);
       } else {
@@ -80,6 +88,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       console.error("PDF processing error:", error);
       setLoadError(error?.message || "Failed to process the PDF file. Please try again.");
       setIsProcessing(false);
+      setKeepShowingProgress(false);
     }
   });
 
@@ -96,11 +105,14 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       if (readyToNavigate && processingComplete && extractionStarted) {
         console.log("Upload progress 100%, ready to navigate, processing complete - triggering navigation");
         setTimeout(() => {
-          onProcessingComplete();
+          if (keepShowingProgress) {
+            setKeepShowingProgress(false);
+            onProcessingComplete();
+          }
         }, 1000);
       }
     }
-  }, [uploadProgress, readyToNavigate, processingComplete, onProcessingComplete, extractionStarted]);
+  }, [uploadProgress, readyToNavigate, processingComplete, onProcessingComplete, extractionStarted, keepShowingProgress]);
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -137,7 +149,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
           disabled={isProcessing}
         />
         
-        {currentFile && uploadProgress > 0 ? (
+        {(currentFile && (uploadProgress > 0 || keepShowingProgress)) ? (
           <PDFProgressDisplay 
             file={currentFile} 
             progress={uploadProgress}

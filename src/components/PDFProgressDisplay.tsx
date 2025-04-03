@@ -73,29 +73,32 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
         </div>
       ) : (
         <>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-sm font-medium">
                 {getMessage()}
               </span>
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-sm font-medium text-credit-blue">
                 {Math.round(progress)}%
               </span>
             </div>
-            <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-              <Progress value={progress} className="h-full absolute top-0 left-0" />
+            <div className="relative h-6 w-full bg-slate-100 rounded-full overflow-hidden">
+              <Progress 
+                value={progress} 
+                className="h-full absolute top-0 left-0 shadow-sm"
+              />
             </div>
           </div>
           
           {isProcessing && (
-            <div className="flex items-center justify-center">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              <span className="text-xs text-muted-foreground">{getMessage()}</span>
+            <div className="flex items-center justify-center mt-4 p-2 bg-slate-50 border border-slate-100 rounded-md">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin text-credit-blue" />
+              <span className="text-sm">{getMessage()}</span>
             </div>
           )}
           
           {progress >= 100 && (
-            <div className="text-xs text-center text-credit-blue font-medium mt-1">
+            <div className="text-sm text-center text-credit-blue font-medium mt-3 p-2 bg-blue-50 border border-blue-100 rounded-md">
               Analysis complete! Preparing your report...
             </div>
           )}
