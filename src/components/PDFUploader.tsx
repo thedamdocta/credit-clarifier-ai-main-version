@@ -7,7 +7,6 @@ import PDFProgressDisplay from "./PDFProgressDisplay";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import OpenAIConfigSection from "./OpenAIConfigSection";
 import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 interface PDFUploaderProps {
@@ -24,7 +23,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   onProcessingComplete
 }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showOpenAIConfig, setShowOpenAIConfig] = useState(true); // Always show by default
   const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
   const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
@@ -80,15 +78,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     }
   }, [uploadProgress]);
 
-  const handleOpenAIConfigured = () => {
-    setOpenAIConfigured(true);
-  };
-  
-  // Always show OpenAI config
-  const handleShowOpenAIConfig = () => {
-    setShowOpenAIConfig(true);
-  };
-
   return (
     <div className="w-full max-w-3xl mx-auto">
       {loadError && (
@@ -104,11 +93,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
           </AlertDescription>
         </Alert>
       )}
-      
-      {/* Always show OpenAI config section */}
-      <div className="mb-6">
-        <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
-      </div>
       
       <div
         className={cn(
@@ -136,7 +120,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
             error={processingError}
             isProcessing={isProcessing}
             processingMessage={processingMessage}
-            onOpenAIConfigRequest={handleShowOpenAIConfig}
           />
         ) : (
           <PDFUploadPlaceholder 
