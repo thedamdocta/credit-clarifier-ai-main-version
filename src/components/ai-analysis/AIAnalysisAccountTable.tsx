@@ -16,9 +16,9 @@ const AIAnalysisAccountTable: React.FC<AIAnalysisAccountTableProps> = ({ account
       return fieldName === "debtToCredit" ? "0.0%" : "0";
     }
     
-    // Display "x" for null, undefined, or empty strings
+    // Display "-" for null, undefined, or empty strings
     if (value === null || value === undefined || value === '') {
-      return "x";
+      return "-";
     }
     
     // Special handling for percentages

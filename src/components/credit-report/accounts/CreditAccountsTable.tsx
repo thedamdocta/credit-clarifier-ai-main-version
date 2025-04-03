@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -61,12 +62,12 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     if (typeof value === 'string' && value.trim() !== '') {
       if ((fieldName === 'totalBalance' || fieldName === 'available' || 
           fieldName === 'creditLimit' || fieldName === 'payment') && 
-          !value.includes('$') && value !== 'x') {
+          !value.includes('$') && value !== '-') {
         const parsedValue = parseCurrencyValue(value);
         if (parsedValue) {
           return formatter(parsedValue);
         }
-      } else if (fieldName === 'debtToCredit' && !value.includes('%') && value !== 'x') {
+      } else if (fieldName === 'debtToCredit' && !value.includes('%') && value !== '-') {
         const parsedValue = parsePercentageValue(value);
         if (parsedValue) {
           return formatter(parsedValue);
@@ -75,7 +76,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     }
     
     if (value === null || value === undefined || value === '') {
-      return "x";
+      return "-";
     }
     
     if (isZeroValue(value)) {

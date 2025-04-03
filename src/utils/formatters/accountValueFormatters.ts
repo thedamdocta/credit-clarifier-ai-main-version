@@ -1,16 +1,17 @@
+
 /**
  * Safely formats cell values for the account summary tables
  */
 export const formatAccountValue = (value: any): string => {
-  // Special explicit handling for 0 values - display as "0" not "x"
+  // Special explicit handling for 0 values - display as "0" not "-"
   if (value === 0 || value === "0") {
     console.log("formatAccountValue: Formatting zero value");
     return "0";
   }
   
-  // Convert empty, null, or undefined values to "x"
+  // Convert empty, null, or undefined values to "-"
   if (value === undefined || value === null || value === '') {
-    return "x"; 
+    return "-"; 
   }
   
   // Always return as string, don't do numeric conversions
@@ -21,9 +22,9 @@ export const formatAccountValue = (value: any): string => {
  * Formats dollar amounts properly with $ prefix and handles negative values consistently
  */
 export const formatDollarAmount = (value: any): string => {
-  // Convert empty, null, or undefined values to "x"
+  // Convert empty, null, or undefined values to "-"
   if (value === undefined || value === null || value === '') {
-    return "x"; 
+    return "-"; 
   }
   
   // Special handling for 0 - display as "$0"
@@ -63,7 +64,7 @@ export const formatDollarAmount = (value: any): string => {
 export const formatPercentageValue = (value: any): string => {
   // Handle null/undefined/empty
   if (value === undefined || value === null || value === '') {
-    return "x";
+    return "-";
   }
   
   // Special handling for 0
