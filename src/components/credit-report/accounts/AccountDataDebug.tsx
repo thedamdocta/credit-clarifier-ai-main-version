@@ -1,8 +1,6 @@
-
 import React from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { Loader2 } from "lucide-react";
-import CreditAccountsDebug from "./CreditAccountsDebug";
 
 interface AccountDataDebugProps {
   showDebugInfo: boolean;
@@ -27,27 +25,66 @@ const AccountDataDebug: React.FC<AccountDataDebugProps> = ({
   accountSummaries,
   isProcessing
 }) => {
-  if (!showDebugInfo) return null;
-  
-  if (isProcessing) {
-    return (
-      <div className="py-8 flex flex-col items-center justify-center">
-        <Loader2 className="h-12 w-12 text-muted-foreground mb-4 animate-spin" />
-        <p className="text-muted-foreground">Extracting account data...</p>
-      </div>
-    );
+  if (!showDebugInfo) {
+    return null;
   }
-  
+
   return (
-    <div className="mb-4 p-4 border rounded bg-slate-50">
-      <p className="text-xs mb-2">Debug: Extraction attempts: {extractionAttempts}</p>
-      <p className="text-xs mb-2">Report ID: {report.reportId || 'None'}</p>
-      <p className="text-xs mb-2">Using sample data: {usingSampleData ? 'Yes' : 'No'}</p>
-      <p className="text-xs mb-2">Uploaded image found: {tableImageUrl ? 'Yes' : 'No'}</p>
-      <p className="text-xs mb-2">Extraction failed: {extractionFailed ? 'Yes' : 'No'}</p>
-      <p className="text-xs mb-2">Initial data found: {initialAccountDataFound ? 'Yes' : 'No'}</p>
-      <p className="text-xs mb-2">Raw text length: {report.rawText ? report.rawText.length : 0} characters</p>
-      <CreditAccountsDebug accountSummaries={accountSummaries} />
+    <div className="border rounded p-4 mt-4 bg-gray-50">
+      <h4 className="text-sm font-bold mb-2">Account Data Debug Information</h4>
+      
+      <div className="mb-2">
+        <span className="font-semibold">Report ID:</span> {report?.reportId || 'N/A'}
+      </div>
+      
+      <div className="mb-2">
+        <span className="font-semibold">Extraction Attempts:</span> {extractionAttempts}
+      </div>
+      
+      <div className="mb-2">
+        <span className="font-semibold">Using Sample Data:</span> {usingSampleData ? 'Yes' : 'No'}
+      </div>
+      
+      {tableImageUrl && (
+        <div className="mb-2">
+          <span className="font-semibold">Table Image URL:</span>
+          <a href={tableImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+            View Image
+          </a>
+        </div>
+      )}
+      
+      <div className="mb-2">
+        <span className="font-semibold">Extraction Failed:</span> {extractionFailed ? 'Yes' : 'No'}
+      </div>
+      
+      <div className="mb-2">
+        <span className="font-semibold">Initial Account Data Found:</span> {initialAccountDataFound ? 'Yes' : 'No'}
+      </div>
+      
+      <div className="mb-2">
+        <span className="font-semibold">Account Summaries Count:</span> {accountSummaries?.length || 0}
+      </div>
+      
+      <div className="mb-2">
+        <span className="font-semibold">Is Processing:</span> {isProcessing ? 'Yes' : 'No'}
+      </div>
+      
+      {isProcessing && (
+        <div className="flex items-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Extracting account data...
+        </div>
+      )}
+      
+      {report?.accountSummaries && report.accountSummaries.length > 0 && (
+        <div className="mt-4">
+          <h5 className="text-xs font-bold mb-2">Account Summaries Data:</h5>
+          <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+            {JSON.stringify(report.accountSummaries, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };
