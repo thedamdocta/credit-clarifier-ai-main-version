@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,7 +72,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     }
   }, [report?.reportId]);
 
-  // Add effect to attempt to load table image when needed
   useEffect(() => {
     async function loadTableImage() {
       if (report && !tableImageUrl) {
@@ -117,8 +115,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setIsProcessing(true);
     }
     
-    // Import the component directly and call its function
-    // instead of trying to instantiate it with 'new'
     const extractorProps = {
       report,
       onDataExtracted: handleDataExtracted,
@@ -126,8 +122,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setIsProcessing
     };
     
-    // Instead of creating a new instance, we'll call the function directly
-    // using the handleEnhancedExtraction function exported from the component
     import("./accounts/AccountDataExtractor").then(module => {
       if (typeof module.handleEnhancedExtraction === 'function') {
         module.handleEnhancedExtraction(extractorProps, forceManual);

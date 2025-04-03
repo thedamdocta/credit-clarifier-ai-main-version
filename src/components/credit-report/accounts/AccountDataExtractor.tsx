@@ -134,13 +134,14 @@ export const handleEnhancedExtraction = async (
         return;
       }
       
-      console.log("No account data available - using sample data instead of empty state");
+      console.log("No account data available - extraction failed");
       
-      // Use sample data instead of empty data for better UX
-      createOrderedAccountSummaries(SAMPLE_ACCOUNT_DATA, onDataExtracted, requiredAccountTypes, true);
+      // Don't use sample data, show empty data instead
+      const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
+      onDataExtracted(emptyData, false, true);
       
       if (forceManualExtraction) {
-        toast.warning("No real account data found. Showing sample data instead.");
+        toast.error("Failed to extract account data. Please try uploading a clearer PDF.");
       }
       
       setIsProcessing(false);
@@ -164,31 +165,54 @@ export const handleEnhancedExtraction = async (
         
         createOrderedAccountSummaries(extractedSummaries, onDataExtracted, requiredAccountTypes);
       } else {
-        console.log("Extracted data had no meaningful values - using sample data instead");
+        console.log("Extracted data had no meaningful values - extraction failed");
         if (forceManualExtraction) {
-          toast.warning("Extraction yielded no useful data. Using sample data instead.");
+          toast.error("Extraction yielded no useful data. Try uploading a clearer PDF.");
         }
         
-        createOrderedAccountSummaries(SAMPLE_ACCOUNT_DATA, onDataExtracted, requiredAccountTypes, true);
+        // Don't use sample data, show empty data
+        const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
+        onDataExtracted(emptyData, false, true);
       }
     } else {
-      console.log("Could not process table structure - using sample data");
+      console.log("Could not process table structure - extraction failed");
       if (forceManualExtraction) {
-        toast.warning("Table extraction failed. Using sample data.");
+        toast.error("Table extraction failed. Try uploading a clearer PDF.");
       }
       
-      createOrderedAccountSummaries(SAMPLE_ACCOUNT_DATA, onDataExtracted, requiredAccountTypes, true);
+      // Don't use sample data, show empty data
+      const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
+      onDataExtracted(emptyData, false, true);
     }
   } catch (error) {
     console.error("Error during extraction:", error);
     if (forceManualExtraction) {
-      toast.error("Error during data extraction, showing sample data");
+      toast.error("Error during data extraction");
     }
     
-    createOrderedAccountSummaries(SAMPLE_ACCOUNT_DATA, onDataExtracted, requiredAccountTypes, true);
+    // Don't use sample data, show empty data
+    const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
+    onDataExtracted(emptyData, false, true);
   } finally {
     setIsProcessing(false);
   }
+};
+
+// Helper function to create empty account summaries
+const createEmptyAccountSummaries = (accountTypes: string[]): AccountSummary[] => {
+  return accountTypes.map(accountType => ({
+    accountType,
+    totalAccounts: null,
+    open: null,
+    closed: null,
+    balance: null,
+    withBalance: null,
+    totalBalance: null,
+    available: null,
+    creditLimit: null,
+    debtToCredit: null,
+    payment: null
+  }));
 };
 
 // Helper functions
@@ -232,10 +256,16 @@ const createOrderedAccountSummaries = (
   // If we're using sample data or forcing sample data, use the SAMPLE_ACCOUNT_DATA directly
   if (forceSample || isSampleData(sourceSummaries)) {
     console.log("Using sample data for account summaries");
+    // Don't use sample data as requested by the user
+    // Instead create empty summaries
+    if (!forceSample) {
+      const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
+      onDataExtracted(emptyData, false, true);
+      return;
+    }
     
-    // Map the sample data to ensure all fields are properly formatted
+    // This code should not run as we're avoiding sample data
     requiredAccountTypes.forEach(accountType => {
-      // Find the matching sample data for this account type
       const sampleData = SAMPLE_ACCOUNT_DATA.find(
         sample => sample.accountType.toLowerCase() === accountType.toLowerCase()
       );
@@ -259,15 +289,15 @@ const createOrderedAccountSummaries = (
         orderedSummaries.push({
           accountType: accountType,
           totalAccounts: null,
-          open: "0",
+          open: null,
           closed: null,
           balance: null,
-          withBalance: "0",
-          totalBalance: "$0",
-          available: "$0",
-          creditLimit: "$0",
-          debtToCredit: "0.0%",
-          payment: "$0"
+          withBalance: null,
+          totalBalance: null,
+          available: null,
+          creditLimit: null,
+          debtToCredit: null,
+          payment: null
         });
       }
     });
@@ -275,7 +305,7 @@ const createOrderedAccountSummaries = (
     onDataExtracted(orderedSummaries, true, false);
     return;
   }
-  
+
   // Original logic for non-sample data
   const summariesByType = new Map<string, AccountSummary>();
   
@@ -333,7 +363,7 @@ const createOrderedAccountSummaries = (
   
   onDataExtracted(
     orderedSummaries, 
-    isSampleDataDetected || !hasActualData,
+    isSampleDataDetected, 
     !hasActualData && !isSampleDataDetected
   );
 };
