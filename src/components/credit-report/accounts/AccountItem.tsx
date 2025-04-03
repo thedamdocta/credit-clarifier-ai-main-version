@@ -4,11 +4,12 @@ import { Account } from "@/lib/types/creditReport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Calendar, InfoIcon, MessageSquare } from "lucide-react";
+import { CreditCard, Calendar, InfoIcon, MessageSquare, CreditCard as PaymentIcon } from "lucide-react";
 import AccountSummary from "./AccountSummary";
 import AccountHistory from "./AccountHistory";
 import AccountDetails from "./AccountDetails";
 import AccountComments from "./AccountComments";
+import AccountPaymentHistory from "./AccountPaymentHistory";
 
 interface AccountItemProps {
   account: Account;
@@ -71,8 +72,12 @@ const AccountItem: React.FC<AccountItemProps> = ({ account, showDebugInfo }) => 
               <InfoIcon className="h-4 w-4 mr-1" />
               Summary
             </TabsTrigger>
-            <TabsTrigger value="history">
+            <TabsTrigger value="account-history">
               <Calendar className="h-4 w-4 mr-1" />
+              Account History
+            </TabsTrigger>
+            <TabsTrigger value="payment-history">
+              <PaymentIcon className="h-4 w-4 mr-1" />
               Payment History
             </TabsTrigger>
             <TabsTrigger value="details">
@@ -89,8 +94,12 @@ const AccountItem: React.FC<AccountItemProps> = ({ account, showDebugInfo }) => 
             <AccountSummary account={account} showDebugInfo={showDebugInfo} />
           </TabsContent>
           
-          <TabsContent value="history">
+          <TabsContent value="account-history">
             <AccountHistory account={account} showDebugInfo={showDebugInfo} />
+          </TabsContent>
+          
+          <TabsContent value="payment-history">
+            <AccountPaymentHistory account={account} showDebugInfo={showDebugInfo} />
           </TabsContent>
           
           <TabsContent value="details">

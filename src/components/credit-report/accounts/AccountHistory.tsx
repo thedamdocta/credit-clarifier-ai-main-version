@@ -50,11 +50,7 @@ const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo 
                   {months.map(month => (
                     <TableCell key={`${year}-${month}`}>
                       {/* This would be populated with real data from the account */}
-                      {category.key === 'balance' ? '$0' : 
-                       category.key === 'creditLimit' ? '$500' :
-                       category.key === 'amountPastDue' ? '$0' :
-                       category.key === 'scheduledPayment' ? '$25' :
-                       category.key === 'actualPayment' ? '$25' : '-'}
+                      {/* All values are null by default */}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -85,7 +81,7 @@ const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo 
               {account.comments && account.comments.length > 0 ? (
                 account.comments.map((comment, i) => (
                   <TableRow key={i}>
-                    <TableCell>{/* Date would come from structured comment data */}Today</TableCell>
+                    <TableCell>{/* Date would come from structured comment data */}</TableCell>
                     <TableCell>{comment}</TableCell>
                   </TableRow>
                 ))
