@@ -9,12 +9,20 @@ interface AccountDetailsProps {
 }
 
 const AccountDetails: React.FC<AccountDetailsProps> = ({ account, showDebugInfo }) => {
+  // Function to safely get value or return "Not reported"
+  const getValue = (value: any): string => {
+    if (value === undefined || value === null || value === '') {
+      return "Not reported";
+    }
+    return String(value);
+  };
+
   // Account details fields with their labels and values
   const detailFields = [
     { label: "High Credit", value: "Not reported" },
     { label: "Credit Limit", value: "Not reported" },
     { label: "Terms Frequency", value: "Not reported" },
-    { label: "Balance", value: account.balance ? formatDollarAmount(account.balance) : "Not reported" },
+    { label: "Balance", value: account.balance && account.balance !== "" ? formatDollarAmount(account.balance) : "Not reported" },
     { label: "Amount Past Due", value: "Not reported" },
     { label: "Actual Payment Amount", value: "Not reported" },
     { label: "Date of Last Activity", value: "Not reported" },
@@ -22,9 +30,9 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ account, showDebugInfo 
     { label: "Activity Designator", value: "Not reported" },
     { label: "Deferred Payment Start Date", value: "Not reported" },
     { label: "Payment Responsibility", value: "Not reported" },
-    { label: "Account Type", value: account.accountType ? account.accountType : "Not reported" },
+    { label: "Account Type", value: account.accountType && account.accountType !== "" ? account.accountType : "Not reported" },
     { label: "Term Duration", value: "Not reported" },
-    { label: "Date Opened", value: account.openDate ? account.openDate : "Not reported" },
+    { label: "Date Opened", value: account.openDate && account.openDate !== "" ? account.openDate : "Not reported" },
     { label: "Date Reported", value: "Not reported" },
     { label: "Date of Last Payment", value: "Not reported" },
     { label: "Scheduled Payment Amount", value: "Not reported" },
