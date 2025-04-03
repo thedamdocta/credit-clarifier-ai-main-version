@@ -50,7 +50,6 @@ const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo 
                   {months.map(month => (
                     <TableCell key={`${year}-${month}`}>
                       {/* This would be populated with real data from the account */}
-                      {/* For now using placeholder values */}
                       {category.key === 'balance' ? '$0' : 
                        category.key === 'creditLimit' ? '$500' :
                        category.key === 'amountPastDue' ? '$0' :
