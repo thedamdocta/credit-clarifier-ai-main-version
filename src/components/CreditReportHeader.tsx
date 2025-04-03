@@ -1,9 +1,9 @@
 
 import React from "react";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Download, FileText, Share2 } from "lucide-react";
+import { AlertCircle, Calendar, Download, FileText, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreditReport } from "@/lib/creditReportParser";
 
 interface CreditReportHeaderProps {
@@ -49,25 +49,29 @@ const CreditReportHeader: React.FC<CreditReportHeaderProps> = ({ report }) => {
       </div>
 
       <div className="flex gap-2 mt-2 md:mt-0">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
-              <Download className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Download</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Download report as PDF</TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+                <Download className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Download</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Download report as PDF</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="sm" onClick={handleShareReport}>
-              <Share2 className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Share</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Share report</TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={handleShareReport}>
+                <Share2 className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Share</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Share report</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

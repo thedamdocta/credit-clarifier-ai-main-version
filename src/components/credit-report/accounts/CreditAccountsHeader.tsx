@@ -6,15 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Bug } from "lucide-react";
 
 interface CreditAccountsHeaderProps {
-  title?: string;
-  description?: string;
   showDebugInfo: boolean;
   toggleDebug: () => void;
 }
 
 const CreditAccountsHeader: React.FC<CreditAccountsHeaderProps> = ({ 
-  title = "Credit Accounts",
-  description = "Summary of your credit accounts",
   showDebugInfo, 
   toggleDebug 
 }) => {
@@ -23,9 +19,9 @@ const CreditAccountsHeader: React.FC<CreditAccountsHeaderProps> = ({
       <div>
         <CardTitle className="flex items-center">
           <CreditCard className="h-5 w-5 mr-2" />
-          {title}
+          Credit Accounts
         </CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>Summary of your credit accounts</CardDescription>
       </div>
       <Button 
         variant="outline" 
