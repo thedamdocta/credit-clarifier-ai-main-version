@@ -7,7 +7,7 @@ import CreditAccountsHeader from "./accounts/CreditAccountsHeader";
 import CreditAccountsTable from "./accounts/CreditAccountsTable";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { resetCurrentReportImage, getExtractedReportData } from "@/utils/pdf/extractText";
+import { resetCurrentReportImage, getExtractedReportData, extractCreditAccountsTableImage } from "@/utils/pdf/extractText";
 
 import AccountDataExtractor from "./accounts/AccountDataExtractor";
 import TableImageDisplay from "./accounts/TableImageDisplay";
@@ -72,6 +72,26 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       return () => clearTimeout(extractionTimer);
     }
   }, [report?.reportId]);
+
+  // Add effect to attempt to load table image when needed
+  useEffect(() => {
+    async function loadTableImage() {
+      if (report && !tableImageUrl) {
+        try {
+          console.log('Attempting to extract table image for debug display');
+          const imageUrl = await extractCreditAccountsTableImage(report);
+          if (imageUrl) {
+            console.log('Successfully extracted table image for debug display');
+            setTableImageUrl(imageUrl);
+          }
+        } catch (error) {
+          console.error('Error extracting table image for debug:', error);
+        }
+      }
+    }
+    
+    loadTableImage();
+  }, [report, tableImageUrl]);
 
   const handleDataExtracted = (
     summaries: AccountSummary[], 

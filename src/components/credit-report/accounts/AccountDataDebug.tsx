@@ -1,3 +1,4 @@
+
 import React from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { Loader2 } from "lucide-react";
@@ -45,12 +46,19 @@ const AccountDataDebug: React.FC<AccountDataDebugProps> = ({
         <span className="font-semibold">Using Sample Data:</span> {usingSampleData ? 'Yes' : 'No'}
       </div>
       
+      <div className="mb-2">
+        <span className="font-semibold">Table Image URL Available:</span> {tableImageUrl ? 'Yes' : 'No'}
+      </div>
+      
       {tableImageUrl && (
-        <div className="mb-2">
-          <span className="font-semibold">Table Image URL:</span>
-          <a href={tableImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-            View Image
-          </a>
+        <div className="mb-4">
+          <span className="font-semibold block mb-2">Table Image:</span>
+          <img 
+            src={tableImageUrl} 
+            alt="Extracted Table" 
+            className="max-w-full border rounded"
+            style={{ maxHeight: '300px', objectFit: 'contain' }}
+          />
         </div>
       )}
       
