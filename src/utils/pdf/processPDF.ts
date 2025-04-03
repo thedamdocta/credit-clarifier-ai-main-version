@@ -90,6 +90,7 @@ export const processPDFDocument = async (
                 };
                 
                 // Make sure state is updated before completing processing
+                // Ensure we wait just a moment for UI to catch up before completing
                 setTimeout(() => {
                   completeProgressTracking();
                   

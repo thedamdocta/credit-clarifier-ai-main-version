@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
@@ -7,9 +6,17 @@ interface UsePDFUploadProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   useAI: boolean;
   onError?: (error: Error | null) => void;
+  onProcessingStart?: () => void;
+  onProcessingComplete?: () => void;
 }
 
-export const usePDFUpload = ({ onPDFUploaded, useAI, onError }: UsePDFUploadProps) => {
+export const usePDFUpload = ({ 
+  onPDFUploaded, 
+  useAI, 
+  onError, 
+  onProcessingStart, 
+  onProcessingComplete 
+}: UsePDFUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
@@ -20,13 +27,24 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, onError }: UsePDFUploadProp
     // Reset any previous errors
     setProcessingError(null);
     
+    // Notify that processing has started
+    if (onProcessingStart) {
+      onProcessingStart();
+    }
+    
     // Process the PDF file with focus on text extraction for the main content
     // and enable improved table detection specifically for the credit accounts table
     try {
       processPDFDocument(file, useAI, {
         setCurrentFile,
         setUploadProgress,
-        onPDFUploaded,
+        onPDFUploaded: (file, text, parsedReport) => {
+          onPDFUploaded(file, text, parsedReport);
+          // Processing is complete - call the callback
+          if (onProcessingComplete) {
+            onProcessingComplete();
+          }
+        },
         useImageExtraction: true, // Enable image extraction for table detection
         targetTable: "Credit Accounts", // Specifically target the Credit Accounts table
         onError: (error) => {
@@ -34,6 +52,10 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, onError }: UsePDFUploadProp
           const errorMessage = error?.message || "Failed to process the PDF file. Please try again.";
           setProcessingError(errorMessage);
           if (onError) onError(error);
+          // On error, processing is also complete
+          if (onProcessingComplete) {
+            onProcessingComplete();
+          }
         }
       });
     } catch (error) {
@@ -42,6 +64,10 @@ export const usePDFUpload = ({ onPDFUploaded, useAI, onError }: UsePDFUploadProp
       setProcessingError(typedError.message || "An unexpected error occurred");
       if (onError) onError(typedError);
       setUploadProgress(0);
+      // On exception, processing is also complete
+      if (onProcessingComplete) {
+        onProcessingComplete();
+      }
     }
   };
 

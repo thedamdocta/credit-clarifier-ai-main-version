@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,9 +29,25 @@ const Index = () => {
     setOpenAIConfigured(canUseOpenAI());
   }, []);
   
+  const handleTabChange = (value: string) => {
+    // Prevent switching to the report tab if we're still processing
+    if (value === "report" && isProcessing) {
+      toast({
+        title: "Still processing",
+        description: "Please wait for the PDF processing to complete.",
+        variant: "default"
+      });
+      return;
+    }
+    
+    // Only allow tab switching if we're not processing or if we're switching away from the report tab
+    if (!isProcessing || value !== "report") {
+      setActiveTab(value);
+    }
+  };
+  
   const handlePDFUploaded = async (file: File, text: string, parsedReport?: CreditReport) => {
     try {
-      setIsProcessing(true);
       setProcessingError(null);
       
       if (parsedReport) {
@@ -49,6 +66,7 @@ const Index = () => {
           `Successfully processed your credit report.`,
       });
       
+      // Navigate to the report tab now that processing is complete
       setActiveTab("report");
       
     } catch (error) {
@@ -59,8 +77,6 @@ const Index = () => {
         description: "There was an error processing your credit report.",
         variant: "destructive",
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -78,16 +94,20 @@ const Index = () => {
 
   return (
     <>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="flex justify-between items-center mb-6">
           <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
             <TabsTrigger value="upload" className="flex items-center">
               <Upload className="mr-2 h-4 w-4" />
               Upload PDF
             </TabsTrigger>
-            <TabsTrigger value="report" disabled={!creditReport} className="flex items-center">
+            <TabsTrigger 
+              value="report" 
+              disabled={!creditReport || isProcessing} 
+              className="flex items-center"
+            >
               <FileText className="mr-2 h-4 w-4" />
-              Report
+              Report {isProcessing && '...'}
             </TabsTrigger>
             <TabsTrigger value="webhooks" className="flex items-center">
               <Settings className="mr-2 h-4 w-4" />
@@ -152,6 +172,7 @@ const Index = () => {
                 <PDFUploader 
                   onPDFUploaded={handlePDFUploaded}
                   isProcessing={isProcessing}
+                  setIsProcessing={setIsProcessing}
                 />
               </CardContent>
             </Card>
@@ -164,13 +185,24 @@ const Index = () => {
               </AlertDescription>
             </Alert>
             
-            {creditReport && (
+            {creditReport && !isProcessing && (
               <div className="flex justify-center">
                 <Button onClick={() => setActiveTab("report")}>
                   <FileText className="mr-2 h-4 w-4" />
                   View Processed Report
                 </Button>
               </div>
+            )}
+            
+            {isProcessing && creditReport && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                <AlertTitle className="text-blue-800">Processing PDF</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  Please wait while we complete processing your credit report. 
+                  This may take a few moments depending on the size of your file.
+                </AlertDescription>
+              </Alert>
             )}
           </div>
         </TabsContent>

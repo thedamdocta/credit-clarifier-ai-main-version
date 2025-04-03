@@ -11,9 +11,14 @@ import { OpenAIConfigForm, canUseOpenAI } from "@/lib/ai/openai/openaiService";
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   isProcessing: boolean;
+  setIsProcessing: (processing: boolean) => void;
 }
 
-const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }) => {
+const PDFUploader: React.FC<PDFUploaderProps> = ({ 
+  onPDFUploaded, 
+  isProcessing,
+  setIsProcessing 
+}) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showOpenAIConfig, setShowOpenAIConfig] = useState(true);
   
@@ -31,9 +36,12 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
   } = usePDFUpload({ 
     onPDFUploaded,
     useAI: true, // Enable AI-powered extraction
+    onProcessingStart: () => setIsProcessing(true),
+    onProcessingComplete: () => setIsProcessing(false),
     onError: (error) => {
       console.error("PDF processing error:", error);
       setLoadError(error?.message || "Failed to process the PDF file. Please try again.");
+      setIsProcessing(false);
     }
   });
 
