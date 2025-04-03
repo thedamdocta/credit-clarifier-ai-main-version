@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
 import { toast } from 'sonner';
@@ -34,7 +35,19 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
         imageBlob = await response.blob();
       } else {
         // Fetch image from URL
-        const response = await fetch(imageUrl);
+        const response = await fetch(imageUrl, {
+          // Add cache busting query param
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        
         imageBlob = await response.blob();
       }
     } catch (error) {
@@ -60,7 +73,12 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     
     // Call OpenAI API with the image
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      console.log('Making OpenAI API call for image extraction...');
+      const timeoutPromise = new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error('OpenAI API call timed out after 30 seconds')), 30000)
+      );
+      
+      const fetchPromise = fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -109,6 +127,9 @@ If you see empty cells or missing values, set them to null in the JSON.`
         }),
       });
 
+      // Race between fetch and timeout
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error(`OpenAI API error: ${response.status}`, errorData);
@@ -126,6 +147,8 @@ If you see empty cells or missing values, set them to null in the JSON.`
         return null;
       }
       
+      console.log('Received OpenAI response:', content);
+      
       // Extract JSON object from the response
       try {
         // Handle possible markdown formatting in the response
@@ -134,6 +157,8 @@ If you see empty cells or missing values, set them to null in the JSON.`
                           [null, content];
                           
         const jsonText = jsonMatch?.[1] || content;
+        console.log('Extracted JSON text:', jsonText);
+        
         const extractedJson = JSON.parse(jsonText);
         
         // Validate the extracted data
@@ -171,6 +196,18 @@ If you see empty cells or missing values, set them to null in the JSON.`
         });
         
         console.log('Successfully extracted table data with OpenAI:', formattedData);
+        
+        // Check if we actually got any real data
+        const hasRealData = formattedData.some(item => 
+          (item.open && item.open !== '0') || 
+          (item.totalBalance && item.totalBalance !== '$0')
+        );
+        
+        if (!hasRealData) {
+          console.log('No real data extracted, returning null');
+          return null;
+        }
+        
         return formattedData;
       } catch (error) {
         console.error('Error parsing OpenAI response:', error);

@@ -12,52 +12,55 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
     // First try OpenAI extraction if available
     if (canUseOpenAI()) {
       console.log("OpenAI API is available, attempting AI-based extraction");
-      const openAIResults = await extractTableWithOpenAI(imageUrl);
-      
-      if (openAIResults && openAIResults.length > 0) {
-        console.log("Successfully extracted table with OpenAI");
+      try {
+        const openAIResults = await extractTableWithOpenAI(imageUrl);
         
-        // Log the data for debugging
-        console.log("Extracted table data:", {
-          headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
-          rows: openAIResults.map(account => [
-            account.accountType,
-            account.open || "",
-            account.withBalance || "",
-            account.totalBalance || "",
-            account.available || "",
-            account.creditLimit || "",
-            account.debtToCredit || "",
-            account.payment || ""
-          ]),
-          matchScore: 0.9,
-          extractionMethod: "openai"
-        });
-        
-        return {
-          headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
-          rows: openAIResults.map(account => [
-            account.accountType,
-            account.open || "",
-            account.withBalance || "",
-            account.totalBalance || "",
-            account.available || "",
-            account.creditLimit || "",
-            account.debtToCredit || "",
-            account.payment || ""
-          ]),
-          confidence: 0.95,
-          matchScore: 0.9,
-          isTargetTable: true
-        };
+        if (openAIResults && openAIResults.length > 0) {
+          console.log("Successfully extracted table with OpenAI");
+          
+          // Log the data for debugging
+          console.log("Extracted table data:", {
+            headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
+            rows: openAIResults.map(account => [
+              account.accountType,
+              account.open || "",
+              account.withBalance || "",
+              account.totalBalance || "",
+              account.available || "",
+              account.creditLimit || "",
+              account.debtToCredit || "",
+              account.payment || ""
+            ]),
+            matchScore: 0.9,
+            extractionMethod: "openai"
+          });
+          
+          return {
+            headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
+            rows: openAIResults.map(account => [
+              account.accountType,
+              account.open || "",
+              account.withBalance || "",
+              account.totalBalance || "",
+              account.available || "",
+              account.creditLimit || "",
+              account.debtToCredit || "",
+              account.payment || ""
+            ]),
+            confidence: 0.95,
+            matchScore: 0.9,
+            isTargetTable: true
+          };
+        }
+      } catch (error) {
+        console.error("Error extracting data with OpenAI:", error);
       }
     }
     
     // Fall back to basic recognition
     console.log("Falling back to basic table extraction");
     
-    // Simulate table extraction (in a real app, this would use computer vision)
-    // Return mock data for now to test the UI flow
+    // Create empty table data structure for fallback
     return {
       headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
       rows: [],

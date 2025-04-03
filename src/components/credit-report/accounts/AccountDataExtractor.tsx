@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
@@ -13,60 +14,6 @@ interface AccountDataExtractorProps {
   isProcessing: boolean;
   setIsProcessing: (processing: boolean) => void;
 }
-
-// Sample account data with actual values for demonstration purposes
-const SAMPLE_ACCOUNT_DATA = [
-  {
-    accountType: "Revolving",
-    open: "4",
-    withBalance: "3",
-    totalBalance: "$16,355",
-    available: "$18,645",
-    creditLimit: "$35,000",
-    debtToCredit: "46.7%",
-    payment: "$627"
-  },
-  {
-    accountType: "Mortgage",
-    open: "1",
-    withBalance: "1",
-    totalBalance: "$245,678",
-    available: "$0",
-    creditLimit: "$245,678",
-    debtToCredit: "100.0%",
-    payment: "$1,856"
-  },
-  {
-    accountType: "Installment",
-    open: "2",
-    withBalance: "2",
-    totalBalance: "$204,150",
-    available: "$15,455",
-    creditLimit: "$219,605",
-    debtToCredit: "93.0%",
-    payment: "$1,289"
-  },
-  {
-    accountType: "Other",
-    open: "0",
-    withBalance: "0",
-    totalBalance: "$0",
-    available: "$0",
-    creditLimit: "$0",
-    debtToCredit: "0.0%",
-    payment: "$0"
-  },
-  {
-    accountType: "Total",
-    open: "7",
-    withBalance: "6",
-    totalBalance: "$466,183",
-    available: "$34,100",
-    creditLimit: "$500,283",
-    debtToCredit: "93.2%",
-    payment: "$3,772"
-  }
-];
 
 // Export the enhanced extraction function to be called directly
 export const handleEnhancedExtraction = async (
@@ -89,7 +36,7 @@ export const handleEnhancedExtraction = async (
       
       if (existingDataHasValues) {
         console.log("Using existing account data from report:", report.accountSummaries);
-        createOrderedAccountSummaries(report.accountSummaries, onDataExtracted, requiredAccountTypes);
+        createOrderedAccountSummaries(report.accountSummaries, onDataExtracted, requiredAccountTypes, false);
         setIsProcessing(false);
         if (forceManualExtraction) {
           toast.success("Using existing account data from report");
@@ -98,6 +45,7 @@ export const handleEnhancedExtraction = async (
       }
     }
     
+    // Get the table image
     const newTableImageUrl = await extractCreditAccountsTableImage(report);
     
     if (newTableImageUrl) {
@@ -106,40 +54,53 @@ export const handleEnhancedExtraction = async (
       // First try OpenAI extraction if available (highest quality results)
       if (canUseOpenAI()) {
         console.log("Attempting extraction with OpenAI");
-        const openAIResults = await extractTableWithOpenAI(newTableImageUrl);
+        // Add cache busting parameter to ensure fresh image
+        const cacheBustUrl = `${newTableImageUrl}${newTableImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
         
-        if (openAIResults && openAIResults.length > 0 && hasRealData(openAIResults)) {
-          console.log("Successfully extracted data with OpenAI:", openAIResults);
-          if (forceManualExtraction) {
-            toast.success("Successfully extracted account data with AI");
-          }
+        try {
+          const openAIResults = await extractTableWithOpenAI(cacheBustUrl);
           
-          createOrderedAccountSummaries(openAIResults, onDataExtracted, requiredAccountTypes);
-          setIsProcessing(false);
-          return;
-        } else {
-          console.log("OpenAI extraction failed or returned no real data, falling back to local extraction");
+          if (openAIResults && openAIResults.length > 0 && hasRealData(openAIResults)) {
+            console.log("Successfully extracted data with OpenAI:", openAIResults);
+            if (forceManualExtraction) {
+              toast.success("Successfully extracted account data with AI");
+            }
+            
+            createOrderedAccountSummaries(openAIResults, onDataExtracted, requiredAccountTypes, false);
+            setIsProcessing(false);
+            return;
+          } else {
+            console.log("OpenAI extraction failed or returned no real data, falling back to local extraction");
+          }
+        } catch (error) {
+          console.error("Error during OpenAI extraction:", error);
         }
       }
       
       // Fall back to local table extraction
-      const tableData = await extractTableFromImage(newTableImageUrl);
-      
-      if (tableData && tableData.rows && tableData.rows.length > 0) {
-        console.log("Extracted table data:", tableData);
+      try {
+        // Add cache busting parameter
+        const cacheBustUrl = `${newTableImageUrl}${newTableImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+        const tableData = await extractTableFromImage(cacheBustUrl);
         
-        const extractedSummaries = convertTableToAccountSummaries(tableData);
-        
-        if (extractedSummaries.length > 0 && hasRealData(extractedSummaries) && !isSampleData(extractedSummaries)) {
-          console.log('Successfully extracted account summaries:', extractedSummaries);
-          if (forceManualExtraction) {
-            toast.success("Successfully extracted account data");
-          }
+        if (tableData && tableData.rows && tableData.rows.length > 0) {
+          console.log("Extracted table data:", tableData);
           
-          createOrderedAccountSummaries(extractedSummaries, onDataExtracted, requiredAccountTypes);
-          setIsProcessing(false);
-          return;
+          const extractedSummaries = convertTableToAccountSummaries(tableData);
+          
+          if (extractedSummaries.length > 0 && hasRealData(extractedSummaries)) {
+            console.log('Successfully extracted account summaries:', extractedSummaries);
+            if (forceManualExtraction) {
+              toast.success("Successfully extracted account data");
+            }
+            
+            createOrderedAccountSummaries(extractedSummaries, onDataExtracted, requiredAccountTypes, false);
+            setIsProcessing(false);
+            return;
+          }
         }
+      } catch (error) {
+        console.error("Error during local table extraction:", error);
       }
     }
     
@@ -155,7 +116,7 @@ export const handleEnhancedExtraction = async (
         if (report.accountSummaries && report.accountSummaries.length > 0) {
           if (hasRealData(report.accountSummaries)) {
             console.log("Using account summaries from report text:", report.accountSummaries);
-            createOrderedAccountSummaries(report.accountSummaries, onDataExtracted, requiredAccountTypes);
+            createOrderedAccountSummaries(report.accountSummaries, onDataExtracted, requiredAccountTypes, false);
             setIsProcessing(false);
             if (forceManualExtraction) {
               toast.success("Successfully extracted account data from text");
@@ -169,7 +130,7 @@ export const handleEnhancedExtraction = async (
     const cachedData = getExtractedReportData();
     if (cachedData && cachedData.accountSummaries && hasRealData(cachedData.accountSummaries)) {
       console.log("Using account summaries from cached data");
-      createOrderedAccountSummaries(cachedData.accountSummaries, onDataExtracted, requiredAccountTypes);
+      createOrderedAccountSummaries(cachedData.accountSummaries, onDataExtracted, requiredAccountTypes, false);
       setIsProcessing(false);
       if (forceManualExtraction) {
         toast.success("Using cached account data");
@@ -179,28 +140,9 @@ export const handleEnhancedExtraction = async (
     
     console.log("No account data available - extraction failed");
     
-    // Use sample data for development environments or if running locally
-    if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
-      const sampleData = SAMPLE_ACCOUNT_DATA.map(item => ({
-        accountType: item.accountType,
-        totalAccounts: null,
-        open: item.open,
-        closed: null,
-        balance: null,
-        withBalance: item.withBalance,
-        totalBalance: item.totalBalance,
-        available: item.available,
-        creditLimit: item.creditLimit,
-        debtToCredit: item.debtToCredit,
-        payment: item.payment
-      }));
-      console.log("Using sample data for development:", sampleData);
-      onDataExtracted(sampleData, true, false);
-    } else {
-      // In production, don't use sample data, show empty data instead
-      const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
-      onDataExtracted(emptyData, false, true);
-    }
+    // Instead of using sample data, create empty data with extraction failed flag
+    const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
+    onDataExtracted(emptyData, false, true);
     
     if (forceManualExtraction) {
       toast.error("Failed to extract account data. Please try uploading a clearer PDF.");
@@ -275,50 +217,6 @@ const createOrderedAccountSummaries = (
 ) => {
   const orderedSummaries: AccountSummary[] = [];
   
-  // If we're using sample data or forcing sample data, use the SAMPLE_ACCOUNT_DATA directly
-  if (forceSample || (isSampleData(sourceSummaries) && process.env.NODE_ENV === 'development')) {
-    console.log("Using sample data for account summaries");
-    requiredAccountTypes.forEach(accountType => {
-      const sampleData = SAMPLE_ACCOUNT_DATA.find(
-        sample => sample.accountType.toLowerCase() === accountType.toLowerCase()
-      );
-      
-      if (sampleData) {
-        orderedSummaries.push({
-          accountType: accountType,
-          totalAccounts: null,
-          open: sampleData.open,
-          closed: null,
-          balance: null,
-          withBalance: sampleData.withBalance,
-          totalBalance: sampleData.totalBalance,
-          available: sampleData.available,
-          creditLimit: sampleData.creditLimit,
-          debtToCredit: sampleData.debtToCredit,
-          payment: sampleData.payment
-        });
-      } else {
-        // Fallback for any missing account types
-        orderedSummaries.push({
-          accountType: accountType,
-          totalAccounts: null,
-          open: null,
-          closed: null,
-          balance: null,
-          withBalance: null,
-          totalBalance: null,
-          available: null,
-          creditLimit: null,
-          debtToCredit: null,
-          payment: null
-        });
-      }
-    });
-    
-    onDataExtracted(orderedSummaries, true, false);
-    return;
-  }
-
   // Original logic for non-sample data
   const summariesByType = new Map<string, AccountSummary>();
   
