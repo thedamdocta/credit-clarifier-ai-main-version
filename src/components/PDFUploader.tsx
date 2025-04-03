@@ -44,7 +44,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       onPDFUploaded(file, text, parsedReport);
       setReadyToNavigate(true);
     },
-    useAI: true, // Enable enhanced extraction
+    useAI: true, // Keep this for functionality, just removing the visible references
     onProcessingStart: () => {
       setReadyToNavigate(false);
       setIsProcessing(true);
@@ -53,12 +53,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       // Wait until processing is fully complete before navigating
       setIsProcessing(false);
       
-      // Delay navigation slightly to ensure UI is updated
-      setTimeout(() => {
-        if (onProcessingComplete && processingComplete) {
-          onProcessingComplete();
-        }
-      }, 500);
+      // Do not automatically navigate - wait for the button click or PDFProgressDisplay completion
     },
     onError: (error) => {
       console.error("PDF processing error:", error);
@@ -94,8 +89,8 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
         <div className="mb-4 border rounded-md p-4">
           <h3 className="font-medium text-sm mb-2">OpenAI API Configuration</h3>
           <p className="text-xs mb-3">{canUseOpenAI() 
-            ? "Enhanced extraction is enabled. You can provide your own API key or use our built-in key." 
-            : "For best results, provide an OpenAI API key for enhanced table detection."}</p>
+            ? "You can provide your own API key or use our built-in key." 
+            : "For best results, provide an OpenAI API key for improved table detection."}</p>
           <OpenAIConfigForm />
         </div>
       )}

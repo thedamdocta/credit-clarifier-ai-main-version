@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -168,9 +167,6 @@ const Index = () => {
                 <CardTitle>Upload Credit Report</CardTitle>
                 <CardDescription>
                   Upload a credit report PDF from Equifax, Experian, or TransUnion
-                  {openAIConfigured && (
-                    <span className="ml-1 text-green-600">• Enhanced extraction enabled</span>
-                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>

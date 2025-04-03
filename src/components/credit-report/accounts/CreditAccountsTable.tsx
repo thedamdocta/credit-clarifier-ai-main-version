@@ -145,7 +145,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           onClick={() => setShowOpenAIConfig(!showOpenAIConfig)}
         >
           <Brain className="h-4 w-4 mr-2" />
-          {showOpenAIConfig ? 'Hide OpenAI Config' : 'Configure OpenAI'}
+          {showOpenAIConfig ? 'Hide Configuration' : 'Configure API'}
         </Button>
         
         {!hasNoData && !isSampleData && (
@@ -213,15 +213,6 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           ))}
         </TableBody>
       </Table>
-      
-      {canUseOpenAI() && (
-        <div className="mt-2 flex items-center justify-end">
-          <Badge variant="outline" className="bg-green-50">
-            <Brain className="h-3 w-3 mr-1 text-green-600" />
-            <span className="text-xs text-green-700">OpenAI Enhanced</span>
-          </Badge>
-        </div>
-      )}
     </div>
   );
 };

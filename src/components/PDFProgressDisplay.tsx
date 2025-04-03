@@ -26,10 +26,10 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   // When progress reaches 100%, trigger the onProcessingComplete callback if processing is finished
   useEffect(() => {
     if (progress >= 100 && !isProcessing && onProcessingComplete) {
-      // Add small delay to ensure UI updates first
+      // Add delay to ensure UI updates first
       const timer = setTimeout(() => {
         onProcessingComplete();
-      }, 1000);
+      }, 1500); // Increased the delay to ensure processing is complete
       
       return () => clearTimeout(timer);
     }
