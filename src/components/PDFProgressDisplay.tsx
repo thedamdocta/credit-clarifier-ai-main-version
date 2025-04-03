@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Progress } from "@/components/ui/progress";
-import { File, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { File, AlertCircle, CheckCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PDFProgressDisplayProps {
@@ -48,12 +48,22 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
         <div className="bg-red-50 p-3 rounded border border-red-200">
           <div className="flex items-start">
             <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2" />
-            <div>
-              <p className="text-sm font-medium text-red-800 mb-1">Processing Error</p>
-              <p className="text-xs text-red-700 mb-2">{error}</p>
-              <Button size="sm" variant="outline" onClick={handleReloadPage}>
-                Reload Page
-              </Button>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-red-800">Processing Error</p>
+              <p className="text-xs text-red-700">{error}</p>
+              <div className="flex items-center space-x-2">
+                <Button size="sm" variant="outline" onClick={handleReloadPage} className="mt-1">
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Reload Page
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => window.location.href = '/'} className="mt-1">
+                  Start Over
+                </Button>
+              </div>
+              <p className="text-xs text-red-600 mt-2">
+                This might be due to network issues or browser restrictions.
+                Try using a different browser if the issue persists.
+              </p>
             </div>
           </div>
         </div>

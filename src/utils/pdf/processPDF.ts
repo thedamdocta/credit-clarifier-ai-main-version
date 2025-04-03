@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
@@ -9,6 +10,9 @@ interface PDFProcessingCallbacks extends ProgressCallbacks {
   targetTable?: string; 
   onError?: (error: Error | null) => void;
 }
+
+// Add a flag to track if we've already warned about PDF.js loading issues
+let pdfJsLoadingWarned = false;
 
 export const processPDFDocument = async (
   file: File,
@@ -45,11 +49,32 @@ export const processPDFDocument = async (
       onCompleteCallback // Pass through the completion callback
     });
     
-    // Load the PDF.js library dynamically
+    // Load the PDF.js library dynamically with better error handling
     try {
-      const pdfjsLib = await import("pdfjs-dist");
+      // Set a timeout to detect PDF.js loading problems
+      const pdfLoadingTimeout = setTimeout(() => {
+        console.warn("PDF.js loading is taking longer than expected");
+        toast.warning("PDF library is loading slowly. Please be patient.");
+      }, 3000);
+      
+      // Try loading the PDF.js library with a more robust approach
+      const pdfjsLib = await Promise.race([
+        import("pdfjs-dist").catch(error => {
+          console.error("Error loading pdfjs-dist package:", error);
+          throw new Error("Failed to load PDF processing library");
+        }),
+        // Add a timeout promise to handle cases where the import gets stuck
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("PDF library loading timed out")), 15000)
+        )
+      ]);
+      
+      // Clear the warning timeout since we've either loaded or failed
+      clearTimeout(pdfLoadingTimeout);
+      
+      // Set worker source using a more reliable CDN
       pdfjsLib.GlobalWorkerOptions.workerSrc = 
-        `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
       
       // Read the PDF file
       const fileReader = new FileReader();
@@ -59,8 +84,18 @@ export const processPDFDocument = async (
           const typedarray = new Uint8Array(this.result as ArrayBuffer);
           
           try {
-            // Load the PDF document
-            const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+            console.log("Loading PDF document from array buffer");
+            // Add timeout for PDF loading operations too
+            const loadPdfPromise = pdfjsLib.getDocument({ data: typedarray }).promise;
+            
+            // Set a timeout on the PDF document loading
+            const pdf = await Promise.race([
+              loadPdfPromise,
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("PDF document loading timed out")), 10000)
+              )
+            ]);
+            
             const numPages = pdf.numPages;
             console.log(`PDF loaded with ${numPages} pages`);
             updateProgress(15);
@@ -199,8 +234,28 @@ export const processPDFDocument = async (
       fileReader.readAsArrayBuffer(file);
     } catch (error) {
       console.error("Error loading PDF library:", error);
-      toast.error("Failed to load PDF processing library. Please try refreshing the page.");
+      
+      // Only show the warning toast once to avoid spamming the user
+      if (!pdfJsLoadingWarned) {
+        toast.error("Failed to load PDF processing library. Please try refreshing the page or using a different browser.");
+        pdfJsLoadingWarned = true;
+      }
+      
+      // Create a more graceful fallback by using basic processing
       callbacks.setUploadProgress(0);
+      
+      // Provide a fallback workflow - simple file name & metadata extraction
+      const basicText = `Filename: ${file.name}\nFile size: ${Math.round(file.size / 1024)} KB\nFile type: ${file.type}`;
+      handleBasicProcessing(uniqueReportId, file, basicText, targetTable, onPDFUploaded);
+      
+      // Update the UI to show we're trying to process anyway
+      setTimeout(() => {
+        updateProgressStage('finalProcessing');
+        setTimeout(() => {
+          completeProgressTracking();
+        }, 2000);
+      }, 1500);
+      
       if (onError) onError(error instanceof Error ? error : new Error("Failed to load PDF library"));
     }
   } catch (error) {
