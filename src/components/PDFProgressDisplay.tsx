@@ -1,8 +1,9 @@
 
 import React from "react";
 import { Progress } from "@/components/ui/progress";
-import { File, AlertCircle, CheckCircle, Loader2, RefreshCw } from "lucide-react";
+import { File, AlertCircle, CheckCircle, Loader2, RefreshCw, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface PDFProgressDisplayProps {
   file: File;
@@ -10,6 +11,7 @@ interface PDFProgressDisplayProps {
   error?: string | null;
   isProcessing?: boolean;
   processingMessage?: string;
+  onOpenAIConfigRequest?: () => void;
 }
 
 const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
@@ -17,7 +19,8 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   progress,
   error,
   isProcessing,
-  processingMessage
+  processingMessage,
+  onOpenAIConfigRequest
 }) => {
   const handleReloadPage = () => {
     window.location.reload();
@@ -51,6 +54,26 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
             <div className="space-y-2">
               <p className="text-sm font-medium text-red-800">Processing Error</p>
               <p className="text-xs text-red-700">{error}</p>
+              
+              {/* Enhanced error handling UI with OpenAI configuration suggestion */}
+              <Alert className="bg-amber-50 border-amber-200 mt-2">
+                <Shield className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-700 text-xs">
+                  Configuring OpenAI may improve extraction quality. Configure it before trying again.
+                  {onOpenAIConfigRequest && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="mt-1 bg-white"
+                      onClick={onOpenAIConfigRequest}
+                    >
+                      <Shield className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                      Configure OpenAI
+                    </Button>
+                  )}
+                </AlertDescription>
+              </Alert>
+              
               <div className="flex items-center space-x-2">
                 <Button size="sm" variant="outline" onClick={handleReloadPage} className="mt-1">
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" />

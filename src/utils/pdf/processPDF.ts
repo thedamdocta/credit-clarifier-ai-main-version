@@ -61,20 +61,42 @@ export const processPDFDocument = async (
       const pdfjsLib = await Promise.race([
         import("pdfjs-dist").catch(error => {
           console.error("Error loading pdfjs-dist package:", error);
-          throw new Error("Failed to load PDF processing library");
+          throw new Error("Failed to load PDF processing library. Please check your network connection and try again.");
         }),
         // Add a timeout promise to handle cases where the import gets stuck
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("PDF library loading timed out")), 15000)
+          setTimeout(() => reject(new Error("PDF library loading timed out. Please refresh the page and try again.")), 15000)
         )
       ]);
       
       // Clear the warning timeout since we've either loaded or failed
       clearTimeout(pdfLoadingTimeout);
       
-      // Set worker source using a more reliable CDN
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 
-        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      // Set worker source using a more reliable CDN with version fallback
+      const workerVersion = pdfjsLib.version || '3.11.174';
+      const workerUrls = [
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${workerVersion}/pdf.worker.min.js`,
+        `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.min.js`,
+        `https://cdn.jsdelivr.net/npm/pdfjs-dist@${workerVersion}/build/pdf.worker.min.js`
+      ];
+      
+      // Try setting the worker from each URL until one works
+      let workerSet = false;
+      for (const workerUrl of workerUrls) {
+        try {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+          console.log(`Using PDF.js worker from: ${workerUrl}`);
+          workerSet = true;
+          break;
+        } catch (workerError) {
+          console.warn(`Failed to set worker from ${workerUrl}:`, workerError);
+        }
+      }
+      
+      if (!workerSet) {
+        console.error("Could not set PDF.js worker from any source");
+        throw new Error("Failed to load PDF processing components");
+      }
       
       // Read the PDF file
       const fileReader = new FileReader();
@@ -246,6 +268,14 @@ export const processPDFDocument = async (
       
       // Provide a fallback workflow - simple file name & metadata extraction
       const basicText = `Filename: ${file.name}\nFile size: ${Math.round(file.size / 1024)} KB\nFile type: ${file.type}`;
+      
+      // Display a more helpful error message
+      const errorMessage = error instanceof Error 
+        ? `PDF library loading error: ${error.message}` 
+        : "Failed to load PDF processing library. Please try refreshing the page.";
+        
+      if (onError) onError(new Error(errorMessage));
+      
       handleBasicProcessing(uniqueReportId, file, basicText, targetTable, onPDFUploaded);
       
       // Update the UI to show we're trying to process anyway
@@ -255,8 +285,6 @@ export const processPDFDocument = async (
           completeProgressTracking();
         }, 2000);
       }, 1500);
-      
-      if (onError) onError(error instanceof Error ? error : new Error("Failed to load PDF library"));
     }
   } catch (error) {
     console.error("Error in PDF processing:", error);

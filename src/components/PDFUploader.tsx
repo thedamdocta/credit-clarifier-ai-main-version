@@ -24,7 +24,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   onProcessingComplete
 }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showOpenAIConfig, setShowOpenAIConfig] = useState(true); // Show by default
+  const [showOpenAIConfig, setShowOpenAIConfig] = useState(true); // Always show by default
   const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
   const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
@@ -83,6 +83,11 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   const handleOpenAIConfigured = () => {
     setOpenAIConfigured(true);
   };
+  
+  // Always show OpenAI config
+  const handleShowOpenAIConfig = () => {
+    setShowOpenAIConfig(true);
+  };
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -100,11 +105,10 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
         </Alert>
       )}
       
-      {showOpenAIConfig && (
-        <div className="mb-6">
-          <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
-        </div>
-      )}
+      {/* Always show OpenAI config section */}
+      <div className="mb-6">
+        <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
+      </div>
       
       <div
         className={cn(
@@ -132,6 +136,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
             error={processingError}
             isProcessing={isProcessing}
             processingMessage={processingMessage}
+            onOpenAIConfigRequest={handleShowOpenAIConfig}
           />
         ) : (
           <PDFUploadPlaceholder 
