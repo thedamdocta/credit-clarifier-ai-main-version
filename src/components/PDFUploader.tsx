@@ -36,7 +36,8 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     handleDrop,
     handleFileInputChange,
     triggerFileInput,
-    processingError
+    processingError,
+    processingComplete
   } = usePDFUpload({ 
     onPDFUploaded: (file, text, parsedReport) => {
       // Process is complete - ready to navigate
@@ -49,12 +50,12 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       setIsProcessing(true);
     },
     onProcessingComplete: () => {
-      // Mark processing as complete
+      // Wait until processing is fully complete before navigating
       setIsProcessing(false);
       
-      // Add a small delay before auto-navigation to ensure UI updates
+      // Delay navigation slightly to ensure UI is updated
       setTimeout(() => {
-        if (onProcessingComplete) {
+        if (onProcessingComplete && processingComplete) {
           onProcessingComplete();
         }
       }, 500);
@@ -68,7 +69,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
 
   // Manual view report button handler
   const handleViewReport = () => {
-    if (readyToNavigate) {
+    if (readyToNavigate && !isProcessing) {
       onProcessingComplete();
     }
   };
@@ -124,6 +125,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
               file={currentFile} 
               progress={uploadProgress}
               error={processingError}
+              isProcessing={isProcessing}
               onProcessingComplete={handleViewReport}
             />
             

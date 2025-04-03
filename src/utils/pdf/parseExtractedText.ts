@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
 // Import the table extraction utilities
@@ -352,7 +351,7 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
 };
 
 // Main parsing function that combines all aspects of credit report processing
-export const parsePDFContent = async (extractedText: string, useAI: boolean = false) => {
+export const parsePDFContent = async (extractedText: string, useEnhanced: boolean = false) => {
   try {
     console.log('Parsing PDF content...');
     // Reset the current report image for each new PDF processing

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -82,14 +83,14 @@ const Index = () => {
   };
 
   const handleProcessingComplete = () => {
+    console.log("Processing complete, transitioning to report tab");
     setProcessingComplete(true);
     setIsProcessing(false);
     
-    setTimeout(() => {
-      if (creditReport) {
-        setActiveTab("report");
-      }
-    }, 300);
+    // Only navigate if we actually have a credit report
+    if (creditReport) {
+      setActiveTab("report");
+    }
   };
 
   const handleRefresh = () => {

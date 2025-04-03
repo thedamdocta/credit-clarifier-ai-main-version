@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import CreditAccountsHeader from "./accounts/CreditAccountsHeader";
 import CreditAccountsDebug from "./accounts/CreditAccountsDebug";
 import CreditAccountsTable from "./accounts/CreditAccountsTable";
-import { extractTableFromImage, convertTableToAccountSummaries, createSimulatedTableData } from "@/lib/ai/tableExtraction";
+import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { toast } from "sonner";
 import { extractCreditAccountsTableImage, resetCurrentReportImage, getExtractedReportData } from "@/utils/pdf/extractText";
 import { Loader2, RefreshCw, AlertCircle, Upload, Info } from "lucide-react";
@@ -64,7 +63,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       
       const extractionTimer = setTimeout(() => {
         handleEnhancedExtraction(false);
-      }, 2000);
+      }, 1000);
       
       return () => clearTimeout(extractionTimer);
     }
@@ -434,10 +433,17 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           </div>
         )}
         
-        <CreditAccountsTable 
-          accountSummaries={accountSummaries} 
-          onRequestUpload={triggerPdfUpload}
-        />
+        {isProcessing ? (
+          <div className="py-8 flex flex-col items-center justify-center">
+            <Loader2 className="h-12 w-12 text-muted-foreground mb-4 animate-spin" />
+            <p className="text-muted-foreground">Extracting account data...</p>
+          </div>
+        ) : (
+          <CreditAccountsTable 
+            accountSummaries={accountSummaries} 
+            onRequestUpload={triggerPdfUpload}
+          />
+        )}
       </CardContent>
     </Card>
   );

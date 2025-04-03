@@ -43,19 +43,19 @@ export const usePDFUpload = ({
         setCurrentFile,
         setUploadProgress,
         onPDFUploaded: (file, text, parsedReport) => {
-          // Only call this when processing is 100% complete to ensure full data is available
+          // Mark processing as complete
           setProcessingComplete(true);
           
-          // Wait a moment to ensure UI is updated to show 100%
+          // Pass data to the parent component
+          onPDFUploaded(file, text, parsedReport);
+          
+          // Give the browser a moment to update state
           setTimeout(() => {
-            // Pass data to the parent component
-            onPDFUploaded(file, text, parsedReport);
-            
-            // Processing is complete - call the callback
+            // Only call onProcessingComplete after all other operations are complete
             if (onProcessingComplete) {
               onProcessingComplete();
             }
-          }, 500);
+          }, 300);
         },
         useImageExtraction: true, // Enable image extraction for table detection
         targetTable: "Credit Accounts", // Specifically target the Credit Accounts table
@@ -68,7 +68,9 @@ export const usePDFUpload = ({
           if (onError) onError(error);
           // On error, processing is also complete
           if (onProcessingComplete) {
-            onProcessingComplete();
+            setTimeout(() => {
+              onProcessingComplete();
+            }, 300);
           }
         }
       });
@@ -82,7 +84,9 @@ export const usePDFUpload = ({
       setUploadProgress(0);
       // On exception, processing is also complete
       if (onProcessingComplete) {
-        onProcessingComplete();
+        setTimeout(() => {
+          onProcessingComplete();
+        }, 300);
       }
     }
   };

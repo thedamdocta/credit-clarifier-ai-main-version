@@ -1,13 +1,14 @@
 
 import React, { useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
-import { File, AlertCircle, CheckCircle } from "lucide-react";
+import { File, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PDFProgressDisplayProps {
   file: File;
   progress: number;
   error?: string | null;
+  isProcessing?: boolean;
   onProcessingComplete?: () => void;
 }
 
@@ -15,15 +16,16 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   file,
   progress,
   error,
+  isProcessing,
   onProcessingComplete
 }) => {
   const handleReloadPage = () => {
     window.location.reload();
   };
   
-  // When progress reaches 100%, trigger the onProcessingComplete callback
+  // When progress reaches 100%, trigger the onProcessingComplete callback if processing is finished
   useEffect(() => {
-    if (progress >= 100 && onProcessingComplete) {
+    if (progress >= 100 && !isProcessing && onProcessingComplete) {
       // Add small delay to ensure UI updates first
       const timer = setTimeout(() => {
         onProcessingComplete();
@@ -31,7 +33,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
       
       return () => clearTimeout(timer);
     }
-  }, [progress, onProcessingComplete]);
+  }, [progress, isProcessing, onProcessingComplete]);
 
   return (
     <div className="w-full space-y-4">
@@ -56,7 +58,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
             </div>
           </div>
         </div>
-      ) : progress >= 100 ? (
+      ) : progress >= 100 && !isProcessing ? (
         <div className="bg-green-50 p-3 rounded border border-green-200">
           <div className="flex items-start">
             <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2" />
@@ -69,10 +71,11 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
       ) : (
         <>
           <Progress value={progress} className="h-2" />
-          <p className="text-sm text-center text-muted-foreground">
+          <p className="text-sm text-center text-muted-foreground flex items-center justify-center">
+            {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {progress < 100 ? 
               `Processing PDF (${Math.round(progress)}%)...` : 
-              "PDF processed successfully!"}
+              isProcessing ? "Finalizing..." : "PDF processed successfully!"}
           </p>
         </>
       )}

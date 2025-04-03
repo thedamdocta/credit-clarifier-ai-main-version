@@ -1,8 +1,8 @@
+
 import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking } from "./progressHandling";
-import { convertPDFPageToImage } from "./pdfToImage";
 
 interface PDFProcessingCallbacks {
   setCurrentFile: (file: File) => void;
@@ -84,7 +84,7 @@ export const processPDFDocument = async (
                 updateProgress(80);
                 
                 // Create a global reference to this PDF for better extraction
-                window.currentPdfData = {
+                (window as any).currentPdfData = {
                   reportId: uniqueReportId,
                   fileName: file.name,
                   extractedText: extractedText.substring(0, 1000) // Store preview
@@ -112,43 +112,28 @@ export const processPDFDocument = async (
                   // Update progress to 95% to indicate we're almost done
                   updateProgress(95);
                   
-                  // Slight delay before setting 100% to ensure UI shows the transition
-                  setTimeout(() => {
-                    // Update progress to 100% to indicate completion
-                    updateProgress(100);
-                    
-                    // Small delay before finalizing to show the 100% progress
-                    setTimeout(() => {
-                      completeProgressTracking();
-                      
-                      // Pass the extracted text, file, and parsed report to the parent component
-                      onPDFUploaded(file, extractedText, parsedReport);
-                      
-                      toast.success("PDF successfully processed!");
-                    }, 1000);
-                  }, 500);
+                  // Complete processing and pass data to the parent before navigation
+                  updateProgress(100);
+                  completeProgressTracking();
+                  
+                  // Pass the extracted text, file, and parsed report to the parent component
+                  onPDFUploaded(file, extractedText, parsedReport);
+                  
+                  toast.success("PDF successfully processed!");
                 } catch (extractionError) {
                   console.error("Additional extraction error:", extractionError);
                   // Non-critical error, continue with what we have
                   updateProgress(100);
-                  
-                  // Small delay before finalizing
-                  setTimeout(() => {
-                    completeProgressTracking();
-                    onPDFUploaded(file, extractedText, parsedReport);
-                  }, 500);
+                  completeProgressTracking();
+                  onPDFUploaded(file, extractedText, parsedReport);
                 }
               } else {
                 // If we don't have a parsed report, use basic processing
                 updateProgress(90);
                 setTimeout(() => {
                   updateProgress(100);
-                  
-                  // Small delay to show 100%
-                  setTimeout(() => {
-                    handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
-                    completeProgressTracking();
-                  }, 1000);
+                  handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
+                  completeProgressTracking();
                 }, 500);
               }
               
@@ -159,10 +144,8 @@ export const processPDFDocument = async (
               
               setTimeout(() => {
                 updateProgress(100);
-                setTimeout(() => {
-                  handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
-                  completeProgressTracking();
-                }, 1000);
+                handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
+                completeProgressTracking();
               }, 500);
             }
             
@@ -174,7 +157,7 @@ export const processPDFDocument = async (
           }
         } catch (error) {
           console.error("Error in FileReader onload handler:", error);
-          handleProgressError("Error processing PDF content");
+          handleProgressError(error);
           if (onError) onError(error instanceof Error ? error : new Error("Error processing PDF content"));
         }
       };
@@ -182,7 +165,7 @@ export const processPDFDocument = async (
       fileReader.onerror = (event) => {
         const error = new Error("Error reading the PDF file");
         toast.error("Error reading the file.");
-        handleProgressError("File reader error");
+        handleProgressError(error);
         if (onError) onError(error);
       };
 
@@ -224,7 +207,7 @@ function handleBasicProcessing(
   };
   
   // Store in global for easier access
-  window.currentPdfData = {
+  (window as any).currentPdfData = {
     reportId: reportId,
     fileName: file.name,
     extractedText: extractedText.substring(0, 1000)
