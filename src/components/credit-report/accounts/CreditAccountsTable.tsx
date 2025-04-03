@@ -49,9 +49,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   
   const summariesToDisplay = stableData && stableData.length > 0 ? stableData : accountSummaries;
   
-  const isSampleData = summariesToDisplay && 
-    summariesToDisplay.some(s => s.accountType === "Revolving" && s.totalBalance === "$16,355" && s.payment === "$627") &&
-    summariesToDisplay.some(s => s.accountType === "Installment" && s.totalBalance === "$204,150" && s.available === "$15,455");
+  const isSampleData = false;
   
   const hasNoData = !summariesToDisplay || summariesToDisplay.length === 0 || summariesToDisplay.every(summary =>
     (summary.open === null || summary.open === "") && 
@@ -122,17 +120,8 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
         </Alert>
       )}
       
-      {!hasNoData && isSampleData && (
-        <Alert className="mb-4 bg-amber-50">
-          <Info className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800">
-            Using sample data. Upload a clearer credit report or table image to see your actual data.
-          </AlertDescription>
-        </Alert>
-      )}
-      
       <div className="flex justify-end mb-2">
-        {!hasNoData && !isSampleData && (
+        {!hasNoData && (
           <Button 
             variant="outline" 
             size="sm"
@@ -182,9 +171,6 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
             >
               <TableCell className="font-medium">
                 {summary.accountType}
-                {isSampleData && (
-                  <Badge variant="outline" className="ml-2 text-xs">Sample</Badge>
-                )}
               </TableCell>
               <TableCell>{renderCellValue('open', summary.open, formatAccountValue)}</TableCell>
               <TableCell>{renderCellValue('withBalance', summary.withBalance, formatAccountValue)}</TableCell>

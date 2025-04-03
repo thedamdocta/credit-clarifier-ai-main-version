@@ -1,4 +1,3 @@
-
 import { ExtractedTableData, FormattedTableData } from "./table/types";
 import { extractTableWithOpenAI, canUseOpenAI } from "./openai/openaiService";
 import { AccountSummary } from "../types/creditReport";
@@ -35,22 +34,33 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
             extractionMethod: "openai"
           });
           
-          return {
-            headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
-            rows: openAIResults.map(account => [
-              account.accountType,
-              account.open || "",
-              account.withBalance || "",
-              account.totalBalance || "",
-              account.available || "",
-              account.creditLimit || "",
-              account.debtToCredit || "",
-              account.payment || ""
-            ]),
-            confidence: 0.95,
-            matchScore: 0.9,
-            isTargetTable: true
-          };
+          // Only return data if we have actual values
+          const hasRealValues = openAIResults.some(account => 
+            (account.open !== null && account.open !== "0") || 
+            (account.withBalance !== null && account.withBalance !== "0") || 
+            (account.totalBalance !== null && account.totalBalance !== "$0" && account.totalBalance !== "0")
+          );
+          
+          if (hasRealValues) {
+            return {
+              headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
+              rows: openAIResults.map(account => [
+                account.accountType,
+                account.open || "",
+                account.withBalance || "",
+                account.totalBalance || "",
+                account.available || "",
+                account.creditLimit || "",
+                account.debtToCredit || "",
+                account.payment || ""
+              ]),
+              confidence: 0.95,
+              matchScore: 0.9,
+              isTargetTable: true
+            };
+          } else {
+            console.log("OpenAI extraction returned data but with no real values");
+          }
         } else {
           console.log("OpenAI extraction returned no data or empty results");
         }

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
 import { toast } from 'sonner';
@@ -27,53 +26,37 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     
     console.log('Using OpenAI for table extraction');
     
-    // Convert data URL to blob if needed
-    let imageBlob: Blob;
-    
-    try {
-      // For regular URLs, use fetch with cache control
-      const response = await fetch(imageUrl, {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      if (!response.ok) {
-        console.error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-      }
-      
-      imageBlob = await response.blob();
-      console.log('Successfully fetched image as blob');
-    } catch (error) {
-      console.error('Error fetching image:', error);
-      toast.error('Failed to process the image. Check your network connection and try again.');
-      return null;
-    }
-    
-    // Read blob as base64 
+    // Handle different types of image URLs
     let base64Image: string;
-    try {
-      base64Image = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          if (result) {
-            resolve(result);
-          } else {
-            reject(new Error('FileReader returned empty result'));
-          }
-        };
-        reader.onerror = () => reject(new Error('Failed to read image as base64'));
-        reader.readAsDataURL(imageBlob);
-      });
-      
-      console.log('Successfully converted image to base64');
-    } catch (error) {
-      console.error('Error reading image as base64:', error);
-      toast.error('Failed to process the image data. Please try again.');
-      return null;
+    
+    // If it's already a data URL, use it directly
+    if (imageUrl.startsWith('data:')) {
+      console.log('Image is already a data URL, using directly');
+      base64Image = imageUrl;
+    } else {
+      // For regular URLs, use fetch
+      try {
+        const response = await fetch(imageUrl, { cache: 'no-store' });
+        
+        if (!response.ok) {
+          console.error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        base64Image = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        
+        console.log('Successfully converted image URL to data URL');
+      } catch (error) {
+        console.error('Error fetching image:', error);
+        toast.error('Failed to process the image. Check your network connection and try again.');
+        return null;
+      }
     }
     
     // Call OpenAI API with the image
