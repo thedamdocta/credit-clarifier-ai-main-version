@@ -2,6 +2,9 @@
 import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Shield, Eye, EyeOff } from 'lucide-react';
 
 // Hardcoded API key as fallback
 const HARDCODED_API_KEY = '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';
@@ -166,34 +169,51 @@ If you can't extract a specific value, set it to null. Be extremely precise with
 export const OpenAIConfigForm: React.FC = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
   const [saved, setSaved] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   
   const handleSave = () => {
     localStorage.setItem('openai_api_key', apiKey);
     setSaved(true);
+    toast.success("OpenAI API key saved successfully");
     setTimeout(() => setSaved(false), 3000);
   };
   
   return (
-    <div className="p-4 border rounded-md mb-4">
-      <h3 className="font-medium mb-2">OpenAI API Configuration</h3>
-      <p className="text-sm mb-2">OpenAI API key is optional - the app has a built-in key</p>
-      <div className="flex gap-2">
-        <input 
-          type="password" 
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+    <div className="flex flex-col space-y-2">
+      <div className="flex gap-2 items-center">
+        <Input 
+          type={showApiKey ? "text" : "password"}
+          className="flex h-8 text-xs"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder="sk-..." 
         />
-        <button 
-          className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={() => setShowApiKey(!showApiKey)}
+        >
+          {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </Button>
+        <Button 
+          variant="default" 
+          size="sm"
+          className="h-8"
           onClick={handleSave}
         >
-          Save
-        </button>
+          Save Key
+        </Button>
       </div>
-      {saved && <p className="text-green-600 text-xs mt-1">API key saved!</p>}
-      <p className="text-xs text-muted-foreground mt-2">You can use your own key or rely on the built-in key</p>
+      {saved && <p className="text-green-600 text-xs">API key saved!</p>}
+      <div className="flex items-center text-xs text-muted-foreground">
+        <Shield className="h-3 w-3 mr-1 text-green-600" />
+        <span>
+          {canUseOpenAI() 
+            ? "AI-powered extraction is enabled" 
+            : "For best results, provide an OpenAI API key"}
+        </span>
+      </div>
     </div>
   );
 };

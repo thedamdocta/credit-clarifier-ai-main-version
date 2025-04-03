@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +13,6 @@ import WebhookManager from "@/components/WebhookManager";
 import { useToast } from "@/hooks/use-toast";
 import EquifaxCreditReport from "@/components/EquifaxCreditReport";
 import ParsingDebugger from "@/components/ParsingDebugger";
-import OpenAIConfigSection from "@/components/OpenAIConfigSection";
 import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 const Index = () => {
@@ -120,8 +118,6 @@ const Index = () => {
         
         <TabsContent value="upload" className="mt-0">
           <div className="grid gap-6">
-            <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
-            
             {processingError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />

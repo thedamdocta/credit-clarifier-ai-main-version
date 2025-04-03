@@ -6,6 +6,7 @@ import PDFUploadPlaceholder from "./PDFUploadPlaceholder";
 import PDFProgressDisplay from "./PDFProgressDisplay";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { OpenAIConfigForm, canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -14,6 +15,7 @@ interface PDFUploaderProps {
 
 const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showOpenAIConfig, setShowOpenAIConfig] = useState(true);
   
   const {
     isDragging,
@@ -49,6 +51,16 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({ onPDFUploaded, isProcessing }
             </div>
           </AlertDescription>
         </Alert>
+      )}
+      
+      {showOpenAIConfig && (
+        <div className="mb-4 border rounded-md p-4">
+          <h3 className="font-medium text-sm mb-2">OpenAI API Configuration</h3>
+          <p className="text-xs mb-3">{canUseOpenAI() 
+            ? "AI-powered extraction is enabled. You can provide your own API key or use our built-in key." 
+            : "For best results, provide an OpenAI API key for enhanced table detection."}</p>
+          <OpenAIConfigForm />
+        </div>
       )}
       
       <div
