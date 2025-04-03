@@ -23,7 +23,7 @@ const CreditAccountsDebug: React.FC<CreditAccountsDebugProps> = ({ accountSummar
         <p>Number of account summaries: {accountSummaries.length}</p>
         <p>Account types present: {accountSummaries.filter(s => hasValue(s.open) || hasValue(s.totalBalance)).map(s => s.accountType).join(', ')}</p>
         <p>Raw data sample:</p>
-        <pre className="overflow-auto max-h-32 p-2 bg-muted text-[10px]">
+        <pre className="overflow-auto max-h-64 p-2 bg-muted text-[10px]">
           {JSON.stringify(accountSummaries, null, 2)}
         </pre>
       </div>

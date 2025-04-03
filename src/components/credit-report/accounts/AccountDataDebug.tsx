@@ -1,7 +1,7 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
-import { Loader2 } from "lucide-react";
+import { Loader2, Maximize2 } from "lucide-react";
 
 interface AccountDataDebugProps {
   showDebugInfo: boolean;
@@ -26,6 +26,8 @@ const AccountDataDebug: React.FC<AccountDataDebugProps> = ({
   accountSummaries,
   isProcessing
 }) => {
+  const [expandedImage, setExpandedImage] = useState(false);
+
   if (!showDebugInfo) {
     return null;
   }
@@ -52,13 +54,28 @@ const AccountDataDebug: React.FC<AccountDataDebugProps> = ({
       
       {tableImageUrl && (
         <div className="mb-4">
-          <span className="font-semibold block mb-2">Table Image:</span>
-          <img 
-            src={tableImageUrl} 
-            alt="Extracted Table" 
-            className="max-w-full border rounded"
-            style={{ maxHeight: '300px', objectFit: 'contain' }}
-          />
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold">Table Image:</span>
+            <button 
+              onClick={() => setExpandedImage(!expandedImage)} 
+              className="text-xs flex items-center text-blue-600 hover:text-blue-800"
+            >
+              <Maximize2 className="h-3 w-3 mr-1" />
+              {expandedImage ? "Reduce Size" : "Maximize"}
+            </button>
+          </div>
+          <div className={expandedImage ? "border p-2 bg-white" : ""}>
+            <img 
+              src={tableImageUrl} 
+              alt="Extracted Table" 
+              className="max-w-full border rounded"
+              style={{ 
+                maxHeight: expandedImage ? '600px' : '300px', 
+                objectFit: 'contain',
+                width: expandedImage ? '100%' : 'auto'
+              }}
+            />
+          </div>
         </div>
       )}
       
