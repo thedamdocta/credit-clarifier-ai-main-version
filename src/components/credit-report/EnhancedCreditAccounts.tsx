@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,19 +97,29 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setIsProcessing(true);
     }
     
+    // Import the component directly and call its function
+    // instead of trying to instantiate it with 'new'
+    const extractorProps = {
+      report,
+      onDataExtracted: handleDataExtracted,
+      isProcessing,
+      setIsProcessing
+    };
+    
+    // Instead of creating a new instance, we'll call the function directly
+    // using the handleEnhancedExtraction function exported from the component
     import("./accounts/AccountDataExtractor").then(module => {
-      const extractor = new module.default({
-        report,
-        onDataExtracted: handleDataExtracted,
-        isProcessing,
-        setIsProcessing
-      });
-      
-      if (typeof extractor.handleEnhancedExtraction === 'function') {
-        extractor.handleEnhancedExtraction(forceManual);
+      if (typeof module.handleEnhancedExtraction === 'function') {
+        module.handleEnhancedExtraction(extractorProps, forceManual);
       } else {
-        console.error("Could not access extraction method");
-        setIsProcessing(false);
+        console.log("Using AccountDataExtractor component method");
+        const extractorComponent = <AccountDataExtractor {...extractorProps} />;
+        if (extractorComponent && typeof extractorComponent.type.handleEnhancedExtraction === 'function') {
+          extractorComponent.type.handleEnhancedExtraction(extractorProps, forceManual);
+        } else {
+          console.error("Could not access extraction method");
+          setIsProcessing(false);
+        }
       }
     }).catch(err => {
       console.error("Failed to import AccountDataExtractor:", err);
