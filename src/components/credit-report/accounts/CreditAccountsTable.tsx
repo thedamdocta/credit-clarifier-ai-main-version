@@ -25,6 +25,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   
   useEffect(() => {
     if (accountSummaries && accountSummaries.length > 0) {
+      console.log("Checking if account summaries have real values");
       const newDataHasRealValues = accountSummaries.some(summary => 
         ((summary.open !== null && summary.open !== "" && summary.open !== "0") || 
          (summary.withBalance !== null && summary.withBalance !== "" && summary.withBalance !== "0") || 
@@ -48,6 +49,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   }, [accountSummaries]);
   
   const summariesToDisplay = stableData && stableData.length > 0 ? stableData : accountSummaries;
+  console.log("Summaries to display:", summariesToDisplay.length);
   
   const isSampleData = summariesToDisplay && 
     summariesToDisplay.some(s => s.accountType === "Revolving" && s.totalBalance === "$16,355" && s.payment === "$627") &&
@@ -58,6 +60,8 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     (summary.withBalance === null || summary.withBalance === "") && 
     (summary.totalBalance === null || summary.totalBalance === "" || summary.totalBalance === "$0")
   );
+  
+  console.log("Has no data:", hasNoData, "Is sample data:", isSampleData);
   
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     if (typeof value === 'string' && value.trim() !== '') {
