@@ -10,7 +10,8 @@ interface PDFProcessingCallbacks {
   setUploadProgress: (value: number | ((prev: number) => number)) => void;
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   useImageExtraction?: boolean;
-  targetTable?: string; // Added parameter to specify which table to target
+  targetTable?: string; 
+  onError?: (error: Error | null) => void;
 }
 
 export const processPDFDocument = async (
@@ -22,7 +23,8 @@ export const processPDFDocument = async (
     setCurrentFile, 
     onPDFUploaded, 
     useImageExtraction = false, 
-    targetTable = "Credit Accounts" 
+    targetTable = "Credit Accounts",
+    onError
   } = callbacks;
   
   try {
@@ -42,87 +44,104 @@ export const processPDFDocument = async (
     } = setupProgressTracking(callbacks);
     
     // Load the PDF.js library dynamically
-    const pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 
-      `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-    
-    // Read the PDF file
-    const fileReader = new FileReader();
-    
-    fileReader.onload = async function() {
-      const typedarray = new Uint8Array(this.result as ArrayBuffer);
+    try {
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 
+        `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
       
-      try {
-        // Load the PDF document
-        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-        const numPages = pdf.numPages;
-        console.log(`PDF loaded with ${numPages} pages`);
-        updateProgress(10);
-        
-        // Use standard text extraction for the main content with table targeting
-        const extractedText = await extractTextFromPDF(pdf);
-        console.log("Successfully extracted text from PDF, length:", extractedText.length);
-        updateProgress(60);
-        
+      // Read the PDF file
+      const fileReader = new FileReader();
+      
+      fileReader.onload = async function() {
         try {
-          // Parse the extracted text with the unique report ID
-          console.log("Starting PDF content parsing...");
-          const parsedReport = await parsePDFContent(extractedText, useAI);
+          const typedarray = new Uint8Array(this.result as ArrayBuffer);
           
-          // Ensure the report has a unique ID and filename
-          if (parsedReport) {
-            parsedReport.reportId = uniqueReportId;
-            parsedReport.fileName = file.name;
-            parsedReport.rawText = extractedText; // Store the raw text for later use
+          try {
+            // Load the PDF document
+            const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+            const numPages = pdf.numPages;
+            console.log(`PDF loaded with ${numPages} pages`);
+            updateProgress(10);
             
-            // Store this parsed data in our cache to prevent overriding with sample data
-            setExtractedReportData(parsedReport);
+            // Use standard text extraction for the main content with table targeting
+            const extractedText = await extractTextFromPDF(pdf);
+            console.log("Successfully extracted text from PDF, length:", extractedText.length);
+            updateProgress(60);
             
-            // Create a global reference to this PDF for better extraction
-            window.currentPdfData = {
-              reportId: uniqueReportId,
-              fileName: file.name,
-              extractedText: extractedText.substring(0, 1000) // Store preview
-            };
-            
-            // Make sure state is updated before completing processing
-            setTimeout(() => {
+            try {
+              // Parse the extracted text with the unique report ID
+              console.log("Starting PDF content parsing...");
+              const parsedReport = await parsePDFContent(extractedText, useAI);
+              
+              // Ensure the report has a unique ID and filename
+              if (parsedReport) {
+                parsedReport.reportId = uniqueReportId;
+                parsedReport.fileName = file.name;
+                parsedReport.rawText = extractedText; // Store the raw text for later use
+                
+                // Store this parsed data in our cache to prevent overriding with sample data
+                setExtractedReportData(parsedReport);
+                
+                // Create a global reference to this PDF for better extraction
+                window.currentPdfData = {
+                  reportId: uniqueReportId,
+                  fileName: file.name,
+                  extractedText: extractedText.substring(0, 1000) // Store preview
+                };
+                
+                // Make sure state is updated before completing processing
+                setTimeout(() => {
+                  completeProgressTracking();
+                  
+                  // Pass the extracted text, file, and parsed report to the parent component
+                  onPDFUploaded(file, extractedText, parsedReport);
+                  
+                  toast.success("PDF successfully processed!");
+                }, 500);
+              } else {
+                handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
+                completeProgressTracking();
+              }
+              
+            } catch (error) {
+              console.error("Error parsing PDF content:", error);
+              // Fall back to basic processing
+              handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
               completeProgressTracking();
-              
-              // Pass the extracted text, file, and parsed report to the parent component
-              onPDFUploaded(file, extractedText, parsedReport);
-              
-              toast.success("PDF successfully processed!");
-            }, 500);
-          } else {
-            handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
-            completeProgressTracking();
+            }
+            
+          } catch (error) {
+            console.error("Error processing PDF:", error);
+            toast.error("Failed to process PDF. Please try another file.");
+            clearProgressTracking();
+            if (onError) onError(error instanceof Error ? error : new Error("PDF processing failed"));
           }
-          
         } catch (error) {
-          console.error("Error parsing PDF content:", error);
-          // Fall back to basic processing
-          handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
-          completeProgressTracking();
+          console.error("Error in FileReader onload handler:", error);
+          handleProgressError("Error processing PDF content");
+          if (onError) onError(error instanceof Error ? error : new Error("Error processing PDF content"));
         }
-        
-      } catch (error) {
-        console.error("Error processing PDF:", error);
-        toast.error("Failed to process PDF. Please try another file.");
-        clearProgressTracking();
-      }
-    };
+      };
 
-    fileReader.onerror = () => {
-      toast.error("Error reading the file.");
-      handleProgressError("File reader error");
-    };
+      fileReader.onerror = (event) => {
+        const error = new Error("Error reading the PDF file");
+        toast.error("Error reading the file.");
+        handleProgressError("File reader error");
+        if (onError) onError(error);
+      };
 
-    fileReader.readAsArrayBuffer(file);
+      fileReader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error("Error loading PDF library:", error);
+      toast.error("Failed to load PDF processing library. Please try refreshing the page.");
+      callbacks.setUploadProgress(0);
+      if (onError) onError(error instanceof Error ? error : new Error("Failed to load PDF library"));
+    }
   } catch (error) {
     console.error("Error in PDF processing:", error);
     toast.error("An error occurred while processing the PDF.");
     callbacks.setUploadProgress(0);
+    if (onError) onError(error instanceof Error ? error : new Error("PDF processing failed"));
   }
 };
 

@@ -6,24 +6,43 @@ import { processPDFDocument } from "@/utils/pdf";
 interface UsePDFUploadProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
   useAI: boolean;
+  onError?: (error: Error | null) => void;
 }
 
-export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
+export const usePDFUpload = ({ onPDFUploaded, useAI, onError }: UsePDFUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [processingError, setProcessingError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processPDF = (file: File) => {
+    // Reset any previous errors
+    setProcessingError(null);
+    
     // Process the PDF file with focus on text extraction for the main content
     // and enable improved table detection specifically for the credit accounts table
-    processPDFDocument(file, useAI, {
-      setCurrentFile,
-      setUploadProgress,
-      onPDFUploaded,
-      useImageExtraction: true, // Enable image extraction for table detection
-      targetTable: "Credit Accounts" // Specifically target the Credit Accounts table
-    });
+    try {
+      processPDFDocument(file, useAI, {
+        setCurrentFile,
+        setUploadProgress,
+        onPDFUploaded,
+        useImageExtraction: true, // Enable image extraction for table detection
+        targetTable: "Credit Accounts", // Specifically target the Credit Accounts table
+        onError: (error) => {
+          console.error("PDF processing error:", error);
+          const errorMessage = error?.message || "Failed to process the PDF file. Please try again.";
+          setProcessingError(errorMessage);
+          if (onError) onError(error);
+        }
+      });
+    } catch (error) {
+      const typedError = error as Error;
+      console.error("Exception during PDF processing:", typedError);
+      setProcessingError(typedError.message || "An unexpected error occurred");
+      if (onError) onError(typedError);
+      setUploadProgress(0);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -71,6 +90,7 @@ export const usePDFUpload = ({ onPDFUploaded, useAI }: UsePDFUploadProps) => {
     handleDragLeave,
     handleDrop,
     handleFileInputChange,
-    triggerFileInput
+    triggerFileInput,
+    processingError
   };
 };

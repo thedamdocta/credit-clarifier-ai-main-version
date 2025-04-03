@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Settings, AlertCircle } from "lucide-react";
+import { Upload, FileText, Settings, AlertCircle, RefreshCw } from "lucide-react";
 import { CreditReport } from "@/lib/creditReportParser";
 import CreditReportHeader from "@/components/CreditReportHeader";
 import PersonalInfoCard from "@/components/PersonalInfoCard";
@@ -23,6 +23,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("upload");
   const [showDebugger, setShowDebugger] = useState(false);
   const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
+  const [processingError, setProcessingError] = useState<string | null>(null);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -32,6 +33,7 @@ const Index = () => {
   const handlePDFUploaded = async (file: File, text: string, parsedReport?: CreditReport) => {
     try {
       setIsProcessing(true);
+      setProcessingError(null);
       
       if (parsedReport) {
         setCreditReport(parsedReport);
@@ -53,6 +55,7 @@ const Index = () => {
       
     } catch (error) {
       console.error("Error processing credit report:", error);
+      setProcessingError("Failed to process the credit report. Please try again.");
       toast({
         title: "Processing Error",
         description: "There was an error processing your credit report.",
@@ -69,6 +72,10 @@ const Index = () => {
       title: "AI-Powered Extraction Ready",
       description: "Your credit report tables will now be processed with enhanced AI capabilities.",
     });
+  };
+
+  const handleRefresh = () => {
+    window.location.reload();
   };
 
   return (
@@ -90,20 +97,49 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
           
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setShowDebugger(!showDebugger)}
-            className="text-xs"
-          >
-            {showDebugger ? "Hide Debugger" : "Show Debugger"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              className="text-xs"
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              Refresh
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowDebugger(!showDebugger)}
+              className="text-xs"
+            >
+              {showDebugger ? "Hide Debugger" : "Show Debugger"}
+            </Button>
+          </div>
         </div>
         
         <TabsContent value="upload" className="mt-0">
           <div className="grid gap-6">
-            {!openAIConfigured && (
-              <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
+            <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
+            
+            {processingError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Processing Error</AlertTitle>
+                <AlertDescription>
+                  {processingError}
+                  <div className="mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleRefresh}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                      Refresh Page
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
             )}
             
             <Card>

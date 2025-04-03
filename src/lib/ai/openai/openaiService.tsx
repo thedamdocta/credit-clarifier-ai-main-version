@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
+import { toast } from 'sonner';
 
-// Hardcoded API key as fallback (replace with your actual key)
-// NOTE: This is not the ideal approach for production. Consider moving this to a server-side implementation.
+// Hardcoded API key as fallback
 const HARDCODED_API_KEY = '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';
 
 // OpenAI API for credit report OCR and extraction
@@ -27,36 +28,51 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     // Convert data URL to blob if needed
     let imageBlob: Blob;
     
-    if (imageUrl.startsWith('data:')) {
-      // Convert data URL to blob
-      const response = await fetch(imageUrl);
-      imageBlob = await response.blob();
-    } else {
-      // Fetch image from URL
-      const response = await fetch(imageUrl);
-      imageBlob = await response.blob();
+    try {
+      if (imageUrl.startsWith('data:')) {
+        // Convert data URL to blob
+        const response = await fetch(imageUrl);
+        imageBlob = await response.blob();
+      } else {
+        // Fetch image from URL
+        const response = await fetch(imageUrl);
+        imageBlob = await response.blob();
+      }
+    } catch (error) {
+      console.error('Error fetching image:', error);
+      toast.error('Failed to process the image. Please try again.');
+      return null;
     }
     
     // Read blob as base64 
-    const base64Image = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(imageBlob);
-    });
+    let base64Image: string;
+    try {
+      base64Image = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read image as base64'));
+        reader.readAsDataURL(imageBlob);
+      });
+    } catch (error) {
+      console.error('Error reading image as base64:', error);
+      toast.error('Failed to process the image data. Please try again.');
+      return null;
+    }
     
     // Call OpenAI API with the image
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert at extracting credit account summary tables from credit reports.
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert at extracting credit account summary tables from credit reports.
 Extract the exact data from the credit accounts table in the image. The table contains rows for different account types
 (Revolving, Mortgage, Installment, Other, and Total) and columns for Open, With Balance, Total Balance, Available,
 Credit Limit, Debt-to-Credit, and Payment. Return ONLY a JSON array of objects with the extracted data following this format:
@@ -74,63 +90,74 @@ Credit Limit, Debt-to-Credit, and Payment. Return ONLY a JSON array of objects w
   // ...more rows for other account types
 ]
 If you can't extract a specific value, set it to null. Be extremely precise with the extraction.`
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: base64Image
-                }
-              },
-              'Extract the credit accounts summary table data from this credit report image. Return a properly formatted JSON array.'
-            ]
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 1000
-      }),
-    });
+            },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: base64Image
+                  }
+                },
+                'Extract the credit accounts summary table data from this credit report image. Return a properly formatted JSON array.'
+              ]
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 1000
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`OpenAI API error: ${response.status}`, errorData);
+        toast.error('The AI service encountered an error. Please try again later.');
+        return null;
+      }
 
-    const data = await response.json();
-    
-    // Extract the JSON from the response content
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      console.error('No content in OpenAI response');
-      return null;
-    }
-    
-    // Extract JSON object from the response
-    let extractedJson: AccountSummary[] = [];
-    try {
-      // Handle possible markdown formatting in the response
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
-                        content.match(/```\n([\s\S]*?)\n```/) || 
-                        [null, content];
-                        
-      const jsonText = jsonMatch?.[1] || content;
-      extractedJson = JSON.parse(jsonText);
+      const data = await response.json();
       
-      // Validate the extracted data
-      if (!Array.isArray(extractedJson)) {
-        throw new Error('Extracted data is not an array');
+      // Extract the JSON from the response content
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) {
+        console.error('No content in OpenAI response');
+        toast.error('Failed to extract table data. Please try again.');
+        return null;
       }
       
-      console.log('Successfully extracted table data with OpenAI:', extractedJson);
-      return extractedJson;
+      // Extract JSON object from the response
+      let extractedJson: AccountSummary[] = [];
+      try {
+        // Handle possible markdown formatting in the response
+        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
+                          content.match(/```\n([\s\S]*?)\n```/) || 
+                          [null, content];
+                          
+        const jsonText = jsonMatch?.[1] || content;
+        extractedJson = JSON.parse(jsonText);
+        
+        // Validate the extracted data
+        if (!Array.isArray(extractedJson)) {
+          throw new Error('Extracted data is not an array');
+        }
+        
+        console.log('Successfully extracted table data with OpenAI:', extractedJson);
+        return extractedJson;
+      } catch (error) {
+        console.error('Error parsing OpenAI response:', error);
+        console.log('Raw response:', content);
+        toast.error('Failed to parse the AI response. Please try again.');
+        return null;
+      }
     } catch (error) {
-      console.error('Error parsing OpenAI response:', error);
-      console.log('Raw response:', content);
+      console.error('Error calling OpenAI API:', error);
+      toast.error('Failed to communicate with the AI service. Please try again later.');
       return null;
     }
   } catch (error) {
     console.error('Error in OpenAI table extraction:', error);
+    toast.error('An unexpected error occurred. Please try again.');
     return null;
   }
 };

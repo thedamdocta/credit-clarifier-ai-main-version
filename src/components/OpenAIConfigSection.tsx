@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Info, CheckCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Shield, Info, CheckCircle, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 interface OpenAIConfigSectionProps {
@@ -36,7 +36,7 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
   };
   
   return (
-    <Card className="mb-6 border-dashed">
+    <Card className="mb-6">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base font-medium flex items-center">
@@ -63,6 +63,13 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
           </Alert>
         ) : (
           <>
+            <Alert className="mb-4 bg-amber-50 border-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-800">Configuration Required</AlertTitle>
+              <AlertDescription className="text-amber-700">
+                For best results, please provide your OpenAI API key before uploading your credit report.
+              </AlertDescription>
+            </Alert>
             <div className="text-sm mb-3">
               <p>The app has a built-in OpenAI API key, but you can provide your own for better reliability.</p>
             </div>
