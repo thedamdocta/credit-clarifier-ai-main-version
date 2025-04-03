@@ -4,7 +4,6 @@ import { Account } from "@/lib/types/creditReport";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, AlertCircle } from "lucide-react";
 
 interface AccountPaymentHistoryProps {
   account: Account;
@@ -68,28 +67,15 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
             ))}
           </div>
 
-          {/* Payment Status Icons Legend */}
-          <div className="mb-6 grid grid-cols-2 gap-2">
+          {/* Only showing one type of "No data available" indicator */}
+          <div className="mb-6 grid grid-cols-1 gap-2">
             <div className="flex items-center space-x-2">
-              <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="h-3 w-3 text-green-600" />
-              </div>
-              <span className="text-xs">Paid on time</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-5 h-5">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-muted-foreground opacity-50">
-                  <pattern id="diagonalHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
-                    <line x1="0" y1="0" x2="0" y2="4" style={{ stroke: 'currentColor', strokeWidth: 1 }} />
-                  </pattern>
-                  <rect width="24" height="24" fill="url(#diagonalHatch)" />
-                </svg>
-              </div>
+              <Badge variant="secondary" className="w-10 text-center">X</Badge>
               <span className="text-xs">No data available</span>
             </div>
           </div>
 
-          {/* Payment History Table - Now with 3 rows as requested */}
+          {/* Payment History Table - Using only "X" for no data available */}
           <Table>
             <TableHeader>
               <TableRow>
@@ -109,46 +95,14 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {years.map((year, rowIndex) => (
+              {years.map((year) => (
                 <TableRow key={year}>
                   <TableCell className="font-medium">{year}</TableCell>
-                  {Array(12).fill(null).map((_, index) => {
-                    // For sample visualization: first 2 months for 2024 and 2023 show check marks
-                    // 2024 year has first 2 months with check marks, rest as X
-                    // 2023 year has all as check marks
-                    // 2022 year has first 2 months as diag pattern, rest as check marks
-                    let content;
-                    if (rowIndex === 0) { // 2024
-                      content = index < 2 ? 
-                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                          <Check className="h-3 w-3 text-green-600" />
-                        </div> : 
-                        <Badge variant="secondary" className="w-10 text-center">X</Badge>;
-                    } else if (rowIndex === 1) { // 2023
-                      content = <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                        <Check className="h-3 w-3 text-green-600" />
-                      </div>;
-                    } else { // 2022
-                      content = index < 2 ? 
-                        <div className="w-5 h-5">
-                          <svg viewBox="0 0 24 24" className="h-5 w-5 text-muted-foreground opacity-50">
-                            <pattern id={`diagonalHatch${index}`} width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
-                              <line x1="0" y1="0" x2="0" y2="4" style={{ stroke: 'currentColor', strokeWidth: 1 }} />
-                            </pattern>
-                            <rect width="24" height="24" fill={`url(#diagonalHatch${index})`} />
-                          </svg>
-                        </div> : 
-                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                          <Check className="h-3 w-3 text-green-600" />
-                        </div>;
-                    }
-                    
-                    return (
-                      <TableCell key={`${year}-${index}`}>
-                        {content}
-                      </TableCell>
-                    );
-                  })}
+                  {Array(12).fill(null).map((_, index) => (
+                    <TableCell key={`${year}-${index}`}>
+                      <Badge variant="secondary" className="w-10 text-center">X</Badge>
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
@@ -158,7 +112,7 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div className="flex items-center">
               <Badge variant="outline" className="bg-green-100 text-green-600 mr-2">
-                <Check className="h-3 w-3" />
+                OK
               </Badge>
               <span>Paid on Time</span>
             </div>
