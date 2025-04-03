@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import AccountDataExtractor from "./accounts/AccountDataExtractor";
 import TableImageDisplay from "./accounts/TableImageDisplay";
 import AccountDataAlerts from "./accounts/AccountDataAlerts";
 import AccountDataDebug from "./accounts/AccountDataDebug";
+import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 
 interface EnhancedCreditAccountsProps {
   report: CreditReport;
@@ -81,6 +83,26 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           if (imageUrl) {
             console.log('Successfully extracted table image for debug display');
             setTableImageUrl(imageUrl);
+            
+            // Try to extract data from the image directly
+            if (accountSummaries.length === 0 || extractionFailed) {
+              console.log("Attempting direct extraction from table image");
+              const tableData = await extractTableFromImage(imageUrl);
+              if (tableData && tableData.rows && tableData.rows.length > 0) {
+                const extractedSummaries = convertTableToAccountSummaries(tableData);
+                if (extractedSummaries.length > 0) {
+                  const hasRealData = extractedSummaries.some(summary => 
+                    (summary.open && summary.open !== "0") || 
+                    (summary.withBalance && summary.withBalance !== "0") || 
+                    (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
+                    
+                  if (hasRealData) {
+                    console.log("Successfully extracted data from table image directly");
+                    handleDataExtracted(extractedSummaries, false, false);
+                  }
+                }
+              }
+            }
           }
         } catch (error) {
           console.error('Error extracting table image for debug:', error);

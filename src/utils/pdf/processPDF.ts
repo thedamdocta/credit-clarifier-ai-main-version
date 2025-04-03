@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
@@ -10,6 +11,7 @@ interface PDFProcessingCallbacks extends ProgressCallbacks {
   onError?: (error: Error | null) => void;
 }
 
+// Define proper PDFJSLib interface
 interface PDFJSLib {
   getDocument: (source: { data: Uint8Array }) => { promise: Promise<PDFDocumentProxy> };
   GlobalWorkerOptions: { workerSrc: string };
@@ -66,8 +68,8 @@ export const processPDFDocument = async (
         toast.warning("PDF library is loading slowly. Please be patient.");
       }, 3000);
       
-      const pdfjsLib = await Promise.race([
-        import("pdfjs-dist").then(module => module as unknown as PDFJSLib).catch(error => {
+      const pdfjsModule = await Promise.race([
+        import("pdfjs-dist").catch(error => {
           console.error("Error loading pdfjs-dist package:", error);
           throw new Error("Failed to load PDF processing library. Please check your network connection and try again.");
         }),
@@ -75,6 +77,9 @@ export const processPDFDocument = async (
           setTimeout(() => reject(new Error("PDF library loading timed out. Please refresh the page and try again.")), 15000)
         )
       ]);
+      
+      // Cast the imported module to our interface
+      const pdfjsLib = pdfjsModule as unknown as PDFJSLib;
       
       clearTimeout(pdfLoadingTimeout);
       
