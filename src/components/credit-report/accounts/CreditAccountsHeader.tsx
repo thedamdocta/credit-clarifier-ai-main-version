@@ -19,7 +19,7 @@ const CreditAccountsHeader: React.FC<CreditAccountsHeaderProps> = ({
       <div>
         <CardTitle className="flex items-center">
           <CreditCard className="h-5 w-5 mr-2" />
-          Credit Accounts
+          Credit Accounts Summary
         </CardTitle>
         <CardDescription>Summary of your credit accounts</CardDescription>
       </div>
