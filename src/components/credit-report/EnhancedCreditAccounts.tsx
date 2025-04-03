@@ -83,26 +83,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           if (imageUrl) {
             console.log('Successfully extracted table image for debug display');
             setTableImageUrl(imageUrl);
-            
-            // Try to extract data from the image directly
-            if (accountSummaries.length === 0 || extractionFailed) {
-              console.log("Attempting direct extraction from table image");
-              const tableData = await extractTableFromImage(imageUrl);
-              if (tableData && tableData.rows && tableData.rows.length > 0) {
-                const extractedSummaries = convertTableToAccountSummaries(tableData);
-                if (extractedSummaries.length > 0) {
-                  const hasRealData = extractedSummaries.some(summary => 
-                    (summary.open && summary.open !== "0") || 
-                    (summary.withBalance && summary.withBalance !== "0") || 
-                    (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
-                    
-                  if (hasRealData) {
-                    console.log("Successfully extracted data from table image directly");
-                    handleDataExtracted(extractedSummaries, false, false);
-                  }
-                }
-              }
-            }
           }
         } catch (error) {
           console.error('Error extracting table image for debug:', error);
@@ -118,10 +98,25 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     isSampleData: boolean,
     failed: boolean
   ) => {
+    // Log all the summaries for debugging
     console.log('Setting account summaries:', summaries);
-    setAccountSummaries(summaries);
-    setUsingSampleData(isSampleData);
-    setExtractionFailed(failed);
+    
+    // Check if we have real data
+    const hasRealData = summaries.some(summary => 
+      (summary.open && summary.open !== "0") || 
+      (summary.withBalance && summary.withBalance !== "0") || 
+      (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
+    
+    if (hasRealData) {
+      console.log("Data has real values, using extracted data");
+      setAccountSummaries(summaries);
+      setUsingSampleData(isSampleData);
+      setExtractionFailed(failed);
+    } else {
+      console.log("Data has no real values, keeping extraction failed state");
+      setExtractionFailed(true);
+    }
+    
     setAttemptedExtraction(true);
     
     setTimeout(() => {
@@ -144,6 +139,13 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setIsProcessing
     };
     
+    // Try handling the extraction directly with the image if available
+    if (tableImageUrl && forceManual) {
+      console.log("Using table image for direct extraction");
+      extractDataFromImage(tableImageUrl);
+      return;
+    }
+    
     import("./accounts/AccountDataExtractor").then(module => {
       if (typeof module.handleEnhancedExtraction === 'function') {
         module.handleEnhancedExtraction(extractorProps, forceManual);
@@ -161,6 +163,44 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       console.error("Failed to import AccountDataExtractor:", err);
       setIsProcessing(false);
     });
+  };
+
+  const extractDataFromImage = async (imageUrl: string) => {
+    try {
+      setIsProcessing(true);
+      toast.info("Extracting data from image directly...");
+      
+      // Add a cache-busting parameter
+      const cacheBustUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      
+      const tableData = await extractTableFromImage(cacheBustUrl);
+      
+      if (tableData && tableData.rows && tableData.rows.length > 0) {
+        const extractedSummaries = convertTableToAccountSummaries(tableData);
+        const hasRealData = extractedSummaries.some(summary => 
+          (summary.open && summary.open !== "0") || 
+          (summary.withBalance && summary.withBalance !== "0") || 
+          (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
+        
+        if (hasRealData) {
+          console.log("Successfully extracted data from image directly");
+          handleDataExtracted(extractedSummaries, false, false);
+          toast.success("Successfully extracted data from image");
+        } else {
+          console.error("No meaningful data in extracted result");
+          toast.error("No meaningful data could be extracted");
+          setIsProcessing(false);
+        }
+      } else {
+        console.error("Failed to extract table data");
+        toast.error("Failed to extract data from image");
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      console.error("Error extracting data from image:", error);
+      toast.error("Error extracting data from image");
+      setIsProcessing(false);
+    }
   };
 
   const triggerPdfUpload = () => {
@@ -210,7 +250,12 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         
         <TableImageDisplay 
           imageUrl={tableImageUrl} 
-          showDebugInfo={showDebugInfo} 
+          showDebugInfo={showDebugInfo}
+          onDataExtracted={(summaries) => {
+            if (summaries && summaries.length > 0) {
+              handleDataExtracted(summaries, false, false);
+            }
+          }}
         />
         
         <AccountDataDebug

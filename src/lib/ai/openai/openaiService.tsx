@@ -6,9 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Shield, Eye, EyeOff } from 'lucide-react';
 
-// Hardcoded API key as fallback
-const HARDCODED_API_KEY = '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';
-
 // OpenAI API for credit report OCR and extraction
 export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountSummary[] | null> => {
   try {
@@ -18,7 +15,7 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     // If no user key, fall back to hardcoded key
     if (!apiKey) {
       console.log('No user API key found, using hardcoded key');
-      apiKey = HARDCODED_API_KEY;
+      apiKey = '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';
     }
     
     if (!apiKey || !apiKey.startsWith('sk-')) {
@@ -92,7 +89,8 @@ Credit Limit, Debt-to-Credit, and Payment. Return ONLY a JSON array of objects w
   },
   // ...more rows for other account types
 ]
-If you can't extract a specific value, set it to null. Be extremely precise with the extraction.`
+If you can't extract a specific value, set it to null. Be extremely precise with the extraction.
+If you see empty cells or missing values, set them to null in the JSON.`
             },
             {
               role: 'user',
@@ -103,7 +101,7 @@ If you can't extract a specific value, set it to null. Be extremely precise with
                     url: base64Image
                   }
                 },
-                'Extract the credit accounts summary table data from this credit report image. Return a properly formatted JSON array.'
+                'Extract the credit accounts summary table data from this credit report image. Return a properly formatted JSON array following the specified format. If you can\'t find a value, use null.'
               ]
             }
           ],
@@ -145,8 +143,34 @@ If you can't extract a specific value, set it to null. Be extremely precise with
           throw new Error('Extracted data is not an array');
         }
         
-        console.log('Successfully extracted table data with OpenAI:', extractedJson);
-        return extractedJson;
+        // Ensure all values are in the correct format
+        const formattedData = extractedJson.map(item => {
+          // Ensure currency values have $ prefix
+          const ensureCurrencyFormat = (value: string | null) => {
+            if (!value) return null;
+            return value.startsWith('$') ? value : `$${value}`;
+          };
+          
+          // Ensure percentage values have % suffix
+          const ensurePercentageFormat = (value: string | null) => {
+            if (!value) return null;
+            return value.endsWith('%') ? value : `${value}%`;
+          };
+          
+          return {
+            accountType: item.accountType || null,
+            open: item.open || null,
+            withBalance: item.withBalance || null,
+            totalBalance: ensureCurrencyFormat(item.totalBalance),
+            available: ensureCurrencyFormat(item.available),
+            creditLimit: ensureCurrencyFormat(item.creditLimit),
+            debtToCredit: ensurePercentageFormat(item.debtToCredit),
+            payment: ensureCurrencyFormat(item.payment),
+          };
+        });
+        
+        console.log('Successfully extracted table data with OpenAI:', formattedData);
+        return formattedData;
       } catch (error) {
         console.error('Error parsing OpenAI response:', error);
         console.log('Raw response:', content);
@@ -222,7 +246,7 @@ export const OpenAIConfigForm: React.FC = () => {
 export const canUseOpenAI = (): boolean => {
   const apiKey = localStorage.getItem('openai_api_key');
   const hasUserKey = !!apiKey && apiKey.startsWith('sk-');
-  const hasHardcodedKey = !!HARDCODED_API_KEY && HARDCODED_API_KEY.startsWith('sk-');
+  const hasHardcodedKey = true; // Always use the hardcoded key
   
   return hasUserKey || hasHardcodedKey;
 };
