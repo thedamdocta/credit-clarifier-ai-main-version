@@ -23,11 +23,21 @@ const Index = () => {
   const [showDebugger, setShowDebugger] = useState(false);
   const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [shouldNavigateToReport, setShouldNavigateToReport] = useState(false);
   const { toast } = useToast();
   
   useEffect(() => {
     setOpenAIConfigured(canUseOpenAI());
   }, []);
+  
+  // Effect to handle navigation to report tab only after processing is complete
+  useEffect(() => {
+    // Only navigate if processing is complete and we should navigate
+    if (shouldNavigateToReport && !isProcessing && creditReport) {
+      setActiveTab("report");
+      setShouldNavigateToReport(false);
+    }
+  }, [shouldNavigateToReport, isProcessing, creditReport]);
   
   const handleTabChange = (value: string) => {
     // Prevent switching to the report tab if we're still processing
@@ -52,23 +62,22 @@ const Index = () => {
       
       if (parsedReport) {
         setCreditReport(parsedReport);
+        
+        toast({
+          title: "Credit Report Processed",
+          description: parsedReport.bureau ? 
+            `Successfully processed your ${parsedReport.bureau} credit report.` :
+            `Successfully processed your credit report.`,
+        });
+        
+        // Signal that we should navigate to the report tab when processing is complete
+        setShouldNavigateToReport(true);
       } else {
         toast({
           title: "Using basic parsing",
           description: "Using simplified extraction.",
         });
       }
-      
-      toast({
-        title: "Credit Report Processed",
-        description: parsedReport ? 
-          `Successfully processed your ${parsedReport.bureau} credit report.` :
-          `Successfully processed your credit report.`,
-      });
-      
-      // Navigate to the report tab now that processing is complete
-      setActiveTab("report");
-      
     } catch (error) {
       console.error("Error processing credit report:", error);
       setProcessingError("Failed to process the credit report. Please try again.");
@@ -107,7 +116,7 @@ const Index = () => {
               className="flex items-center"
             >
               <FileText className="mr-2 h-4 w-4" />
-              Report {isProcessing && '...'}
+              Report {isProcessing && <span className="ml-1">Processing...</span>}
             </TabsTrigger>
             <TabsTrigger value="webhooks" className="flex items-center">
               <Settings className="mr-2 h-4 w-4" />
@@ -185,16 +194,7 @@ const Index = () => {
               </AlertDescription>
             </Alert>
             
-            {creditReport && !isProcessing && (
-              <div className="flex justify-center">
-                <Button onClick={() => setActiveTab("report")}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  View Processed Report
-                </Button>
-              </div>
-            )}
-            
-            {isProcessing && creditReport && (
+            {isProcessing && (
               <Alert className="bg-blue-50 border-blue-200">
                 <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
                 <AlertTitle className="text-blue-800">Processing PDF</AlertTitle>
@@ -203,6 +203,15 @@ const Index = () => {
                   This may take a few moments depending on the size of your file.
                 </AlertDescription>
               </Alert>
+            )}
+            
+            {creditReport && !isProcessing && (
+              <div className="flex justify-center">
+                <Button onClick={() => setActiveTab("report")}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Processed Report
+                </Button>
+              </div>
             )}
           </div>
         </TabsContent>

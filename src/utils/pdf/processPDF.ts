@@ -89,7 +89,31 @@ export const processPDFDocument = async (
                   extractedText: extractedText.substring(0, 1000) // Store preview
                 };
                 
-                // Make sure state is updated before completing processing
+                // Update progress to 100% to indicate completion
+                updateProgress(100);
+                
+                // Make sure all necessary extraction is performed before completing
+                // Try to extract account tables and other data here instead of waiting until later
+                try {
+                  // Force account extraction if it wasn't done during parsing
+                  if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
+                    console.log("No account summaries found in initial parsing, attempting additional extraction");
+                    
+                    // Import only if needed to avoid circular dependencies
+                    const { extractEquifaxAccountSummaries } = await import("@/lib/parsers/equifax/equifaxAccountSummary");
+                    if (parsedReport.bureau === 'Equifax') {
+                      console.log("Extracting Equifax account summaries");
+                      const accountSummaries = await extractEquifaxAccountSummaries(extractedText);
+                      if (accountSummaries && accountSummaries.length > 0) {
+                        parsedReport.accountSummaries = accountSummaries;
+                      }
+                    }
+                  }
+                } catch (extractionError) {
+                  console.error("Additional extraction error:", extractionError);
+                  // Non-critical error, continue with what we have
+                }
+                
                 // Ensure we wait just a moment for UI to catch up before completing
                 setTimeout(() => {
                   completeProgressTracking();

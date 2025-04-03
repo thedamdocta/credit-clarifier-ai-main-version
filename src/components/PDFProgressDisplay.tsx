@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Progress } from "@/components/ui/progress";
-import { File, AlertCircle } from "lucide-react";
+import { File, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PDFProgressDisplayProps {
@@ -42,12 +42,22 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
             </div>
           </div>
         </div>
+      ) : progress >= 100 ? (
+        <div className="bg-green-50 p-3 rounded border border-green-200">
+          <div className="flex items-start">
+            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-green-800 mb-1">Processing Complete</p>
+              <p className="text-xs text-green-700">Your report is ready to view</p>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           <Progress value={progress} className="h-2" />
           <p className="text-sm text-center text-muted-foreground">
             {progress < 100 ? 
-              "Processing PDF with AI..." : 
+              `Processing PDF with AI (${Math.round(progress)}%)...` : 
               "PDF processed successfully!"}
           </p>
         </>

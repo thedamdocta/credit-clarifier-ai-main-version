@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
@@ -39,7 +40,9 @@ export const usePDFUpload = ({
         setCurrentFile,
         setUploadProgress,
         onPDFUploaded: (file, text, parsedReport) => {
+          // Only call this when processing is 100% complete to ensure full data is available
           onPDFUploaded(file, text, parsedReport);
+          
           // Processing is complete - call the callback
           if (onProcessingComplete) {
             onProcessingComplete();

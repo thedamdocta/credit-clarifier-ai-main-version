@@ -21,6 +21,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
 }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showOpenAIConfig, setShowOpenAIConfig] = useState(true);
+  const [processingComplete, setProcessingComplete] = useState(false);
   
   const {
     isDragging,
@@ -34,10 +35,23 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     triggerFileInput,
     processingError
   } = usePDFUpload({ 
-    onPDFUploaded,
+    onPDFUploaded: (file, text, parsedReport) => {
+      // Mark processing as complete first, then notify parent
+      setProcessingComplete(true);
+      
+      // Small delay to ensure UI updates before notifying parent
+      setTimeout(() => {
+        onPDFUploaded(file, text, parsedReport);
+      }, 300);
+    },
     useAI: true, // Enable AI-powered extraction
-    onProcessingStart: () => setIsProcessing(true),
-    onProcessingComplete: () => setIsProcessing(false),
+    onProcessingStart: () => {
+      setProcessingComplete(false);
+      setIsProcessing(true);
+    },
+    onProcessingComplete: () => {
+      setIsProcessing(false);
+    },
     onError: (error) => {
       console.error("PDF processing error:", error);
       setLoadError(error?.message || "Failed to process the PDF file. Please try again.");
