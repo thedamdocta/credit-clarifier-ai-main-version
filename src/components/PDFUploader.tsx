@@ -23,7 +23,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   onProcessingComplete
 }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showOpenAIConfig, setShowOpenAIConfig] = useState(true);
+  const [showOpenAIConfig, setShowOpenAIConfig] = useState(false); // Hide by default
   const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [fullProcessingComplete, setFullProcessingComplete] = useState(false);
   
@@ -45,7 +45,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       onPDFUploaded(file, text, parsedReport);
       setReadyToNavigate(true);
     },
-    useAI: true, // Keep this for functionality
+    useAI: true,
     onProcessingStart: () => {
       setReadyToNavigate(false);
       setFullProcessingComplete(false);
@@ -53,7 +53,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     },
     onProcessingComplete: () => {
       console.log("Initial processing complete, waiting for full data extraction...");
-      setIsProcessing(false);
+      // Do not set isProcessing to false yet - we need to wait for full extraction
     },
     onError: (error) => {
       console.error("PDF processing error:", error);
@@ -64,19 +64,20 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   
   // Effect to handle automatic navigation once all processing is done
   useEffect(() => {
-    if (readyToNavigate && !isProcessing && processingComplete && !processingError) {
+    if (readyToNavigate && processingComplete && !processingError) {
       console.log("All processing complete, preparing for navigation...");
       
-      // Wait a bit longer to ensure all data is fully ready (including account extraction)
+      // Wait longer to ensure all data is fully ready (including account extraction)
       const timer = setTimeout(() => {
         console.log("Navigating to report view now");
         setFullProcessingComplete(true);
+        setIsProcessing(false); // Only set processing to false when we're completely done
         onProcessingComplete();
       }, 3000); // Extra delay to ensure data extraction is complete
       
       return () => clearTimeout(timer);
     }
-  }, [readyToNavigate, isProcessing, processingComplete, processingError, onProcessingComplete]);
+  }, [readyToNavigate, processingComplete, processingError, onProcessingComplete]);
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -129,10 +130,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
             progress={uploadProgress}
             error={processingError}
             isProcessing={isProcessing || !fullProcessingComplete}
-            onProcessingComplete={() => {
-              // No automatic completion from this component anymore
-              // We let the parent component handle it via useEffect
-            }}
           />
         ) : (
           <PDFUploadPlaceholder 

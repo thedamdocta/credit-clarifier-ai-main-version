@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -84,7 +83,6 @@ const Index = () => {
     console.log("All processing complete, navigating to report tab");
     setDataFullyReady(true);
     setProcessingComplete(true);
-    setIsProcessing(false);
     
     // Now that everything is complete, navigate to the report tab
     if (creditReport) {

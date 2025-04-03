@@ -23,9 +23,6 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
     window.location.reload();
   };
   
-  // Only trigger onProcessingComplete if explicitly needed from parent
-  // We'll let the parent component manage the actual completion now
-  
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center space-x-3">

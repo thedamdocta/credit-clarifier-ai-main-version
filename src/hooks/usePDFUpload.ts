@@ -44,20 +44,17 @@ export const usePDFUpload = ({
         onPDFUploaded: (file, text, parsedReport) => {
           console.log("PDF processing complete, setting data");
           
-          // Mark processing as complete
-          setProcessingComplete(true);
-          
-          // Pass data to the parent component
-          onPDFUploaded(file, text, parsedReport);
-          
-          // Give the browser time to extract tables and process data
+          // Mark processing as complete only after ALL data has been extracted
+          // We'll delay this to ensure table extraction has time to complete
           setTimeout(() => {
-            // Only call onProcessingComplete after all other operations are complete
-            if (onProcessingComplete) {
-              console.log("Notifying parent that processing is complete");
-              onProcessingComplete();
-            }
-          }, 2000); // Longer delay to ensure tables are fully extracted
+            setProcessingComplete(true);
+            
+            // Pass data to the parent component
+            onPDFUploaded(file, text, parsedReport);
+            
+            // Only call onProcessingComplete at the very end
+            // This will be handled by the parent component via useEffect
+          }, 1500); // Delay to ensure tables are fully extracted
         },
         useImageExtraction: true, // Enable image extraction for table detection
         targetTable: "Credit Accounts", // Specifically target the Credit Accounts table
