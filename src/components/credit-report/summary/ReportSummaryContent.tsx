@@ -9,6 +9,15 @@ interface ReportSummaryContentProps {
 }
 
 const ReportSummaryContent: React.FC<ReportSummaryContentProps> = ({ report }) => {
+  // Debug logging for report data
+  React.useEffect(() => {
+    console.log("Summary component received report with account summaries:", report.accountSummaries?.length);
+    console.log("Raw account summaries in report:", JSON.stringify(report.accountSummaries));
+    
+    // Log when this component renders
+    console.log("ReportSummaryContent rendering with reportDate:", report.reportDate);
+  }, [report]);
+  
   return (
     <CardContent>
       <div className="grid gap-3">
@@ -31,12 +40,12 @@ const ReportSummaryContent: React.FC<ReportSummaryContentProps> = ({ report }) =
         
         <ReportSummaryRow 
           label="Average Account Age" 
-          value={report.averageAccountAge} 
+          value={report.averageAccountAge || "Not available"} 
         />
         
         <ReportSummaryRow 
           label="Length of Credit History" 
-          value={report.lengthOfCreditHistory} 
+          value={report.lengthOfCreditHistory || "Not available"} 
           highlighted={true}
         />
         
@@ -50,7 +59,7 @@ const ReportSummaryContent: React.FC<ReportSummaryContentProps> = ({ report }) =
           value={
             report.oldestAccount ? 
               `${report.oldestAccount.accountName} (Opened ${report.oldestAccount.openDate})` : 
-              null
+              "Not available"
           } 
           highlighted={true}
         />
@@ -60,8 +69,19 @@ const ReportSummaryContent: React.FC<ReportSummaryContentProps> = ({ report }) =
           value={
             report.recentAccount ? 
               `${report.recentAccount.accountName} (Opened ${report.recentAccount.openDate})` :
-              null
+              "Not available"
           } 
+        />
+        
+        <ReportSummaryRow 
+          label="Confirmation Number" 
+          value={report.confirmationNumber || "Not available"} 
+          highlighted={true}
+        />
+        
+        <ReportSummaryRow 
+          label="Consumer Name" 
+          value={report.personalInfo?.name || report.consumerName || "Not available"} 
         />
       </div>
     </CardContent>

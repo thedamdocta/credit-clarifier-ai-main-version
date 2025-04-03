@@ -31,6 +31,26 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
 
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
 
+  // Automatically attempt to extract image when the component mounts or report changes
+  useEffect(() => {
+    const attemptImageExtraction = async () => {
+      if (report && report.reportId) {
+        try {
+          console.log('Attempting to extract table image on mount');
+          const imageUrl = await extractCreditAccountsTableImage(report);
+          if (imageUrl) {
+            console.log('Successfully extracted table image');
+            setTableImageUrl(imageUrl);
+          }
+        } catch (error) {
+          console.error('Error extracting table image on mount:', error);
+        }
+      }
+    };
+    
+    attemptImageExtraction();
+  }, [report]);
+
   useEffect(() => {
     if (report && report.reportId) {
       resetCurrentReportImage();
@@ -66,7 +86,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setIsProcessing(true);
       
       const extractionTimer = setTimeout(() => {
-        triggerExtraction(false);
+        triggerExtraction(true); // Changed to true to force extraction
       }, 500);
       
       return () => clearTimeout(extractionTimer);
@@ -85,6 +105,8 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
             setTableImageUrl(imageUrl);
           } else {
             console.log('Failed to extract table image, got null or empty result');
+            // Try force extraction again after a small delay
+            setTimeout(forceImageExtraction, 1000);
           }
         } catch (error) {
           console.error('Error extracting table image for debug:', error);
@@ -118,35 +140,53 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     if (!isProcessing) {
       setIsProcessing(true);
     }
-    
-    // Import the component directly and call its function
-    // instead of trying to instantiate it with 'new'
-    const extractorProps = {
-      report,
-      onDataExtracted: handleDataExtracted,
-      isProcessing,
-      setIsProcessing
-    };
-    
-    // Instead of creating a new instance, we'll call the function directly
-    // using the handleEnhancedExtraction function exported from the component
-    import("./accounts/AccountDataExtractor").then(module => {
-      if (typeof module.handleEnhancedExtraction === 'function') {
-        module.handleEnhancedExtraction(extractorProps, forceManual);
-      } else {
-        console.log("Using AccountDataExtractor component method");
-        const extractorComponent = <AccountDataExtractor {...extractorProps} />;
-        if (extractorComponent && typeof extractorComponent.type.handleEnhancedExtraction === 'function') {
-          extractorComponent.type.handleEnhancedExtraction(extractorProps, forceManual);
-        } else {
-          console.error("Could not access extraction method");
-          setIsProcessing(false);
+
+    // Try to extract the table image first
+    extractCreditAccountsTableImage(report)
+      .then(imageUrl => {
+        if (imageUrl) {
+          console.log('Successfully extracted table image during extraction trigger');
+          setTableImageUrl(imageUrl);
         }
-      }
-    }).catch(err => {
-      console.error("Failed to import AccountDataExtractor:", err);
-      setIsProcessing(false);
-    });
+
+        // Then proceed with data extraction
+        import("./accounts/AccountDataExtractor").then(module => {
+          if (typeof module.handleEnhancedExtraction === 'function') {
+            module.handleEnhancedExtraction({
+              report,
+              onDataExtracted: handleDataExtracted,
+              isProcessing,
+              setIsProcessing
+            }, forceManual);
+          } else {
+            console.error("Could not access extraction method");
+            setIsProcessing(false);
+          }
+        }).catch(err => {
+          console.error("Failed to import AccountDataExtractor:", err);
+          setIsProcessing(false);
+        });
+      })
+      .catch(error => {
+        console.error('Error extracting table image during trigger:', error);
+        // Continue with data extraction even if image extraction fails
+        import("./accounts/AccountDataExtractor").then(module => {
+          if (typeof module.handleEnhancedExtraction === 'function') {
+            module.handleEnhancedExtraction({
+              report,
+              onDataExtracted: handleDataExtracted,
+              isProcessing,
+              setIsProcessing
+            }, forceManual);
+          } else {
+            console.error("Could not access extraction method");
+            setIsProcessing(false);
+          }
+        }).catch(err => {
+          console.error("Failed to import AccountDataExtractor:", err);
+          setIsProcessing(false);
+        });
+      });
   };
 
   const triggerPdfUpload = () => {
