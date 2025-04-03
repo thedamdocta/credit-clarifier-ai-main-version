@@ -3,7 +3,6 @@ import React from "react";
 import { Progress } from "@/components/ui/progress";
 import { File, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface PDFProgressDisplayProps {
   file: File;
