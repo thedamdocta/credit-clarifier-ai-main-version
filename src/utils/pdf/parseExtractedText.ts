@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
@@ -117,76 +118,6 @@ export const extractAccountSummariesWithRegex = (text: string) => {
   }
 };
 
-export const createSampleAccountSummaries = () => {
-  return [
-    {
-      accountType: 'Revolving',
-      totalAccounts: 6,
-      open: "5",
-      withBalance: "3",
-      closed: 1,
-      balance: null,
-      totalBalance: "$12,500",
-      available: "$25,000",
-      creditLimit: "$37,500",
-      debtToCredit: "33.3%",
-      payment: "$250"
-    },
-    {
-      accountType: 'Mortgage',
-      totalAccounts: 1,
-      open: "1",
-      withBalance: "1",
-      closed: 0,
-      balance: null,
-      totalBalance: "$180,000",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$1,200"
-    },
-    {
-      accountType: 'Installment',
-      totalAccounts: 2,
-      open: "2",
-      withBalance: "2",
-      closed: 0,
-      balance: null,
-      totalBalance: "$22,500",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$650"
-    },
-    {
-      accountType: 'Other',
-      totalAccounts: 0,
-      open: "0",
-      withBalance: "0",
-      closed: 0,
-      balance: null,
-      totalBalance: "$0",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$0"
-    },
-    {
-      accountType: 'Total',
-      totalAccounts: 9,
-      open: "8",
-      withBalance: "6",
-      closed: 1,
-      balance: null,
-      totalBalance: "$215,000",
-      available: null,
-      creditLimit: null,
-      debtToCredit: null,
-      payment: "$2,100"
-    }
-  ];
-};
-
 export const createDefaultAccountSummaries = () => {
   return [
     {
@@ -265,7 +196,7 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
     if (tableImageUrl) {
       console.log('Found table image URL for extraction:', tableImageUrl);
       const tableData = await extractTableFromImage(tableImageUrl);
-      if (tableData) {
+      if (tableData && tableData.rows) {
         const accountSummaries = convertTableToAccountSummaries(tableData);
         console.log('Successfully extracted account summaries from image:', accountSummaries);
         
@@ -294,13 +225,8 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
       return regexSummaries;
     }
     
-    if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
-      console.log('Development environment detected: using sample account summaries');
-      return createSampleAccountSummaries();
-    } else {
-      console.log('Production environment: using empty account summaries');
-      return createDefaultAccountSummaries();
-    }
+    console.log('No account data could be extracted, using empty summaries');
+    return createDefaultAccountSummaries();
   } catch (error) {
     console.error('Error in improved account summary extraction:', error);
     return createDefaultAccountSummaries();

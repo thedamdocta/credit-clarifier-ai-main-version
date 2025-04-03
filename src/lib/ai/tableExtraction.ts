@@ -39,10 +39,10 @@ export async function extractTableFromImage(
     
     // Fall back to Tesseract OCR
     const tesseractData = await extractTableWithTesseract(imageUrl);
-    if (tesseractData && tesseractData.length > 0) {
+    if (tesseractData && tesseractData.rows && tesseractData.rows.length > 0) {
       console.log('Successfully extracted table data with Tesseract');
       return {
-        rows: tesseractData,
+        rows: tesseractData.rows,
         method: 'tesseract'
       };
     }
@@ -100,15 +100,19 @@ export function convertTableToAccountSummaries(tableData: {
       // Extract numeric values from the row
       const valueMatches = row.text.match(/\d+|(\$[\d,.]+)/g) || [];
       
-      // Create account summary object
+      // Create account summary object with all required properties
       const summary: AccountSummary = {
         accountType,
+        totalAccounts: null,
         open: valueMatches[0] || null,
         withBalance: valueMatches[1] || null,
         totalBalance: valueMatches[2] && valueMatches[2].includes('$') ? valueMatches[2] : (valueMatches[2] ? `$${valueMatches[2]}` : null),
         available: valueMatches[3] && valueMatches[3].includes('$') ? valueMatches[3] : (valueMatches[3] ? `$${valueMatches[3]}` : null),
         creditLimit: valueMatches[4] && valueMatches[4].includes('$') ? valueMatches[4] : (valueMatches[4] ? `$${valueMatches[4]}` : null),
-        payment: valueMatches[5] && valueMatches[5].includes('$') ? valueMatches[5] : (valueMatches[5] ? `$${valueMatches[5]}` : null)
+        payment: valueMatches[5] && valueMatches[5].includes('$') ? valueMatches[5] : (valueMatches[5] ? `$${valueMatches[5]}` : null),
+        closed: null,
+        balance: null,
+        debtToCredit: null
       };
       
       accountSummaries.push(summary);
@@ -119,12 +123,16 @@ export function convertTableToAccountSummaries(tableData: {
       if (!accountSummaries.some(s => s.accountType === type)) {
         accountSummaries.push({
           accountType: type,
+          totalAccounts: null,
           open: null,
           withBalance: null,
           totalBalance: null,
           available: null,
           creditLimit: null,
-          payment: null
+          payment: null,
+          closed: null,
+          balance: null,
+          debtToCredit: null
         });
       }
     }
