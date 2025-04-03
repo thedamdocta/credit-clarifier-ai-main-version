@@ -55,11 +55,18 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
             <p className="text-xs text-muted-foreground mb-4">View up to 7 years of monthly payment history on this account. The numbers indicate days a payment was past due; letters indicate other account events.</p>
           </div>
 
-          {/* Status Code Legend */}
+          {/* Status Code Legend with uniform badge style */}
           <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {Object.entries(statusCodes).map(([code, description]) => (
               <div key={code} className="flex items-center space-x-2">
-                <Badge variant={getStatusBadgeVariant(code)} className="w-14 text-center">
+                <Badge 
+                  variant={code === "OK" ? "outline" : code === "X" ? "secondary" : "destructive"}
+                  className={`min-w-[50px] text-center py-0.5 font-medium flex justify-center items-center ${
+                    code === "OK" ? "bg-green-100 text-green-600 hover:bg-green-100 hover:text-green-600" :
+                    code === "X" ? "bg-gray-100 hover:bg-gray-100" : 
+                    "bg-red-500 hover:bg-red-500"
+                  }`}
+                >
                   {code}
                 </Badge>
                 <span className="text-xs">{description}</span>
@@ -67,7 +74,7 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
             ))}
           </div>
 
-          {/* Payment History Table */}
+          {/* Payment History Table with uniform badge style */}
           <Table>
             <TableHeader>
               <TableRow>
@@ -91,8 +98,13 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
                 <TableRow key={yearIndex}>
                   <TableCell className="font-medium">{year}</TableCell>
                   {Array(12).fill(null).map((_, index) => (
-                    <TableCell key={`${yearIndex}-${index}`}>
-                      <Badge variant="secondary" className="w-10 text-center">X</Badge>
+                    <TableCell key={`${yearIndex}-${index}`} className="p-2 text-center">
+                      <Badge 
+                        variant="secondary" 
+                        className="min-w-[40px] w-10 py-0.5 flex justify-center items-center bg-gray-100 hover:bg-gray-100 font-medium"
+                      >
+                        X
+                      </Badge>
                     </TableCell>
                   ))}
                 </TableRow>
@@ -100,24 +112,42 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
             </TableBody>
           </Table>
 
-          {/* Day Ranges Legend */}
+          {/* Day Ranges Legend with uniform badge style */}
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div className="flex items-center">
-              <Badge variant="outline" className="bg-green-100 text-green-600 mr-2">
+              <Badge 
+                variant="outline" 
+                className="min-w-[40px] py-0.5 mr-2 bg-green-100 text-green-600 hover:bg-green-100 hover:text-green-600 flex justify-center items-center"
+              >
                 OK
               </Badge>
               <span>Paid on Time</span>
             </div>
             <div className="flex items-center">
-              <Badge variant="destructive" className="mr-2">30</Badge>
+              <Badge 
+                variant="destructive" 
+                className="min-w-[40px] py-0.5 mr-2 bg-red-500 hover:bg-red-500 flex justify-center items-center"
+              >
+                30
+              </Badge>
               <span>30 Days Past Due</span>
             </div>
             <div className="flex items-center">
-              <Badge variant="destructive" className="mr-2">60</Badge>
+              <Badge 
+                variant="destructive" 
+                className="min-w-[40px] py-0.5 mr-2 bg-red-500 hover:bg-red-500 flex justify-center items-center"
+              >
+                60
+              </Badge>
               <span>60 Days Past Due</span>
             </div>
             <div className="flex items-center">
-              <Badge variant="destructive" className="mr-2">90</Badge>
+              <Badge 
+                variant="destructive" 
+                className="min-w-[40px] py-0.5 mr-2 bg-red-500 hover:bg-red-500 flex justify-center items-center"
+              >
+                90
+              </Badge>
               <span>90 Days Past Due</span>
             </div>
           </div>
