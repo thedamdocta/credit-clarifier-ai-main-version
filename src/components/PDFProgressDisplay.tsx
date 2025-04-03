@@ -74,21 +74,29 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
       ) : (
         <>
           <div className="space-y-2">
-            <Progress value={progress} className="h-2" />
-            <div className="flex flex-col items-center justify-center">
-              <p className="text-sm text-center text-muted-foreground flex items-center justify-center">
-                {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                <span>{getMessage()}</span>
-              </p>
-              <p className="text-xs text-center text-muted-foreground">
-                {Math.round(progress)}% Complete
-              </p>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                {getMessage()}
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {Math.round(progress)}%
+              </span>
+            </div>
+            <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+              <Progress value={progress} className="h-full absolute top-0 left-0" />
             </div>
           </div>
           
+          {isProcessing && (
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <span className="text-xs text-muted-foreground">{getMessage()}</span>
+            </div>
+          )}
+          
           {progress >= 100 && (
-            <div className="text-xs text-center text-muted-foreground mt-1">
-              Finalizing and preparing your report...
+            <div className="text-xs text-center text-credit-blue font-medium mt-1">
+              Analysis complete! Preparing your report...
             </div>
           )}
         </>

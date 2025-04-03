@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -181,12 +180,12 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         
         {isProcessing ? (
           <div className="py-8 flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-muted-foreground animate-spin mb-4" />
-            <p className="text-sm font-medium text-muted-foreground">
+            <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
+            <p className="text-sm font-medium">
               Extracting account data...
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Please wait while we process your credit accounts
+              Please wait while we analyze your credit accounts
             </p>
           </div>
         ) : (
