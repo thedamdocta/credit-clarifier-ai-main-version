@@ -48,7 +48,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
                 className="p-0 h-auto text-amber-600 underline ml-1"
                 onClick={onRequestUpload}
               >
-                Try uploading a better PDF.
+                Try uploading a better PDF or click "Retry Extraction".
               </Button>
             )}
           </AlertDescription>

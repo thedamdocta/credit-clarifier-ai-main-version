@@ -76,13 +76,15 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   // Add effect to attempt to load table image when needed
   useEffect(() => {
     async function loadTableImage() {
-      if (report && !tableImageUrl) {
+      if (report && (!tableImageUrl || tableImageUrl === null)) {
         try {
           console.log('Attempting to extract table image for debug display');
           const imageUrl = await extractCreditAccountsTableImage(report);
           if (imageUrl) {
             console.log('Successfully extracted table image for debug display');
             setTableImageUrl(imageUrl);
+          } else {
+            console.log('Failed to extract table image, got null or empty result');
           }
         } catch (error) {
           console.error('Error extracting table image for debug:', error);
@@ -91,7 +93,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     }
     
     loadTableImage();
-  }, [report, tableImageUrl]);
+  }, [report, tableImageUrl, showDebugInfo]);
 
   const handleDataExtracted = (
     summaries: AccountSummary[], 
@@ -156,6 +158,32 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     }
   };
 
+  // This function will attempt to force an image extraction
+  const forceImageExtraction = async () => {
+    if (report) {
+      try {
+        console.log('Forcing image extraction attempt');
+        setIsProcessing(true);
+        const imageUrl = await extractCreditAccountsTableImage(report);
+        if (imageUrl) {
+          console.log('Successfully forced table image extraction');
+          setTableImageUrl(imageUrl);
+          toast.success("Successfully extracted table image");
+          // Now try to extract data using this image
+          triggerExtraction(true);
+        } else {
+          console.log('Forced image extraction failed');
+          toast.error("Failed to extract table image");
+          setIsProcessing(false);
+        }
+      } catch (error) {
+        console.error('Error during forced image extraction:', error);
+        toast.error("Error extracting table image");
+        setIsProcessing(false);
+      }
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -197,17 +225,31 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           showDebugInfo={showDebugInfo} 
         />
         
-        <AccountDataDebug
-          showDebugInfo={showDebugInfo}
-          report={report}
-          extractionAttempts={extractionAttempts}
-          usingSampleData={usingSampleData}
-          tableImageUrl={tableImageUrl}
-          extractionFailed={extractionFailed}
-          initialAccountDataFound={initialAccountDataFound}
-          accountSummaries={accountSummaries}
-          isProcessing={isProcessing}
-        />
+        {showDebugInfo && (
+          <div className="mb-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={forceImageExtraction}
+              disabled={isProcessing}
+              className="mb-4"
+            >
+              Force Image Extraction
+            </Button>
+            
+            <AccountDataDebug
+              showDebugInfo={showDebugInfo}
+              report={report}
+              extractionAttempts={extractionAttempts}
+              usingSampleData={usingSampleData}
+              tableImageUrl={tableImageUrl}
+              extractionFailed={extractionFailed}
+              initialAccountDataFound={initialAccountDataFound}
+              accountSummaries={accountSummaries}
+              isProcessing={isProcessing}
+            />
+          </div>
+        )}
         
         {isProcessing ? (
           <div className="py-8 flex flex-col items-center justify-center">
