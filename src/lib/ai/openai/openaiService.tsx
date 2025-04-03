@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
 import { toast } from 'sonner';
@@ -128,7 +127,6 @@ If you see empty cells or missing values, set them to null in the JSON.`
       }
       
       // Extract JSON object from the response
-      let extractedJson: AccountSummary[] = [];
       try {
         // Handle possible markdown formatting in the response
         const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
@@ -136,15 +134,15 @@ If you see empty cells or missing values, set them to null in the JSON.`
                           [null, content];
                           
         const jsonText = jsonMatch?.[1] || content;
-        extractedJson = JSON.parse(jsonText);
+        const extractedJson = JSON.parse(jsonText);
         
         // Validate the extracted data
         if (!Array.isArray(extractedJson)) {
           throw new Error('Extracted data is not an array');
         }
         
-        // Ensure all values are in the correct format
-        const formattedData = extractedJson.map(item => {
+        // Ensure all values are in the correct format AND include all required AccountSummary properties
+        const formattedData: AccountSummary[] = extractedJson.map(item => {
           // Ensure currency values have $ prefix
           const ensureCurrencyFormat = (value: string | null) => {
             if (!value) return null;
@@ -159,7 +157,10 @@ If you see empty cells or missing values, set them to null in the JSON.`
           
           return {
             accountType: item.accountType || null,
+            totalAccounts: null, // Add missing property
             open: item.open || null,
+            closed: null, // Add missing property
+            balance: null, // Add missing property
             withBalance: item.withBalance || null,
             totalBalance: ensureCurrencyFormat(item.totalBalance),
             available: ensureCurrencyFormat(item.available),
