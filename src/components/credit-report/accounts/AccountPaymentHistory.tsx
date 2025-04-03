@@ -40,8 +40,8 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
     return "destructive";
   };
 
-  // Years to display in the payment history
-  const years = ["2024", "2023", "2022"];
+  // Use "-" for years when no data is available
+  const years = ["-", "-", "-"];
 
   return (
     <div className="space-y-6">
@@ -55,7 +55,7 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
             <p className="text-xs text-muted-foreground mb-4">View up to 7 years of monthly payment history on this account. The numbers indicate days a payment was past due; letters indicate other account events.</p>
           </div>
 
-          {/* Status Code Legend - Updated with more codes */}
+          {/* Status Code Legend */}
           <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {Object.entries(statusCodes).map(([code, description]) => (
               <div key={code} className="flex items-center space-x-2">
@@ -67,15 +67,7 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
             ))}
           </div>
 
-          {/* Only showing one type of "No data available" indicator */}
-          <div className="mb-6 grid grid-cols-1 gap-2">
-            <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="w-10 text-center">X</Badge>
-              <span className="text-xs">No data available</span>
-            </div>
-          </div>
-
-          {/* Payment History Table - Using only "X" for no data available */}
+          {/* Payment History Table */}
           <Table>
             <TableHeader>
               <TableRow>
@@ -95,11 +87,11 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {years.map((year) => (
-                <TableRow key={year}>
+              {years.map((year, yearIndex) => (
+                <TableRow key={yearIndex}>
                   <TableCell className="font-medium">{year}</TableCell>
                   {Array(12).fill(null).map((_, index) => (
-                    <TableCell key={`${year}-${index}`}>
+                    <TableCell key={`${yearIndex}-${index}`}>
                       <Badge variant="secondary" className="w-10 text-center">X</Badge>
                     </TableCell>
                   ))}
