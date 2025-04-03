@@ -7,7 +7,8 @@ import PDFProgressDisplay from "./PDFProgressDisplay";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { OpenAIConfigForm, canUseOpenAI } from "@/lib/ai/openai/openaiService";
+import OpenAIConfigSection from "./OpenAIConfigSection";
+import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 interface PDFUploaderProps {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -23,9 +24,10 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   onProcessingComplete
 }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showOpenAIConfig, setShowOpenAIConfig] = useState(false); // Hide by default
+  const [showOpenAIConfig, setShowOpenAIConfig] = useState(true); // Show by default
   const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
+  const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   
   const {
     isDragging,
@@ -78,6 +80,10 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     }
   }, [uploadProgress]);
 
+  const handleOpenAIConfigured = () => {
+    setOpenAIConfigured(true);
+  };
+
   return (
     <div className="w-full max-w-3xl mx-auto">
       {loadError && (
@@ -95,12 +101,8 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       )}
       
       {showOpenAIConfig && (
-        <div className="mb-4 border rounded-md p-4">
-          <h3 className="font-medium text-sm mb-2">OpenAI API Configuration</h3>
-          <p className="text-xs mb-3">{canUseOpenAI() 
-            ? "You can provide your own API key or use our built-in key." 
-            : "For best results, provide an OpenAI API key for improved table detection."}</p>
-          <OpenAIConfigForm />
+        <div className="mb-6">
+          <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
         </div>
       )}
       
