@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import CreditAccountsHeader from "./accounts/CreditAccountsHeader";
 import CreditAccountsTable from "./accounts/CreditAccountsTable";
-import { Upload } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { resetCurrentReportImage, getExtractedReportData } from "@/utils/pdf/extractText";
 
