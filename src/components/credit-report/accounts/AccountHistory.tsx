@@ -10,8 +10,23 @@ interface AccountHistoryProps {
 }
 
 const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo }) => {
-  // Example years for demonstration - in real implementation, these would be derived from the account data
-  const years = ["2024", "2023", "2022", "2021"];
+  // Get current year for generating dynamic years if none are provided
+  const currentYear = new Date().getFullYear();
+  
+  // Generate years dynamically from account data or use the last 4 years as fallback
+  // In real implementation, these would be derived from actual account data
+  const getYearsFromAccount = (account: Account): string[] => {
+    // This is where you would extract years from account history data
+    // For now, we'll use the current year and 3 previous years as a fallback
+    return [
+      currentYear.toString(),
+      (currentYear - 1).toString(),
+      (currentYear - 2).toString(),
+      (currentYear - 3).toString(),
+    ];
+  };
+  
+  const years = getYearsFromAccount(account);
   
   // Data categories to display as separate tables
   const dataCategories = [
@@ -47,12 +62,17 @@ const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo 
               {years.map(year => (
                 <TableRow key={year}>
                   <TableCell className="font-medium">{year}</TableCell>
-                  {months.map(month => (
-                    <TableCell key={`${year}-${month}`}>
-                      {/* This would be populated with real data from the account */}
-                      {/* All values are null by default */}
-                    </TableCell>
-                  ))}
+                  {months.map(month => {
+                    // Get data for this cell (would be populated with real data in production)
+                    // All values are null by default
+                    const cellValue = null;
+                    
+                    return (
+                      <TableCell key={`${year}-${month}`}>
+                        {cellValue !== null ? cellValue : "-"}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))}
             </TableBody>
