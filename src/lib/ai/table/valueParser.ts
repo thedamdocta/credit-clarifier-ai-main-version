@@ -5,6 +5,55 @@
  * found in credit report tables
  */
 
+// Store example patterns that we've seen before to improve recognition
+const knownPatterns = {
+  currency: [
+    { pattern: /^\$?[\d,]+(\.\d{2})?$/, replacement: (match: string) => match.startsWith('$') ? match : `$${match}` },
+    { pattern: /^\(?[\d,]+(\.\d{2})?\)?$/, replacement: (match: string) => match.startsWith('(') ? `-$${match.slice(1, -1)}` : `$${match}` },
+  ],
+  percentage: [
+    { pattern: /^[\d.]+\%?$/, replacement: (match: string) => match.endsWith('%') ? match : `${match}%` },
+  ],
+  numeric: [
+    { pattern: /^[\d,]+$/, replacement: (match: string) => match.replace(/,/g, '') },
+    { pattern: /^[\d]+\.[\d]+$/, replacement: (match: string) => match },
+  ]
+};
+
+// Store examples we've seen for training the system
+let trainingExamples: {
+  raw: string;
+  type: 'currency' | 'percentage' | 'numeric';
+  corrected: string;
+}[] = [];
+
+/**
+ * Add a new training example to improve future recognition
+ * @param raw Original string from OCR
+ * @param type Type of value (currency, percentage, numeric)
+ * @param corrected Correctly formatted value
+ */
+export function addTrainingExample(raw: string, type: 'currency' | 'percentage' | 'numeric', corrected: string) {
+  // Don't add duplicates
+  if (!trainingExamples.some(ex => ex.raw === raw && ex.corrected === corrected)) {
+    trainingExamples.push({ raw, type, corrected });
+    console.log(`Added training example: ${raw} → ${corrected} (${type})`);
+  }
+}
+
+/**
+ * Learn from a set of examples
+ * @param examples Array of example objects with raw, type, and corrected values
+ */
+export function learnFromExamples(examples: {raw: string, corrected: string, type: string}[]) {
+  examples.forEach(ex => {
+    if (ex.raw && ex.corrected && (ex.type === 'currency' || ex.type === 'percentage' || ex.type === 'numeric')) {
+      addTrainingExample(ex.raw, ex.type as 'currency' | 'percentage' | 'numeric', ex.corrected);
+    }
+  });
+  console.log(`Learned from ${examples.length} examples`);
+}
+
 /**
  * Parse a numeric value from text, handling different formats
  * @param value The text value to parse
@@ -15,6 +64,16 @@ export function parseNumericValue(value: any): string | null {
   
   // Convert to string if not already
   const strValue = String(value).trim();
+  
+  // First check if this matches a training example
+  const matchingExample = trainingExamples.find(ex => 
+    ex.type === 'numeric' && (ex.raw === strValue || ex.raw.toLowerCase() === strValue.toLowerCase())
+  );
+  
+  if (matchingExample) {
+    console.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
+    return matchingExample.corrected;
+  }
   
   // Common OCR errors - replace comma with empty string if it's alone
   if (strValue === ',' || strValue === '.') return '0';
@@ -35,7 +94,9 @@ export function parseNumericValue(value: any): string | null {
     // Additional OCR error fixes
     .replace(/I/g, '1') // Fix OCR confusion between I (uppercase i) and 1
     .replace(/l(\d)/g, '1$1') // Fix OCR confusion between l (lowercase L) and 1 when followed by digits
-    .replace(/[|]/g, '1'); // Fix OCR confusion between pipe character and 1
+    .replace(/[|]/g, '1') // Fix OCR confusion between pipe character and 1
+    .replace(/B/g, '8') // Fix OCR confusion between B and 8
+    .replace(/S/g, '5'); // Fix OCR confusion between S and 5
   
   // Extract only digits and at most one decimal point
   const numericPattern = /[-0-9,.]+/;
@@ -50,6 +111,9 @@ export function parseNumericValue(value: any): string | null {
   // Special handling for zero values - return string "0"
   if (parseFloat(numericValue) === 0) return "0";
   
+  // Add this as a training example for future use
+  addTrainingExample(strValue, 'numeric', numericValue);
+  
   return numericValue;
 }
 
@@ -63,6 +127,16 @@ export function parseCurrencyValue(value: any): string | null {
   
   // Convert to string if not already
   const strValue = String(value).trim();
+  
+  // First check if this matches a training example
+  const matchingExample = trainingExamples.find(ex => 
+    ex.type === 'currency' && (ex.raw === strValue || ex.raw.toLowerCase() === strValue.toLowerCase())
+  );
+  
+  if (matchingExample) {
+    console.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
+    return matchingExample.corrected;
+  }
   
   // Common OCR errors - replace standalone characters with empty
   if (strValue === '$' || strValue === ',' || strValue === '$,') return '$0';
@@ -86,7 +160,9 @@ export function parseCurrencyValue(value: any): string | null {
     .replace(/[|]/g, '1')
     .replace(/S/g, '5') // Fix OCR confusion between S and 5
     .replace(/(\d+)\.(\d+)\.(\d+)/g, '$1$2$3') // Fix double decimal points (OCR error)
-    .replace(/\((\d+[\d,.]*)\)/g, '-$1'); // Handle parentheses notation for negative numbers
+    .replace(/\((\d+[\d,.]*)\)/g, '-$1') // Handle parentheses notation for negative numbers
+    .replace(/B/g, '8') // Fix OCR confusion between B and 8
+    .replace(/Z/g, '2'); // Fix OCR confusion between Z and 2
   
   // Extract digits, commas, and period for decimal point
   const numericPattern = /[-0-9,.]+/;
@@ -107,13 +183,13 @@ export function parseCurrencyValue(value: any): string | null {
   // Format with commas for thousands
   numericPart = numValue.toLocaleString('en-US');
   
-  // Format with dollar sign and handle negative values
-  if (isNegative) {
-    return `-$${numericPart}`;
-  } else {
-    // Check if we already have a dollar sign
-    return strValue.includes('$') ? `$${numericPart}` : `$${numericPart}`;
-  }
+  // Format the final result
+  const finalValue = isNegative ? `-$${numericPart}` : `$${numericPart}`;
+  
+  // Add this as a training example for future use
+  addTrainingExample(strValue, 'currency', finalValue);
+  
+  return finalValue;
 }
 
 /**
@@ -126,6 +202,16 @@ export function parsePercentageValue(value: any): string | null {
   
   // Convert to string if not already
   const strValue = String(value).trim();
+  
+  // First check if this matches a training example
+  const matchingExample = trainingExamples.find(ex => 
+    ex.type === 'percentage' && (ex.raw === strValue || ex.raw.toLowerCase() === strValue.toLowerCase())
+  );
+  
+  if (matchingExample) {
+    console.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
+    return matchingExample.corrected;
+  }
   
   // Handle "x" or empty string as null
   if (strValue === 'x' || strValue === '' || strValue.toLowerCase() === 'null') return null;
@@ -143,7 +229,8 @@ export function parsePercentageValue(value: any): string | null {
     .replace(/I/g, '1')
     .replace(/l(\d)/g, '1$1')
     .replace(/[|]/g, '1')
-    .replace(/(\d+)\.(\d+)\.(\d+)/g, '$1$2$3'); // Fix double decimal points
+    .replace(/(\d+)\.(\d+)\.(\d+)/g, '$1$2$3') // Fix double decimal points
+    .replace(/B/g, '8'); // Fix OCR confusion between B and 8
   
   // Extract numeric part using a pattern to handle various formats
   const numericPattern = /[-0-9,.]+/;
@@ -162,8 +249,13 @@ export function parsePercentageValue(value: any): string | null {
   // Handle zero values specially
   if (numValue === 0) return "0.0%";
   
-  // Format with percent sign and one decimal place
-  return hasPercentSign ? strValue : `${numValue.toFixed(1)}%`;
+  // Format the final result
+  const finalValue = hasPercentSign ? strValue : `${numValue.toFixed(1)}%`;
+  
+  // Add this as a training example for future use
+  addTrainingExample(strValue, 'percentage', finalValue);
+  
+  return finalValue;
 }
 
 /**
@@ -321,4 +413,69 @@ export function detectValueType(value: any): 'numeric' | 'currency' | 'percentag
   }
   
   return 'unknown';
+}
+
+/**
+ * Function to train the parser with known good examples
+ * @param examples Array of example records to learn from
+ */
+export function trainParser(examples: Array<{
+  accountType: string,
+  open?: string | null,
+  withBalance?: string | null,
+  totalBalance?: string | null,
+  available?: string | null,
+  creditLimit?: string | null,
+  debtToCredit?: string | null,
+  payment?: string | null
+}>) {
+  console.log(`Training parser with ${examples.length} examples`);
+  
+  try {
+    examples.forEach(example => {
+      // For each field, if it exists and isn't null, add it as a training example
+      if (example.open) {
+        addTrainingExample(example.open, 'numeric', example.open);
+      }
+      
+      if (example.withBalance) {
+        addTrainingExample(example.withBalance, 'numeric', example.withBalance);
+      }
+      
+      if (example.totalBalance) {
+        // Clean up the value first to ensure it's in the right format
+        const cleanedValue = example.totalBalance.startsWith('$') ? 
+          example.totalBalance : `$${example.totalBalance}`;
+        addTrainingExample(example.totalBalance, 'currency', cleanedValue);
+      }
+      
+      if (example.available) {
+        const cleanedValue = example.available.startsWith('$') ? 
+          example.available : `$${example.available}`;
+        addTrainingExample(example.available, 'currency', cleanedValue);
+      }
+      
+      if (example.creditLimit) {
+        const cleanedValue = example.creditLimit.startsWith('$') ? 
+          example.creditLimit : `$${example.creditLimit}`;
+        addTrainingExample(example.creditLimit, 'currency', cleanedValue);
+      }
+      
+      if (example.debtToCredit) {
+        const cleanedValue = example.debtToCredit.endsWith('%') ? 
+          example.debtToCredit : `${example.debtToCredit}%`;
+        addTrainingExample(example.debtToCredit, 'percentage', cleanedValue);
+      }
+      
+      if (example.payment) {
+        const cleanedValue = example.payment.startsWith('$') ? 
+          example.payment : `$${example.payment}`;
+        addTrainingExample(example.payment, 'currency', cleanedValue);
+      }
+    });
+    
+    console.log(`Training complete. ${trainingExamples.length} patterns learned.`);
+  } catch (error) {
+    console.error("Error while training parser:", error);
+  }
 }

@@ -3,11 +3,12 @@ import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
 import { formatAccountValue, formatDollarAmount, formatPercentageValue } from "@/utils/formatters/accountValueFormatters";
-import { AlertCircle, Info, Upload } from "lucide-react";
+import { AlertCircle, Info, Upload, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { isZeroValue, formatValueForDisplay, parseFlexibleValue, parseNumericValue, parseCurrencyValue, parsePercentageValue } from "@/lib/ai/table/valueParser";
+import { isZeroValue, formatValueForDisplay, parseFlexibleValue, parseNumericValue, parseCurrencyValue, parsePercentageValue, trainParser } from "@/lib/ai/table/valueParser";
+import useTrainingExamples from "@/hooks/useTrainingExamples";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
@@ -20,6 +21,7 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
 }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
   const [stableData, setStableData] = useState<AccountSummary[]>(accountSummaries);
+  const { addTrainingExamples, isTraining } = useTrainingExamples();
   
   // If we receive new account summaries with actual data, update our stable data
   useEffect(() => {
@@ -103,6 +105,23 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     // For actual values, format them properly
     return formatter(value);
   };
+
+  // Function to train the parser with the current data as examples
+  const handleTrainWithCurrentData = () => {
+    if (!summariesToDisplay || summariesToDisplay.length === 0) return;
+    
+    // Only train with data that has real values
+    const validSummaries = summariesToDisplay.filter(summary => 
+      (summary.open !== null && summary.open !== "") || 
+      (summary.withBalance !== null && summary.withBalance !== "") ||
+      (summary.totalBalance !== null && summary.totalBalance !== "")
+    );
+    
+    if (validSummaries.length > 0) {
+      console.log("Training with current displayed data:", validSummaries);
+      addTrainingExamples(validSummaries);
+    }
+  };
   
   return (
     <div>
@@ -129,6 +148,21 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           </AlertDescription>
         </Alert>
       )}
+      
+      <div className="flex justify-end mb-2">
+        {!hasNoData && !isSampleData && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="ml-auto"
+            onClick={handleTrainWithCurrentData}
+            disabled={isTraining}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isTraining ? 'Training...' : 'Train Parser with This Data'}
+          </Button>
+        )}
+      </div>
       
       <Table>
         <TableHeader>

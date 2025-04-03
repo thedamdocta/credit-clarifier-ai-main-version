@@ -2,6 +2,7 @@ import { AccountSummary } from '../types/creditReport';
 import { getExtractedReportData } from '@/utils/pdf/extractText';
 import { extractTableWithTesseract } from './table/tesseractExtraction';
 import { calculateCreditAccountsTableScore } from './tableDetection';
+import { trainParser } from './table/valueParser';
 
 /**
  * Enhanced table extraction with improved targeting for Credit Accounts tables
@@ -47,6 +48,9 @@ export async function extractTableFromImage(
             'Payment': summary.payment || '$0'
           }))
         };
+        
+        // Train our parser with this successful extraction for future use
+        trainParser(extractedData.accountSummaries);
         
         return tableFormat;
       } else {
@@ -274,67 +278,78 @@ export function convertTableToAccountSummaries(tableData: any): AccountSummary[]
     return summaries;
   }
   
-  // Process each row in the table
-  tableData.rows.forEach((row: any) => {
-    // Extract account type
-    const accountType = row['Account Type'];
-    if (!accountType) return;
+  try {
+    // Process each row in the table
+    tableData.rows.forEach((row: any) => {
+      // Extract account type
+      const accountType = row['Account Type'];
+      if (!accountType) return;
+      
+      // Create an account summary object with all required properties
+      const summary: AccountSummary = {
+        accountType: accountType,
+        totalAccounts: null,
+        open: parseNumericValue(row['Open']),
+        closed: null,
+        balance: null,
+        withBalance: parseNumericValue(row['With Balance']),
+        totalBalance: parseCurrencyValue(row['Total Balance']),
+        available: parseCurrencyValue(row['Available']),
+        creditLimit: parseCurrencyValue(row['Credit Limit']),
+        debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
+        payment: parseCurrencyValue(row['Payment'])
+      };
+      
+      // Apply more flexible parsing for any fields that are still null
+      if (summary.open === null && row['Open']) {
+        summary.open = parseFlexibleValue(row['Open']);
+      }
+      
+      if (summary.withBalance === null && row['With Balance']) {
+        summary.withBalance = parseFlexibleValue(row['With Balance']);
+      }
+      
+      if (summary.totalBalance === null && row['Total Balance']) {
+        summary.totalBalance = parseFlexibleValue(row['Total Balance']);
+      }
+      
+      if (summary.available === null && row['Available']) {
+        summary.available = parseFlexibleValue(row['Available']);
+      }
+      
+      if (summary.creditLimit === null && row['Credit Limit']) {
+        summary.creditLimit = parseFlexibleValue(row['Credit Limit']);
+      }
+      
+      if (summary.debtToCredit === null && row['Debt-to-Credit']) {
+        summary.debtToCredit = parseFlexibleValue(row['Debt-to-Credit']);
+      }
+      
+      if (summary.payment === null && row['Payment']) {
+        summary.payment = parseFlexibleValue(row['Payment']);
+      }
+      
+      // Add some extra validation to ensure numeric fields stay numeric
+      if (summary.open !== null && /[^0-9]/.test(summary.open)) {
+        summary.open = summary.open.replace(/[^0-9]/g, '');
+      }
+      
+      if (summary.withBalance !== null && /[^0-9]/.test(summary.withBalance)) {
+        summary.withBalance = summary.withBalance.replace(/[^0-9]/g, '');
+      }
+      
+      summaries.push(summary);
+    });
     
-    // Create an account summary object with all required properties
-    const summary: AccountSummary = {
-      accountType: accountType,
-      totalAccounts: null,
-      open: parseNumericValue(row['Open']),
-      closed: null,
-      balance: null,
-      withBalance: parseNumericValue(row['With Balance']),
-      totalBalance: parseCurrencyValue(row['Total Balance']),
-      available: parseCurrencyValue(row['Available']),
-      creditLimit: parseCurrencyValue(row['Credit Limit']),
-      debtToCredit: parsePercentageValue(row['Debt-to-Credit']),
-      payment: parseCurrencyValue(row['Payment'])
-    };
-    
-    // Apply more flexible parsing for any fields that are still null
-    if (summary.open === null && row['Open']) {
-      summary.open = parseFlexibleValue(row['Open']);
+    // Once we've successfully converted the table, train our parser with these examples
+    if (summaries.length > 0) {
+      console.log('Training parser with successfully extracted account summaries');
+      trainParser(summaries);
     }
     
-    if (summary.withBalance === null && row['With Balance']) {
-      summary.withBalance = parseFlexibleValue(row['With Balance']);
-    }
-    
-    if (summary.totalBalance === null && row['Total Balance']) {
-      summary.totalBalance = parseFlexibleValue(row['Total Balance']);
-    }
-    
-    if (summary.available === null && row['Available']) {
-      summary.available = parseFlexibleValue(row['Available']);
-    }
-    
-    if (summary.creditLimit === null && row['Credit Limit']) {
-      summary.creditLimit = parseFlexibleValue(row['Credit Limit']);
-    }
-    
-    if (summary.debtToCredit === null && row['Debt-to-Credit']) {
-      summary.debtToCredit = parseFlexibleValue(row['Debt-to-Credit']);
-    }
-    
-    if (summary.payment === null && row['Payment']) {
-      summary.payment = parseFlexibleValue(row['Payment']);
-    }
-    
-    // Add some extra validation to ensure numeric fields stay numeric
-    if (summary.open !== null && /[^0-9]/.test(summary.open)) {
-      summary.open = summary.open.replace(/[^0-9]/g, '');
-    }
-    
-    if (summary.withBalance !== null && /[^0-9]/.test(summary.withBalance)) {
-      summary.withBalance = summary.withBalance.replace(/[^0-9]/g, '');
-    }
-    
-    summaries.push(summary);
-  });
-  
-  return summaries;
+    return summaries;
+  } catch (error) {
+    console.error('Error in convertTableToAccountSummaries:', error);
+    return summaries;
+  }
 }
