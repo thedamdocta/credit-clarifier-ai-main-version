@@ -13,14 +13,18 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   // Extract or use existing accounts
   const accounts = React.useMemo(() => {
     if (report?.accounts?.length > 0) {
+      console.log("Using existing accounts from report:", report.accounts.length);
       return report.accounts;
     } else if (report?.rawText) {
       // Extract accounts from the raw text if not already available
       console.log("Extracting accounts from raw text");
       return extractAccounts(report.rawText);
     }
+    console.log("No accounts or raw text available");
     return [];
   }, [report]);
+
+  console.log(`Retrieved ${accounts.length} credit accounts for display`);
 
   return (
     <Card>
