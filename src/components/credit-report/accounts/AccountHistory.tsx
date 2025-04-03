@@ -11,7 +11,7 @@ interface AccountHistoryProps {
 
 const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo }) => {
   // Use placeholder rows instead of actual years
-  const placeholderRows = [1, 2, 3, 4]; // Four rows as requested
+  const placeholderRows = [1, 2, 3]; // Updated to three rows as requested
   
   // Data categories to display as separate tables
   const dataCategories = [
