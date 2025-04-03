@@ -25,6 +25,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
+  const [extractionStarted, setExtractionStarted] = useState(false);
   
   const {
     isDragging,
@@ -42,21 +43,38 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     onPDFUploaded: (file, text, parsedReport) => {
       console.log("PDF processing completed, preparing data before navigation");
       onPDFUploaded(file, text, parsedReport);
-      setReadyToNavigate(true);
       
-      // Data is prepared - now wait for account extraction to complete
-      setProcessingMessage("Finalizing account data extraction...");
+      // Mark that extraction has started, but don't navigate yet
+      setExtractionStarted(true);
+      
+      // Only set readyToNavigate after a suitable delay to allow account extraction to happen
+      setTimeout(() => {
+        setReadyToNavigate(true);
+        setProcessingMessage("Finalizing account data extraction...");
+      }, 2000);
     },
     useAI: true,
     onProcessingStart: () => {
       setReadyToNavigate(false);
+      setExtractionStarted(false);
       setIsProcessing(true);
       setProcessingMessage(undefined); // Reset message to use default based on progress
     },
     onProcessingComplete: () => {
       console.log("All processing complete including table extraction");
-      // We're now fully ready to navigate to the report view
-      onProcessingComplete();
+      
+      // Only navigate if extraction has started and we're ready
+      if (extractionStarted) {
+        // Add a small delay before navigation to ensure all data is loaded
+        setTimeout(() => {
+          console.log("Navigation delay completed, triggering navigation");
+          onProcessingComplete();
+        }, 1500);
+      } else {
+        console.log("Extraction hasn't started yet, delaying navigation");
+        // If extraction hasn't started yet, wait for it
+        setReadyToNavigate(true);
+      }
     },
     onError: (error) => {
       console.error("PDF processing error:", error);
@@ -74,12 +92,15 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     } else if (uploadProgress >= 100) {
       setProcessingMessage("Processing complete!");
       
-      // If we've reached 100% and we're ready to navigate, trigger navigation immediately
-      if (readyToNavigate && processingComplete) {
-        onProcessingComplete();
+      // If we've reached 100% and we're ready to navigate, trigger navigation after a delay
+      if (readyToNavigate && processingComplete && extractionStarted) {
+        console.log("Upload progress 100%, ready to navigate, processing complete - triggering navigation");
+        setTimeout(() => {
+          onProcessingComplete();
+        }, 1000);
       }
     }
-  }, [uploadProgress, readyToNavigate, processingComplete, onProcessingComplete]);
+  }, [uploadProgress, readyToNavigate, processingComplete, onProcessingComplete, extractionStarted]);
 
   return (
     <div className="w-full max-w-3xl mx-auto">

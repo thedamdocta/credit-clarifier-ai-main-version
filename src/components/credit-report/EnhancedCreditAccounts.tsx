@@ -59,12 +59,17 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           handleDataExtracted(report.accountSummaries, false, false);
           setInitialAccountDataFound(true);
           return;
+        } else {
+          console.log('Report has account summaries but no real data, will attempt extraction');
         }
       }
       
+      // Set processing state to show loading spinner immediately
+      setIsProcessing(true);
+      
       const extractionTimer = setTimeout(() => {
         triggerExtraction(false);
-      }, 1000);
+      }, 500);
       
       return () => clearTimeout(extractionTimer);
     }
@@ -80,11 +85,38 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     setUsingSampleData(isSampleData);
     setExtractionFailed(failed);
     setAttemptedExtraction(true);
+    setIsProcessing(false);
   };
   
   const triggerExtraction = (forceManual: boolean) => {
     setExtractionAttempts(prev => prev + 1);
     setAttemptedExtraction(true);
+    
+    if (!isProcessing) {
+      setIsProcessing(true);
+    }
+    
+    // Use AccountDataExtractor component's functionality directly
+    import("./accounts/AccountDataExtractor").then(module => {
+      const extractor = new module.default({
+        report,
+        onDataExtracted: handleDataExtracted,
+        isProcessing,
+        setIsProcessing
+      });
+      
+      // Access the extraction method
+      if (typeof extractor.handleEnhancedExtraction === 'function') {
+        extractor.handleEnhancedExtraction(forceManual);
+      } else {
+        // Fallback if the function isn't available
+        console.error("Could not access extraction method");
+        setIsProcessing(false);
+      }
+    }).catch(err => {
+      console.error("Failed to import AccountDataExtractor:", err);
+      setIsProcessing(false);
+    });
   };
   
   const triggerPdfUpload = () => {

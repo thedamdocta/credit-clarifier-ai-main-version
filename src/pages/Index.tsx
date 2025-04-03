@@ -23,6 +23,7 @@ const Index = () => {
   const [showDebugger, setShowDebugger] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingComplete, setProcessingComplete] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
   const { toast } = useToast();
   
   const handleTabChange = (value: string) => {
@@ -57,6 +58,9 @@ const Index = () => {
         
         // Mark that we have report data
         setProcessingComplete(true);
+        
+        // Don't set dataReady yet - wait for account extraction
+        console.log("Base report data ready, waiting for account extraction");
       } else {
         toast({
           title: "Using basic parsing",
@@ -75,34 +79,39 @@ const Index = () => {
   };
 
   const handleProcessingComplete = () => {
-    console.log("All processing complete, including account extraction. Navigating to report tab");
+    console.log("All processing complete, including account extraction. Setting data ready flag");
+    
+    // First mark processing as complete
     setIsProcessing(false);
     
-    // Ensure we have a report before navigating
-    if (creditReport) {
-      toast({
-        title: "Credit Report Ready",
-        description: creditReport.bureau ? 
-          `Your ${creditReport.bureau} credit report is ready to view.` :
-          `Your credit report is ready to view.`,
-      });
-      
-      // Navigate to the report tab immediately
-      setActiveTab("report");
-    }
+    // Then mark data as ready after a short delay
+    setTimeout(() => {
+      setDataReady(true);
+    }, 1000);
   };
+  
+  // Effect to navigate when both processing is complete and report data is available
+  useEffect(() => {
+    if (dataReady && creditReport && !isProcessing) {
+      console.log("Data is ready and report is available - navigating to report tab");
+      
+      // Add a small delay before navigation to ensure UI is updated
+      setTimeout(() => {
+        setActiveTab("report");
+        
+        toast({
+          title: "Credit Report Ready",
+          description: creditReport.bureau ? 
+            `Your ${creditReport.bureau} credit report is ready to view.` :
+            `Your credit report is ready to view.`,
+        });
+      }, 500);
+    }
+  }, [dataReady, creditReport, isProcessing]);
 
   const handleRefresh = () => {
     window.location.reload();
   };
-
-  // Add effect to navigate when processing completes and report is available
-  useEffect(() => {
-    if (processingComplete && creditReport && !isProcessing) {
-      // Navigate to report tab automatically once processing is done
-      setActiveTab("report");
-    }
-  }, [processingComplete, creditReport, isProcessing]);
 
   return (
     <>
@@ -178,12 +187,20 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <PDFUploader 
-                  onPDFUploaded={handlePDFUploaded}
-                  isProcessing={isProcessing}
-                  setIsProcessing={setIsProcessing}
-                  onProcessingComplete={handleProcessingComplete}
-                />
+                {isProcessing && creditReport ? (
+                  <div className="py-8 flex flex-col items-center justify-center">
+                    <Loader2 className="h-12 w-12 text-muted-foreground mb-4 animate-spin" />
+                    <p className="text-muted-foreground">Extracting account data from your credit report...</p>
+                    <p className="text-xs text-muted-foreground mt-2">Please wait while we process your report.</p>
+                  </div>
+                ) : (
+                  <PDFUploader 
+                    onPDFUploaded={handlePDFUploaded}
+                    isProcessing={isProcessing}
+                    setIsProcessing={setIsProcessing}
+                    onProcessingComplete={handleProcessingComplete}
+                  />
+                )}
               </CardContent>
             </Card>
             

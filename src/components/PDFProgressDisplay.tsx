@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Progress } from "@/components/ui/progress";
-import { File, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { File, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -28,11 +28,12 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   const getMessage = () => {
     if (processingMessage) return processingMessage;
     
-    if (progress < 50) return "Extracting text from PDF...";
-    if (progress < 70) return "Analyzing report structure...";
-    if (progress < 85) return "Extracting account details...";
-    if (progress < 95) return "Finalizing data extraction...";
-    return "Processing complete!";
+    if (progress < 40) return "Extracting text from PDF...";
+    if (progress < 60) return "Analyzing report structure...";
+    if (progress < 75) return "Extracting account details...";
+    if (progress < 90) return "Processing credit account data...";
+    if (progress < 100) return "Finalizing data extraction...";
+    return "Processing complete, preparing to display your report...";
   };
   
   return (
@@ -55,7 +56,9 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
               
               <div className="flex items-center space-x-2">
                 <Button size="sm" variant="outline" onClick={handleReloadPage} className="mt-1">
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  <svg className="h-3.5 w-3.5 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
                   Reload Page
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => window.location.href = '/'} className="mt-1">
@@ -76,6 +79,12 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {getMessage()}
           </p>
+          
+          {progress >= 100 && (
+            <div className="text-xs text-center text-muted-foreground mt-1">
+              Extracting account data and preparing your report...
+            </div>
+          )}
         </>
       )}
     </div>
