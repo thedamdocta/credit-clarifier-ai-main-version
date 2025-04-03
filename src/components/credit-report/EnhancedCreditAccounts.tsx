@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import CreditAccountsTable from "./accounts/CreditAccountsTable";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { resetCurrentReportImage, getExtractedReportData } from "@/utils/pdf/extractText";
-import { Progress } from "@/components/ui/progress";
 
 import AccountDataExtractor from "./accounts/AccountDataExtractor";
 import TableImageDisplay from "./accounts/TableImageDisplay";
@@ -28,7 +28,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   const [usingSampleData, setUsingSampleData] = useState(false);
   const [initialAccountDataFound, setInitialAccountDataFound] = useState(false);
   const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
-  const [extractionProgress, setExtractionProgress] = useState(0);
 
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
 
@@ -45,7 +44,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setUsingSampleData(false);
       setTableImageUrl(null);
       setInitialAccountDataFound(false);
-      setExtractionProgress(0);
 
       console.log('Auto-triggering extraction for new report on component mount');
       
@@ -67,8 +65,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       
       setIsProcessing(true);
       
-      startProgressAnimation();
-      
       const extractionTimer = setTimeout(() => {
         triggerExtraction(false);
       }, 500);
@@ -76,34 +72,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       return () => clearTimeout(extractionTimer);
     }
   }, [report?.reportId]);
-
-  const startProgressAnimation = () => {
-    setExtractionProgress(0);
-    const interval = setInterval(() => {
-      setExtractionProgress(prev => {
-        if (prev >= 95) {
-          clearInterval(interval);
-          return 95;
-        }
-        
-        if (prev < 30) return prev + 2;
-        if (prev < 60) return prev + 1;
-        if (prev < 80) return prev + 0.5;
-        return prev + 0.2;
-      });
-    }, 200);
-
-    return () => clearInterval(interval);
-  };
-
-  const getProgressMessage = (progress: number) => {
-    if (progress < 30) return "Initializing credit account extraction...";
-    if (progress < 60) return "Processing account details...";
-    if (progress < 80) return "Analyzing credit data...";
-    if (progress < 95) return "Finalizing account information...";
-    if (progress < 100) return "Almost done...";
-    return "Processing complete!";
-  };
 
   const handleDataExtracted = (
     summaries: AccountSummary[], 
@@ -116,8 +84,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     setExtractionFailed(failed);
     setAttemptedExtraction(true);
     
-    setExtractionProgress(100);
-    
     setTimeout(() => {
       setIsProcessing(false);
     }, 500);
@@ -129,7 +95,6 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     
     if (!isProcessing) {
       setIsProcessing(true);
-      startProgressAnimation();
     }
     
     import("./accounts/AccountDataExtractor").then(module => {
@@ -216,17 +181,13 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         
         {isProcessing ? (
           <div className="py-8 flex flex-col items-center justify-center">
-            <div className="w-full max-w-md space-y-4">
-              <Progress value={extractionProgress} className="h-2" />
-              <div className="text-center space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">
-                  {getProgressMessage(extractionProgress)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {Math.round(extractionProgress)}% Complete
-                </p>
-              </div>
-            </div>
+            <Loader2 className="h-12 w-12 text-muted-foreground animate-spin mb-4" />
+            <p className="text-sm font-medium text-muted-foreground">
+              Extracting account data...
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Please wait while we process your credit accounts
+            </p>
           </div>
         ) : (
           <CreditAccountsTable 

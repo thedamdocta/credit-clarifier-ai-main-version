@@ -27,11 +27,11 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   const getMessage = () => {
     if (processingMessage) return processingMessage;
     
-    if (progress < 40) return "Extracting text from PDF...";
-    if (progress < 60) return "Analyzing report structure...";
-    if (progress < 75) return "Extracting account details...";
-    if (progress < 90) return "Processing credit account data...";
-    if (progress < 100) return "Finalizing data extraction...";
+    if (progress < 30) return "Extracting text from PDF...";
+    if (progress < 50) return "Analyzing report structure...";
+    if (progress < 70) return "Extracting account details...";
+    if (progress < 85) return "Processing credit account data...";
+    if (progress < 95) return "Finalizing data extraction...";
     return "Processing complete, preparing to display your report...";
   };
   
@@ -73,15 +73,22 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
         </div>
       ) : (
         <>
-          <Progress value={progress} className="h-2" />
-          <p className="text-sm text-center text-muted-foreground flex items-center justify-center">
-            {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            <span>{getMessage()} ({Math.round(progress)}%)</span>
-          </p>
+          <div className="space-y-2">
+            <Progress value={progress} className="h-2" />
+            <div className="flex flex-col items-center justify-center">
+              <p className="text-sm text-center text-muted-foreground flex items-center justify-center">
+                {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <span>{getMessage()}</span>
+              </p>
+              <p className="text-xs text-center text-muted-foreground">
+                {Math.round(progress)}% Complete
+              </p>
+            </div>
+          </div>
           
           {progress >= 100 && (
             <div className="text-xs text-center text-muted-foreground mt-1">
-              Extracting account data and preparing your report...
+              Finalizing and preparing your report...
             </div>
           )}
         </>
