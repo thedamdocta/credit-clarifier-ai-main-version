@@ -47,10 +47,10 @@ const AccountsComponent: React.FC<AccountsComponentProps> = ({ report }) => {
     : [{
         accountName: "Sample Account",
         accountNumber: "XXXX-XXXX-XXXX-1234",
-        accountType: "Credit Card",
-        openDate: "01/01/2020",
-        status: "Open",
-        balance: "$0.00",
+        accountType: "Not reported",
+        openDate: "Not reported",
+        status: "Not reported",
+        balance: null,
         paymentHistory: [],
         comments: ["This is a placeholder account. No actual accounts were detected in your report."]
       }];

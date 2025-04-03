@@ -1,7 +1,6 @@
 
 import React from "react";
 import { Account } from "@/lib/types/creditReport";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDollarAmount } from "@/utils/formatters/accountValueFormatters";
 
 interface AccountSummaryProps {
@@ -15,7 +14,7 @@ const AccountSummary: React.FC<AccountSummaryProps> = ({ account, showDebugInfo 
     { label: "Account Number", value: account.accountNumber || "Unknown" },
     { label: "Reported Balance", value: account.balance ? formatDollarAmount(account.balance) : "Not reported" },
     { label: "Account Status", value: account.status || "Unknown" },
-    { label: "Open Date", value: account.openDate || "Unknown" },
+    { label: "Open Date", value: account.openDate || "Not reported" },
   ];
 
   return (
@@ -31,27 +30,6 @@ const AccountSummary: React.FC<AccountSummaryProps> = ({ account, showDebugInfo 
           </div>
         ))}
       </div>
-      
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Balance</TableHead>
-            <TableHead>Scheduled Payment</TableHead>
-            <TableHead>Actual Payment</TableHead>
-            <TableHead>Credit Limit</TableHead>
-            <TableHead>Amount Due</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell>{account.balance ? formatDollarAmount(account.balance) : "Not reported"}</TableCell>
-            <TableCell>{"$0"}</TableCell>
-            <TableCell>{"$0"}</TableCell>
-            <TableCell>{"Not reported"}</TableCell>
-            <TableCell>{"$0"}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
       
       {showDebugInfo && (
         <div className="mt-4 p-4 bg-muted/50 rounded-md border border-dashed">
