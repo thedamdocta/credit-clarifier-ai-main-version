@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -62,8 +61,6 @@ const Index = () => {
         // Store the parsed report
         setCreditReport(parsedReport);
         
-        // Note: We don't automatically navigate away
-        // User will click the "View Report" button
         toast({
           title: "Credit Report Processed",
           description: parsedReport.bureau ? 

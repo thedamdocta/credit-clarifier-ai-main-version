@@ -71,7 +71,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
           <Progress value={progress} className="h-2" />
           <p className="text-sm text-center text-muted-foreground">
             {progress < 100 ? 
-              `Processing PDF with AI (${Math.round(progress)}%)...` : 
+              `Processing PDF (${Math.round(progress)}%)...` : 
               "PDF processed successfully!"}
           </p>
         </>

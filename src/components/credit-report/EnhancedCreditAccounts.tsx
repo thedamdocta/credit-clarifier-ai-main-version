@@ -387,7 +387,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         {showDebugInfo && !canUseOpenAI() && <OpenAIConfigForm />}
         
         <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating. 
-          {canUseOpenAI() && <span className="text-green-600 ml-1">AI-powered extraction enabled.</span>}
+          {canUseOpenAI() && <span className="text-green-600 ml-1">Enhanced extraction enabled.</span>}
         </p>
         
         {extractionFailed && !usingSampleData && (

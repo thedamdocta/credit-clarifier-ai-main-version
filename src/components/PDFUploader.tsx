@@ -43,15 +43,15 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       onPDFUploaded(file, text, parsedReport);
       setReadyToNavigate(true);
     },
-    useAI: true, // Enable AI-powered extraction
+    useAI: true, // Enable powered extraction
     onProcessingStart: () => {
       setReadyToNavigate(false);
       setIsProcessing(true);
     },
     onProcessingComplete: () => {
-      // Mark processing as complete, but don't navigate yet
-      // Navigation will happen after user clicks the button
+      // Mark processing as complete, and automatically navigate
       setIsProcessing(false);
+      onProcessingComplete();
     },
     onError: (error) => {
       console.error("PDF processing error:", error);
