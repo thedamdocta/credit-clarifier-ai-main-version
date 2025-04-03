@@ -30,7 +30,7 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
-          Credit Accounts
+          Account Details
         </CardTitle>
         <CardDescription>
           Detailed information about each account in your credit report

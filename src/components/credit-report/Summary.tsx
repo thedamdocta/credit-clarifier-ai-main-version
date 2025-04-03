@@ -59,6 +59,8 @@ const Summary: React.FC<SummaryProps> = ({ report }) => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CreditAccountsHeader 
+          title="Credit Summary"
+          description="Summary of your credit accounts"
           showDebugInfo={showDebugInfo} 
           toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
         />
