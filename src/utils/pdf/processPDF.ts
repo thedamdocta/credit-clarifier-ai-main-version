@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
@@ -11,7 +10,21 @@ interface PDFProcessingCallbacks extends ProgressCallbacks {
   onError?: (error: Error | null) => void;
 }
 
-// Add a flag to track if we've already warned about PDF.js loading issues
+interface PDFJSLib {
+  getDocument: (source: { data: Uint8Array }) => { promise: Promise<PDFDocumentProxy> };
+  GlobalWorkerOptions: { workerSrc: string };
+  version: string;
+}
+
+interface PDFDocumentProxy {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PDFPageProxy>;
+}
+
+interface PDFPageProxy {
+  getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
+}
+
 let pdfJsLoadingWarned = false;
 
 export const processPDFDocument = async (
@@ -32,11 +45,9 @@ export const processPDFDocument = async (
     setCurrentFile(file);
     console.log(`Processing PDF document with file: ${file.name}, targeting table: ${targetTable}`);
     
-    // Store this file as the current PDF being processed with a unique ID
     const uniqueReportId = setCurrentPDFData(file, { targetTable });
     console.log(`Set unique report ID: ${uniqueReportId}`);
     
-    // Setup progress tracking - but make it slower to match full processing time
     const { 
       clearProgressTracking, 
       completeProgressTracking, 
@@ -45,34 +56,28 @@ export const processPDFDocument = async (
       updateProgressStage
     } = setupProgressTracking({
       ...callbacks,
-      slowDownProgress: true, // Signal to slow down progress updates
-      onCompleteCallback // Pass through the completion callback
+      slowDownProgress: true,
+      onCompleteCallback
     });
     
-    // Load the PDF.js library dynamically with better error handling
     try {
-      // Set a timeout to detect PDF.js loading problems
       const pdfLoadingTimeout = setTimeout(() => {
         console.warn("PDF.js loading is taking longer than expected");
         toast.warning("PDF library is loading slowly. Please be patient.");
       }, 3000);
       
-      // Try loading the PDF.js library with a more robust approach
       const pdfjsLib = await Promise.race([
-        import("pdfjs-dist").catch(error => {
+        import("pdfjs-dist").then(module => module as unknown as PDFJSLib).catch(error => {
           console.error("Error loading pdfjs-dist package:", error);
           throw new Error("Failed to load PDF processing library. Please check your network connection and try again.");
         }),
-        // Add a timeout promise to handle cases where the import gets stuck
-        new Promise((_, reject) => 
+        new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error("PDF library loading timed out. Please refresh the page and try again.")), 15000)
         )
       ]);
       
-      // Clear the warning timeout since we've either loaded or failed
       clearTimeout(pdfLoadingTimeout);
       
-      // Set worker source using a more reliable CDN with version fallback
       const workerVersion = pdfjsLib.version || '3.11.174';
       const workerUrls = [
         `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${workerVersion}/pdf.worker.min.js`,
@@ -80,7 +85,6 @@ export const processPDFDocument = async (
         `https://cdn.jsdelivr.net/npm/pdfjs-dist@${workerVersion}/build/pdf.worker.min.js`
       ];
       
-      // Try setting the worker from each URL until one works
       let workerSet = false;
       for (const workerUrl of workerUrls) {
         try {
@@ -98,7 +102,6 @@ export const processPDFDocument = async (
         throw new Error("Failed to load PDF processing components");
       }
       
-      // Read the PDF file
       const fileReader = new FileReader();
       
       fileReader.onload = async function() {
@@ -107,13 +110,11 @@ export const processPDFDocument = async (
           
           try {
             console.log("Loading PDF document from array buffer");
-            // Add timeout for PDF loading operations too
             const loadPdfPromise = pdfjsLib.getDocument({ data: typedarray }).promise;
             
-            // Set a timeout on the PDF document loading
             const pdf = await Promise.race([
               loadPdfPromise,
-              new Promise((_, reject) => 
+              new Promise<never>((_, reject) => 
                 setTimeout(() => reject(new Error("PDF document loading timed out")), 10000)
               )
             ]);
@@ -122,47 +123,35 @@ export const processPDFDocument = async (
             console.log(`PDF loaded with ${numPages} pages`);
             updateProgress(15);
             
-            // Use standard text extraction for the main content with table targeting
             const extractedText = await extractTextFromPDF(pdf);
             console.log("Successfully extracted text from PDF, length:", extractedText.length);
-            updateProgressStage('initialExtraction'); // Update to 50%
+            updateProgressStage('initialExtraction');
             
             try {
-              // Parse the extracted text with the unique report ID
-              console.log("Starting PDF content parsing...");
               const parsedReport = await parsePDFContent(extractedText, useAI);
-              updateProgressStage('parsing'); // Update to 70%
+              updateProgressStage('parsing');
               
-              // Ensure the report has a unique ID and filename
               if (parsedReport) {
                 parsedReport.reportId = uniqueReportId;
                 parsedReport.fileName = file.name;
-                parsedReport.rawText = extractedText; // Store the raw text for later use
+                parsedReport.rawText = extractedText;
                 
-                // Store this parsed data in our cache to prevent overriding with sample data
                 setExtractedReportData(parsedReport);
                 
-                // Create a global reference to this PDF for better extraction
                 (window as any).currentPdfData = {
                   reportId: uniqueReportId,
                   fileName: file.name,
-                  extractedText: extractedText.substring(0, 1000) // Store preview
+                  extractedText: extractedText.substring(0, 1000)
                 };
                 
-                // Provide the basic report data to the parent component
-                // before continuing with additional extraction
                 onPDFUploaded(file, extractedText, parsedReport);
                 
-                // Move to the table extraction stage
-                updateProgressStage('tableExtraction'); // Update to 85%
+                updateProgressStage('tableExtraction');
                 
-                // Make sure all necessary extraction is performed before completing
                 try {
-                  // Force account extraction if it wasn't done during parsing
                   if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
                     console.log("No account summaries found in initial parsing, attempting additional extraction");
                     
-                    // Import only if needed to avoid circular dependencies
                     const { extractEquifaxAccountSummaries } = await import("@/lib/parsers/equifax/equifaxAccountSummary");
                     if (parsedReport.bureau === 'Equifax') {
                       console.log("Extracting Equifax account summaries");
@@ -173,13 +162,10 @@ export const processPDFDocument = async (
                     }
                   }
                   
-                  // Update progress to indicate we're almost done
-                  updateProgressStage('finalProcessing'); // Update to 95%
+                  updateProgressStage('finalProcessing');
                   
-                  // Ensure we spend enough time in the final stage for good UX
                   setTimeout(async () => {
                     try {
-                      // Last attempt at extracting account data if still needed
                       if (parsedReport.bureau === 'Equifax' && 
                           (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0)) {
                         console.log("Final attempt at extracting account data");
@@ -192,39 +178,28 @@ export const processPDFDocument = async (
                         }
                       }
                       
-                      // Wait a bit to ensure all account extraction has time to complete
                       setTimeout(() => {
-                        // Complete processing - this will trigger navigation
-                        console.log("PDF processing fully complete with all data extraction");
-                        completeProgressTracking(); // This will call onCompleteCallback
-                        
+                        completeProgressTracking();
                         toast.success("PDF successfully processed!");
                       }, 1500);
-                      
                     } catch (extractionError) {
                       console.error("Additional extraction error:", extractionError);
-                      // If extraction fails, still complete the process
                       completeProgressTracking();
                     }
                   }, 2000);
-                  
                 } catch (extractionError) {
                   console.error("Additional extraction error:", extractionError);
-                  // If extraction fails, still complete the process
                   completeProgressTracking();
                 }
               } else {
-                // If we don't have a parsed report, use basic processing
                 updateProgressStage('finalProcessing');
                 setTimeout(() => {
                   handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
                   completeProgressTracking();
                 }, 2000);
               }
-              
             } catch (error) {
               console.error("Error parsing PDF content:", error);
-              // Fall back to basic processing
               updateProgressStage('finalProcessing');
               
               setTimeout(() => {
@@ -232,7 +207,6 @@ export const processPDFDocument = async (
                 completeProgressTracking();
               }, 2000);
             }
-            
           } catch (error) {
             console.error("Error processing PDF:", error);
             toast.error("Failed to process PDF. Please try another file.");
@@ -257,19 +231,15 @@ export const processPDFDocument = async (
     } catch (error) {
       console.error("Error loading PDF library:", error);
       
-      // Only show the warning toast once to avoid spamming the user
       if (!pdfJsLoadingWarned) {
         toast.error("Failed to load PDF processing library. Please try refreshing the page or using a different browser.");
         pdfJsLoadingWarned = true;
       }
       
-      // Create a more graceful fallback by using basic processing
       callbacks.setUploadProgress(0);
       
-      // Provide a fallback workflow - simple file name & metadata extraction
       const basicText = `Filename: ${file.name}\nFile size: ${Math.round(file.size / 1024)} KB\nFile type: ${file.type}`;
       
-      // Display a more helpful error message
       const errorMessage = error instanceof Error 
         ? `PDF library loading error: ${error.message}` 
         : "Failed to load PDF processing library. Please try refreshing the page.";
@@ -278,7 +248,6 @@ export const processPDFDocument = async (
       
       handleBasicProcessing(uniqueReportId, file, basicText, targetTable, onPDFUploaded);
       
-      // Update the UI to show we're trying to process anyway
       setTimeout(() => {
         updateProgressStage('finalProcessing');
         setTimeout(() => {
@@ -294,7 +263,6 @@ export const processPDFDocument = async (
   }
 };
 
-// Extract basic processing into a separate function for better readability
 function handleBasicProcessing(
   reportId: string, 
   file: File, 
@@ -316,19 +284,16 @@ function handleBasicProcessing(
     creditScores: []
   };
   
-  // Store in global for easier access
   (window as any).currentPdfData = {
     reportId: reportId,
     fileName: file.name,
     extractedText: extractedText.substring(0, 1000)
   };
   
-  // Store this parsed data in our cache
   setExtractedReportData(basicReport);
   
-  // Add delay before completing to ensure UI is fully updated
   setTimeout(() => {
     onPDFUploaded(file, extractedText, basicReport);
     toast.success("PDF processed with basic extraction");
-  }, 2000); // Longer delay to match expected processing time
+  }, 2000);
 }

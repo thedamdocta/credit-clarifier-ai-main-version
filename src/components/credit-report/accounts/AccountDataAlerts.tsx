@@ -39,7 +39,7 @@ const AccountDataAlerts: React.FC<AccountDataAlertsProps> = ({
   
   if (usingSampleData) {
     return (
-      <Alert variant="warning" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+      <Alert variant="default" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
         <AlertCircle className="h-4 w-4" />
         <div className="flex justify-between items-center w-full">
           <AlertDescription>
