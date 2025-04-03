@@ -18,8 +18,6 @@ const CreditAccountsHeader: React.FC<CreditAccountsHeaderProps> = ({
   showDebugInfo, 
   toggleDebug 
 }) => {
-  console.log("Header rendering with title:", title);
-  
   return (
     <>
       <div>

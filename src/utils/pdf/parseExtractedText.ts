@@ -1,14 +1,11 @@
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
-// Import the table extraction utilities
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { extractCreditAccountsTableImage, resetCurrentReportImage } from "./extractText";
 
 export const identifyDocumentPatterns = (extractedText: string) => {
-  // Pre-process text to better identify account tables
   const lowercaseText = extractedText.toLowerCase();
   
-  // Use regex patterns to identify document features
   const hasEquifaxPatterns = lowercaseText.includes('equifax credit report') || 
                              lowercaseText.includes('equifax credit file');
                              
@@ -18,13 +15,11 @@ export const identifyDocumentPatterns = (extractedText: string) => {
   const hasTransUnionPatterns = lowercaseText.includes('transunion credit report') ||
                                 lowercaseText.includes('transunion credit file');
   
-  // Detect account table patterns
   const hasAccountTable = lowercaseText.includes('account type') && 
                          (lowercaseText.includes('revolving') || 
                           lowercaseText.includes('installment') ||
                           lowercaseText.includes('mortgage'));
   
-  // Return pattern analysis
   return {
     hasEquifaxPatterns,
     hasExperianPatterns,
@@ -33,11 +28,8 @@ export const identifyDocumentPatterns = (extractedText: string) => {
   };
 };
 
-// Function to extract account summaries using regex
-// This is a fallback when image extraction fails
 export const extractAccountSummariesWithRegex = (text: string) => {
   try {
-    // Example regex patterns for account table rows
     const revolvingMatch = text.match(/revolving\s+(\d+)\s+(\d+)/i);
     const mortgageMatch = text.match(/mortgage\s+(\d+)\s+(\d+)/i);
     const installmentMatch = text.match(/installment\s+(\d+)\s+(\d+)/i);
@@ -125,7 +117,6 @@ export const extractAccountSummariesWithRegex = (text: string) => {
   }
 };
 
-// Create realistic sample data for testing/development 
 export const createSampleAccountSummaries = () => {
   return [
     {
@@ -196,9 +187,7 @@ export const createSampleAccountSummaries = () => {
   ];
 };
 
-// Create default account summaries when all extraction methods fail
 export const createDefaultAccountSummaries = () => {
-  // Return a complete set of empty account summaries in the required format
   return [
     {
       accountType: 'Revolving',
@@ -268,10 +257,8 @@ export const createDefaultAccountSummaries = () => {
   ];
 };
 
-// Enhanced account summary extraction function that attempts multiple methods
 export const improvedAccountSummaryExtraction = async (parsedReport: any, extractedText: string) => {
   try {
-    // First attempt: Try to extract the table image
     console.log('Attempting to extract account summaries from image...');
     const tableImageUrl = await extractCreditAccountsTableImage(parsedReport);
     
@@ -282,7 +269,6 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
         const accountSummaries = convertTableToAccountSummaries(tableData);
         console.log('Successfully extracted account summaries from image:', accountSummaries);
         
-        // If no real data was extracted (all null values), use sample data instead
         const hasRealData = accountSummaries.some(summary => 
           summary.open !== null || summary.withBalance !== null || summary.totalBalance !== null);
         
@@ -297,11 +283,9 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
       console.log('No table image found for extraction');
     }
     
-    // Second attempt: Use regex on extracted text
     console.log('Falling back to regex extraction for account summaries...');
     const regexSummaries = extractAccountSummariesWithRegex(extractedText);
     
-    // Check if regex extraction found any data
     const hasRegexData = regexSummaries.some(summary => 
       summary.open !== null || summary.withBalance !== null);
     
@@ -310,7 +294,6 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
       return regexSummaries;
     }
     
-    // Third attempt: Determine if we need sample data for development or empty data for production
     if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
       console.log('Development environment detected: using sample account summaries');
       return createSampleAccountSummaries();
@@ -320,29 +303,23 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
     }
   } catch (error) {
     console.error('Error in improved account summary extraction:', error);
-    // Always return something valid, even if extraction completely fails
     return createDefaultAccountSummaries();
   }
 };
 
-// Enhanced analysis for Equifax reports
 const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) => {
   try {
-    // We don't want to overwrite account summaries if they already have values
-    // (including null values that will be displayed as "x")
     if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
       try {
         parsedReport.accountSummaries = await improvedAccountSummaryExtraction(parsedReport, extractedText);
       } catch (error) {
         console.error("Error extracting account summaries:", error);
-        // Always ensure we have account summaries
         parsedReport.accountSummaries = createDefaultAccountSummaries();
       }
     } else {
       console.log('Report already has account summaries, not overwriting');
     }
     
-    // Additional Equifax-specific enhancements can be added here
     return parsedReport;
   } catch (error) {
     console.error('Error enhancing Equifax report:', error);
@@ -350,11 +327,9 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
   }
 };
 
-// Main parsing function that combines all aspects of credit report processing
 export const parsePDFContent = async (extractedText: string, useEnhanced: boolean = false) => {
   try {
     console.log('Parsing PDF content...');
-    // Reset the current report image for each new PDF processing
     resetCurrentReportImage();
     
     if (!extractedText || extractedText.length < 100) {
@@ -363,11 +338,9 @@ export const parsePDFContent = async (extractedText: string, useEnhanced: boolea
       return null;
     }
     
-    // Identify document patterns to determine bureau and other features
     const patterns = identifyDocumentPatterns(extractedText);
     console.log('Document patterns identified:', patterns);
     
-    // Parse the basic credit report structure
     let parsedReport = await parseCreditReport(extractedText);
     console.log('Basic report parsing complete:', parsedReport?.bureau);
     
@@ -377,21 +350,16 @@ export const parsePDFContent = async (extractedText: string, useEnhanced: boolea
       return null;
     }
     
-    // Store the raw text in the report
     parsedReport.rawText = extractedText;
     
-    // Add a unique report ID for tracking
     if (!parsedReport.reportId) {
       parsedReport.reportId = `report-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     }
     
-    // Apply bureau-specific enhancements
     if (parsedReport.bureau === 'Equifax') {
       parsedReport = await enhanceEquifaxReport(parsedReport, extractedText);
     }
-    // Add similar blocks for other bureaus if needed
     
-    // Always ensure we have account summaries, no matter what
     if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
       console.log('No account summaries found, creating default ones');
       parsedReport.accountSummaries = createDefaultAccountSummaries();

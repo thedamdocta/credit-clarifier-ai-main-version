@@ -55,8 +55,6 @@ const Summary: React.FC<SummaryProps> = ({ report }) => {
     }
   });
 
-  console.log("Credit Summary rendering with accountSummaries:", accountSummaries.length);
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">

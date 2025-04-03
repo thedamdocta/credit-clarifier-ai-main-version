@@ -19,13 +19,11 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   accountSummaries,
   onRequestUpload 
 }) => {
-  console.log("Table rendering with account summaries:", accountSummaries);
   const [stableData, setStableData] = useState<AccountSummary[]>(accountSummaries);
   const { addTrainingExamples, isTraining, examples, resetTrainingExamples } = useTrainingExamples();
   
   useEffect(() => {
     if (accountSummaries && accountSummaries.length > 0) {
-      console.log("Checking if account summaries have real values");
       const newDataHasRealValues = accountSummaries.some(summary => 
         ((summary.open !== null && summary.open !== "" && summary.open !== "0") || 
          (summary.withBalance !== null && summary.withBalance !== "" && summary.withBalance !== "0") || 
@@ -40,16 +38,12 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       );
       
       if (currentDataHasNoValues || newDataHasRealValues) {
-        console.log("Updating stable data with new account summaries that have real values");
         setStableData(accountSummaries);
-      } else {
-        console.log("Keeping existing stable data as it has better values than new data");
       }
     }
-  }, [accountSummaries]);
+  }, [accountSummaries, stableData]);
   
   const summariesToDisplay = stableData && stableData.length > 0 ? stableData : accountSummaries;
-  console.log("Summaries to display:", summariesToDisplay.length);
   
   const isSampleData = summariesToDisplay && 
     summariesToDisplay.some(s => s.accountType === "Revolving" && s.totalBalance === "$16,355" && s.payment === "$627") &&
@@ -60,8 +54,6 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     (summary.withBalance === null || summary.withBalance === "") && 
     (summary.totalBalance === null || summary.totalBalance === "" || summary.totalBalance === "$0")
   );
-  
-  console.log("Has no data:", hasNoData, "Is sample data:", isSampleData);
   
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
     if (typeof value === 'string' && value.trim() !== '') {
@@ -104,7 +96,6 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     );
     
     if (validSummaries.length > 0) {
-      console.log("Training with current displayed data:", validSummaries);
       addTrainingExamples(validSummaries);
     }
   };
