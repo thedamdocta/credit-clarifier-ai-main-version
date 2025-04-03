@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
 import { formatAccountValue, formatDollarAmount, formatPercentageValue } from "@/utils/formatters/accountValueFormatters";
-import { AlertCircle, Info, Upload, Save, Brain } from "lucide-react";
+import { AlertCircle, Info, Upload, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isZeroValue, formatValueForDisplay, parseFlexibleValue, parseNumericValue, parseCurrencyValue, parsePercentageValue, trainParser } from "@/lib/ai/table/valueParser";
 import useTrainingExamples from "@/hooks/useTrainingExamples";
-import { OpenAIConfigForm, canUseOpenAI } from "@/lib/ai/openai/openaiService";
+import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 interface CreditAccountsTableProps {
   accountSummaries: AccountSummary[];
@@ -21,7 +21,6 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
 }) => {
   console.log("Table rendering with account summaries:", accountSummaries);
   const [stableData, setStableData] = useState<AccountSummary[]>(accountSummaries);
-  const [showOpenAIConfig, setShowOpenAIConfig] = useState(false);
   const { addTrainingExamples, isTraining, examples, resetTrainingExamples } = useTrainingExamples();
   
   useEffect(() => {
@@ -131,23 +130,8 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
           </AlertDescription>
         </Alert>
       )}
-
-      {showOpenAIConfig && (
-        <div className="mb-4">
-          <OpenAIConfigForm />
-        </div>
-      )}
       
-      <div className="flex justify-between mb-2">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => setShowOpenAIConfig(!showOpenAIConfig)}
-        >
-          <Brain className="h-4 w-4 mr-2" />
-          {showOpenAIConfig ? 'Hide Configuration' : 'Configure API'}
-        </Button>
-        
+      <div className="flex justify-end mb-2">
         {!hasNoData && !isSampleData && (
           <Button 
             variant="outline" 
