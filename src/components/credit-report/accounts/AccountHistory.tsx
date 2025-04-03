@@ -78,7 +78,7 @@ const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo 
               {account.comments && account.comments.length > 0 ? (
                 account.comments.map((comment, i) => (
                   <TableRow key={i}>
-                    <TableCell>{/* Date would come from structured comment data */}</TableCell>
+                    <TableCell>-</TableCell>
                     <TableCell>{comment}</TableCell>
                   </TableRow>
                 ))
