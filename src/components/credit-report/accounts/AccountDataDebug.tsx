@@ -28,6 +28,19 @@ const AccountDataDebug: React.FC<AccountDataDebugProps> = ({
 }) => {
   const [expandedImage, setExpandedImage] = useState(false);
 
+  // Utility function to check if account summaries contain real data
+  const hasRealData = (summaries: AccountSummary[] | undefined): boolean => {
+    if (!summaries || summaries.length === 0) return false;
+    
+    return summaries.some(summary => 
+      summary.open !== null || 
+      summary.withBalance !== null || 
+      summary.totalBalance !== null ||
+      summary.available !== null ||
+      summary.creditLimit !== null
+    );
+  };
+
   if (!showDebugInfo) {
     return null;
   }
@@ -102,15 +115,17 @@ const AccountDataDebug: React.FC<AccountDataDebugProps> = ({
         </div>
       )}
       
-      {report?.accountSummaries && report.accountSummaries.length > 0 && (
+      {/* Only show the report account summaries if they have real data */}
+      {report?.accountSummaries && hasRealData(report.accountSummaries) && (
         <div className="mt-4">
-          <h5 className="text-xs font-bold mb-2">Account Summaries Data:</h5>
+          <h5 className="text-xs font-bold mb-2">Initial Report Account Data:</h5>
           <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
             {JSON.stringify(report.accountSummaries, null, 2)}
           </pre>
         </div>
       )}
       
+      {/* Always show the current account summaries */}
       {accountSummaries && accountSummaries.length > 0 && (
         <div className="mt-4">
           <h5 className="text-xs font-bold mb-2">Current Account Summaries:</h5>
