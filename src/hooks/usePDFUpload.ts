@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { processPDFDocument } from "@/utils/pdf";
@@ -44,17 +45,10 @@ export const usePDFUpload = ({
         onPDFUploaded: (file, text, parsedReport) => {
           console.log("PDF processing complete, setting data");
           
-          // Mark processing as complete only after ALL data has been extracted
-          // We'll delay this to ensure table extraction has time to complete
-          setTimeout(() => {
-            setProcessingComplete(true);
-            
-            // Pass data to the parent component
-            onPDFUploaded(file, text, parsedReport);
-            
-            // Only call onProcessingComplete at the very end
-            // This will be handled by the parent component via useEffect
-          }, 1500); // Delay to ensure tables are fully extracted
+          // Mark data as ready but don't mark processing as complete yet
+          // The actual navigation and completion will be handled by the
+          // progress tracking system when extraction is fully done
+          onPDFUploaded(file, text, parsedReport);
         },
         useImageExtraction: true, // Enable image extraction for table detection
         targetTable: "Credit Accounts", // Specifically target the Credit Accounts table
@@ -70,6 +64,14 @@ export const usePDFUpload = ({
             setTimeout(() => {
               onProcessingComplete();
             }, 500);
+          }
+        },
+        // Pass the completion callback to the progress handling system
+        onCompleteCallback: () => {
+          console.log("All PDF processing including extraction is complete");
+          setProcessingComplete(true);
+          if (onProcessingComplete) {
+            onProcessingComplete();
           }
         }
       });

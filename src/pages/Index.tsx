@@ -23,7 +23,7 @@ const Index = () => {
   const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingComplete, setProcessingComplete] = useState(false);
-  const [dataFullyReady, setDataFullyReady] = useState(false);
+  const [accountExtractionDone, setAccountExtractionDone] = useState(false);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -60,7 +60,7 @@ const Index = () => {
         console.log("Setting credit report data");
         setCreditReport(parsedReport);
         
-        // Mark that we have data, but stay on upload page until fully processed
+        // Mark that we have report data, but stay on upload page until fully processed
         setProcessingComplete(true);
       } else {
         toast({
@@ -80,9 +80,9 @@ const Index = () => {
   };
 
   const handleProcessingComplete = () => {
-    console.log("All processing complete, navigating to report tab");
-    setDataFullyReady(true);
-    setProcessingComplete(true);
+    console.log("All processing complete, including account extraction. Navigating to report tab");
+    setAccountExtractionDone(true);
+    setIsProcessing(false);
     
     // Now that everything is complete, navigate to the report tab
     if (creditReport) {
@@ -93,10 +93,8 @@ const Index = () => {
           `Your credit report is ready to view.`,
       });
       
-      // Use a small delay before tab change for better UX
-      setTimeout(() => {
-        setActiveTab("report");
-      }, 500);
+      // Navigate to the report tab immediately
+      setActiveTab("report");
     }
   };
 

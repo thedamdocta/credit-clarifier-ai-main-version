@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { Progress } from "@/components/ui/progress";
 import { File, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ interface PDFProgressDisplayProps {
   progress: number;
   error?: string | null;
   isProcessing?: boolean;
-  onProcessingComplete?: () => void;
+  processingMessage?: string;
 }
 
 const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
@@ -17,10 +17,21 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   progress,
   error,
   isProcessing,
-  onProcessingComplete
+  processingMessage
 }) => {
   const handleReloadPage = () => {
     window.location.reload();
+  };
+  
+  // Calculate appropriate processing message based on progress
+  const getMessage = () => {
+    if (processingMessage) return processingMessage;
+    
+    if (progress < 50) return "Extracting text from PDF...";
+    if (progress < 70) return "Analyzing report structure...";
+    if (progress < 85) return "Extracting account details...";
+    if (progress < 95) return "Finalizing data extraction...";
+    return "Processing complete!";
   };
   
   return (
@@ -61,9 +72,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
           <Progress value={progress} className="h-2" />
           <p className="text-sm text-center text-muted-foreground flex items-center justify-center">
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {progress < 100 ? 
-              `Processing PDF (${Math.round(progress)}%)...` : 
-              isProcessing ? "Finalizing data extraction..." : "PDF processed successfully!"}
+            {getMessage()}
           </p>
         </>
       )}
