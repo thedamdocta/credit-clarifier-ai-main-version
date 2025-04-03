@@ -93,6 +93,15 @@ const AccountDataDebug: React.FC<AccountDataDebugProps> = ({
           </pre>
         </div>
       )}
+      
+      {accountSummaries && accountSummaries.length > 0 && (
+        <div className="mt-4">
+          <h5 className="text-xs font-bold mb-2">Current Account Summaries:</h5>
+          <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+            {JSON.stringify(accountSummaries, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };

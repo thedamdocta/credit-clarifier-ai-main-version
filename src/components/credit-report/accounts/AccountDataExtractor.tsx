@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
@@ -230,6 +229,54 @@ const createOrderedAccountSummaries = (
 ) => {
   const orderedSummaries: AccountSummary[] = [];
   
+  // If we're using sample data or forcing sample data, use the SAMPLE_ACCOUNT_DATA directly
+  if (forceSample || isSampleData(sourceSummaries)) {
+    console.log("Using sample data for account summaries");
+    
+    // Map the sample data to ensure all fields are properly formatted
+    requiredAccountTypes.forEach(accountType => {
+      // Find the matching sample data for this account type
+      const sampleData = SAMPLE_ACCOUNT_DATA.find(
+        sample => sample.accountType.toLowerCase() === accountType.toLowerCase()
+      );
+      
+      if (sampleData) {
+        orderedSummaries.push({
+          accountType: accountType,
+          totalAccounts: null,
+          open: sampleData.open,
+          closed: null,
+          balance: null,
+          withBalance: sampleData.withBalance,
+          totalBalance: sampleData.totalBalance,
+          available: sampleData.available,
+          creditLimit: sampleData.creditLimit,
+          debtToCredit: sampleData.debtToCredit,
+          payment: sampleData.payment
+        });
+      } else {
+        // Fallback for any missing account types
+        orderedSummaries.push({
+          accountType: accountType,
+          totalAccounts: null,
+          open: "0",
+          closed: null,
+          balance: null,
+          withBalance: "0",
+          totalBalance: "$0",
+          available: "$0",
+          creditLimit: "$0",
+          debtToCredit: "0.0%",
+          payment: "$0"
+        });
+      }
+    });
+    
+    onDataExtracted(orderedSummaries, true, false);
+    return;
+  }
+  
+  // Original logic for non-sample data
   const summariesByType = new Map<string, AccountSummary>();
   
   if (sourceSummaries && sourceSummaries.length > 0) {
