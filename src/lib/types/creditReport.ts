@@ -1,4 +1,3 @@
-
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -13,6 +12,7 @@ export interface Account {
   totalAccounts?: number;
   openAccounts?: number;
   closedAccounts?: number;
+  comments?: string[]; // Adding comments property
 }
 
 export interface PersonalInfo {
