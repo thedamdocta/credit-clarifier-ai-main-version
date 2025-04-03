@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AccountSummary } from '@/lib/types/creditReport';
 
@@ -175,5 +174,8 @@ export const OpenAIConfigForm: React.FC = () => {
 // Check if we can use OpenAI extraction
 export const canUseOpenAI = (): boolean => {
   const apiKey = localStorage.getItem('openai_api_key');
-  return (!!apiKey && apiKey.startsWith('sk-')) || !!HARDCODED_API_KEY.startsWith('sk-');
+  const hasUserKey = !!apiKey && apiKey.startsWith('sk-');
+  const hasHardcodedKey = !!HARDCODED_API_KEY && HARDCODED_API_KEY.startsWith('sk-');
+  
+  return hasUserKey || hasHardcodedKey;
 };

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,13 +14,20 @@ import WebhookManager from "@/components/WebhookManager";
 import { useToast } from "@/hooks/use-toast";
 import EquifaxCreditReport from "@/components/EquifaxCreditReport";
 import ParsingDebugger from "@/components/ParsingDebugger";
+import OpenAIConfigSection from "@/components/OpenAIConfigSection";
+import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
 const Index = () => {
   const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("upload");
   const [showDebugger, setShowDebugger] = useState(false);
+  const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   const { toast } = useToast();
+  
+  useEffect(() => {
+    setOpenAIConfigured(canUseOpenAI());
+  }, []);
   
   const handlePDFUploaded = async (file: File, text: string, parsedReport?: CreditReport) => {
     try {
@@ -56,6 +63,14 @@ const Index = () => {
     }
   };
 
+  const handleOpenAIConfigured = () => {
+    setOpenAIConfigured(true);
+    toast({
+      title: "AI-Powered Extraction Ready",
+      description: "Your credit report tables will now be processed with enhanced AI capabilities.",
+    });
+  };
+
   return (
     <>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -87,11 +102,18 @@ const Index = () => {
         
         <TabsContent value="upload" className="mt-0">
           <div className="grid gap-6">
+            {!openAIConfigured && (
+              <OpenAIConfigSection onConfigured={handleOpenAIConfigured} />
+            )}
+            
             <Card>
               <CardHeader>
                 <CardTitle>Upload Credit Report</CardTitle>
                 <CardDescription>
                   Upload a credit report PDF from Equifax, Experian, or TransUnion
+                  {openAIConfigured && (
+                    <span className="ml-1 text-green-600">• AI-powered extraction enabled</span>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
