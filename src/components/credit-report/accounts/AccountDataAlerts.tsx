@@ -1,19 +1,16 @@
 
 import React from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, Upload } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 interface AccountDataAlertsProps {
   extractionFailed: boolean;
   usingSampleData: boolean;
-  onRequestUpload: () => void;
 }
 
 const AccountDataAlerts: React.FC<AccountDataAlertsProps> = ({
   extractionFailed,
-  usingSampleData,
-  onRequestUpload
+  usingSampleData
 }) => {
   if (!extractionFailed && !usingSampleData) return null;
   

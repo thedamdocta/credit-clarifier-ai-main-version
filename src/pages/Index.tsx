@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,15 +21,9 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("upload");
   const [showDebugger, setShowDebugger] = useState(false);
-  const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingComplete, setProcessingComplete] = useState(false);
-  const [accountExtractionDone, setAccountExtractionDone] = useState(false);
   const { toast } = useToast();
-  
-  useEffect(() => {
-    setOpenAIConfigured(canUseOpenAI());
-  }, []);
   
   const handleTabChange = (value: string) => {
     if (value === "report" && isProcessing) {
@@ -60,7 +55,7 @@ const Index = () => {
         console.log("Setting credit report data");
         setCreditReport(parsedReport);
         
-        // Mark that we have report data, but stay on upload page until fully processed
+        // Mark that we have report data
         setProcessingComplete(true);
       } else {
         toast({
@@ -81,10 +76,9 @@ const Index = () => {
 
   const handleProcessingComplete = () => {
     console.log("All processing complete, including account extraction. Navigating to report tab");
-    setAccountExtractionDone(true);
     setIsProcessing(false);
     
-    // Now that everything is complete, navigate to the report tab
+    // Ensure we have a report before navigating
     if (creditReport) {
       toast({
         title: "Credit Report Ready",
@@ -101,6 +95,14 @@ const Index = () => {
   const handleRefresh = () => {
     window.location.reload();
   };
+
+  // Add effect to navigate when processing completes and report is available
+  useEffect(() => {
+    if (processingComplete && creditReport && !isProcessing) {
+      // Navigate to report tab automatically once processing is done
+      setActiveTab("report");
+    }
+  }, [processingComplete, creditReport, isProcessing]);
 
   return (
     <>

@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Progress } from "@/components/ui/progress";
-import { File, AlertCircle, CheckCircle, Loader2, RefreshCw } from "lucide-react";
+import { File, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -66,16 +66,6 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
                 This might be due to network issues or browser restrictions.
                 Try using a different browser if the issue persists.
               </p>
-            </div>
-          </div>
-        </div>
-      ) : progress >= 100 && !isProcessing ? (
-        <div className="bg-green-50 p-3 rounded border border-green-200">
-          <div className="flex items-start">
-            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2" />
-            <div>
-              <p className="text-sm font-medium text-green-800 mb-1">Processing Complete</p>
-              <p className="text-xs text-green-700">Your report is ready to view</p>
             </div>
           </div>
         </div>

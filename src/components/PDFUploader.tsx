@@ -25,7 +25,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
-  const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   
   const {
     isDragging,
@@ -46,7 +45,6 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       setReadyToNavigate(true);
       
       // Data is prepared - now wait for account extraction to complete
-      // Navigation will happen via the onProcessingComplete callback
       setProcessingMessage("Finalizing account data extraction...");
     },
     useAI: true,
@@ -75,8 +73,13 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       setProcessingMessage("Finalizing data extraction...");
     } else if (uploadProgress >= 100) {
       setProcessingMessage("Processing complete!");
+      
+      // If we've reached 100% and we're ready to navigate, trigger navigation immediately
+      if (readyToNavigate && processingComplete) {
+        onProcessingComplete();
+      }
     }
-  }, [uploadProgress]);
+  }, [uploadProgress, readyToNavigate, processingComplete, onProcessingComplete]);
 
   return (
     <div className="w-full max-w-3xl mx-auto">
