@@ -13,7 +13,10 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
     if (canUseOpenAI()) {
       console.log("OpenAI API is available, attempting AI-based extraction");
       try {
-        const openAIResults = await extractTableWithOpenAI(imageUrl);
+        // Add cache busting to the image URL to prevent caching issues
+        const cacheBustedImageUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}cache=${Date.now()}`;
+        
+        const openAIResults = await extractTableWithOpenAI(cacheBustedImageUrl);
         
         if (openAIResults && openAIResults.length > 0) {
           console.log("Successfully extracted table with OpenAI");
@@ -51,10 +54,15 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
             matchScore: 0.9,
             isTargetTable: true
           };
+        } else {
+          console.log("OpenAI extraction returned no data or empty results");
         }
       } catch (error) {
         console.error("Error extracting data with OpenAI:", error);
+        toast.error("Failed to extract data with AI. Please try again or upload a clearer image.");
       }
+    } else {
+      console.log("OpenAI API is not available for extraction");
     }
     
     // Fall back to basic recognition
@@ -79,71 +87,11 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
   try {
     if (!tableData || !tableData.rows || tableData.rows.length === 0) {
       console.error("No table data to convert to account summaries");
-      return [];
+      // Return empty account summaries for required types
+      return createEmptyAccountSummaries();
     }
     
     console.log("Converting table data to account summaries:", tableData);
-    
-    // Train the value parser with sample data to improve recognition
-    import('./table/valueParser').then(module => {
-      if (module.trainParser) {
-        console.log("Training parser with successfully extracted account summaries");
-        module.trainParser([
-          {
-            accountType: "Revolving",
-            open: "10",
-            withBalance: "9",
-            totalBalance: "$16,355",
-            available: "$8,345",
-            creditLimit: "$24,700",
-            debtToCredit: "66.0%",
-            payment: "$627"
-          },
-          {
-            accountType: "Mortgage",
-            open: "1",
-            withBalance: "1",
-            totalBalance: "$245,678",
-            available: "$0",
-            creditLimit: "$245,678",
-            debtToCredit: "100.0%",
-            payment: "$1,856"
-          },
-          {
-            accountType: "Installment",
-            open: "2",
-            withBalance: "2",
-            totalBalance: "$204,150",
-            available: "$15,455",
-            creditLimit: "$219,605",
-            debtToCredit: "93.0%",
-            payment: "$498"
-          },
-          {
-            accountType: "Other",
-            open: "0",
-            withBalance: "0",
-            totalBalance: "$0",
-            available: "$0",
-            creditLimit: "$0",
-            debtToCredit: "0.0%",
-            payment: "$0"
-          },
-          {
-            accountType: "Total",
-            open: "12",
-            withBalance: "11",
-            totalBalance: "$220,505",
-            available: "$23,800",
-            creditLimit: "$244,305",
-            debtToCredit: "90.3%",
-            payment: "$1,125"
-          }
-        ]);
-      }
-    }).catch(err => {
-      console.error("Failed to import valueParser:", err);
-    });
     
     // Get header indices for mapping
     const headers = tableData.headers.map(h => h.toLowerCase().trim());
@@ -156,7 +104,7 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
     const debtToCreditIndex = headers.findIndex(h => h.includes("debt") || h.includes("ratio"));
     const paymentIndex = headers.findIndex(h => h.includes("payment"));
     
-    // Filter rows that have account type values we're looking for
+    // Required account types we need to have
     const requiredAccountTypes = ['revolving', 'mortgage', 'installment', 'other', 'total'];
     
     const accountSummaries: AccountSummary[] = [];
@@ -200,27 +148,10 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
     console.log("Generated account summaries:", accountSummaries);
     
     // If we didn't find all the required account types, add empty ones
-    requiredAccountTypes.forEach(accountType => {
-      const formattedAccountType = accountType.charAt(0).toUpperCase() + accountType.slice(1).toLowerCase();
-      if (!accountSummaries.some(summary => summary.accountType.toLowerCase() === accountType)) {
-        accountSummaries.push({
-          accountType: formattedAccountType,
-          totalAccounts: null,
-          open: null,
-          withBalance: null,
-          closed: null,
-          balance: null,
-          totalBalance: null,
-          available: null,
-          creditLimit: null,
-          debtToCredit: null,
-          payment: null
-        });
-      }
-    });
+    const result = ensureAllRequiredAccountTypes(accountSummaries);
     
     // Check if the data has any meaningful values
-    const hasRealValues = accountSummaries.some(summary => 
+    const hasRealValues = result.some(summary => 
       (summary.open && summary.open !== "0") || 
       (summary.withBalance && summary.withBalance !== "0") || 
       (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0")
@@ -230,9 +161,55 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
       console.log("Extracted data had no meaningful values - extraction failed");
     }
     
-    return accountSummaries;
+    return result;
   } catch (error) {
     console.error("Error converting table data to account summaries:", error);
-    return [];
+    return createEmptyAccountSummaries();
   }
+}
+
+// Helper function to create empty account summaries for required types
+function createEmptyAccountSummaries(): AccountSummary[] {
+  const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+  
+  return requiredAccountTypes.map(accountType => ({
+    accountType,
+    totalAccounts: null,
+    open: null,
+    withBalance: null,
+    closed: null,
+    balance: null,
+    totalBalance: null,
+    available: null,
+    creditLimit: null,
+    debtToCredit: null,
+    payment: null
+  }));
+}
+
+// Helper function to ensure all required account types are present
+function ensureAllRequiredAccountTypes(summaries: AccountSummary[]): AccountSummary[] {
+  const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
+  const result = [...summaries];
+  
+  requiredAccountTypes.forEach(accountType => {
+    const lowerAccountType = accountType.toLowerCase();
+    if (!summaries.some(summary => summary.accountType.toLowerCase() === lowerAccountType)) {
+      result.push({
+        accountType,
+        totalAccounts: null,
+        open: null,
+        withBalance: null,
+        closed: null,
+        balance: null,
+        totalBalance: null,
+        available: null,
+        creditLimit: null,
+        debtToCredit: null,
+        payment: null
+      });
+    }
+  });
+  
+  return result;
 }

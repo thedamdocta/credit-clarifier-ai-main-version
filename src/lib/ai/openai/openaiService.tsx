@@ -9,6 +9,8 @@ import { Shield, Eye, EyeOff } from 'lucide-react';
 // OpenAI API for credit report OCR and extraction
 export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountSummary[] | null> => {
   try {
+    console.log('Starting OpenAI extraction attempt for image:', imageUrl);
+    
     // First check for user-provided API key
     let apiKey = localStorage.getItem('openai_api_key');
     
@@ -30,29 +32,66 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     
     try {
       if (imageUrl.startsWith('data:')) {
-        // Convert data URL to blob
-        const response = await fetch(imageUrl);
-        imageBlob = await response.blob();
+        // For data URLs, create a new image element to load it properly
+        const img = new Image();
+        const loadPromise = new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Failed to load image from data URL'));
+          img.src = imageUrl;
+        });
+        
+        // Wait for the image to load
+        await loadPromise;
+        
+        // Create a canvas to draw the image
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Failed to get canvas context');
+        }
+        
+        // Draw the image to the canvas
+        ctx.drawImage(img, 0, 0);
+        
+        // Get the blob from the canvas
+        imageBlob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to convert canvas to blob'));
+            }
+          }, 'image/png');
+        });
+        
+        console.log('Successfully converted data URL to blob');
       } else {
-        // Fetch image from URL
+        // For regular URLs, use fetch with cache control
         const response = await fetch(imageUrl, {
-          // Add cache busting query param
+          method: 'GET',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
             'Expires': '0'
-          }
+          },
+          mode: 'cors', // Try with CORS mode
+          cache: 'no-cache'
         });
         
         if (!response.ok) {
+          console.error(`Failed to fetch image: ${response.status} ${response.statusText}`);
           throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
         }
         
         imageBlob = await response.blob();
+        console.log('Successfully fetched image as blob');
       }
     } catch (error) {
       console.error('Error fetching image:', error);
-      toast.error('Failed to process the image. Please try again.');
+      toast.error('Failed to process the image. Check your network connection and try again.');
       return null;
     }
     
@@ -61,10 +100,19 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     try {
       base64Image = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          if (result) {
+            resolve(result);
+          } else {
+            reject(new Error('FileReader returned empty result'));
+          }
+        };
         reader.onerror = () => reject(new Error('Failed to read image as base64'));
         reader.readAsDataURL(imageBlob);
       });
+      
+      console.log('Successfully converted image to base64');
     } catch (error) {
       console.error('Error reading image as base64:', error);
       toast.error('Failed to process the image data. Please try again.');
@@ -74,15 +122,18 @@ export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountS
     // Call OpenAI API with the image
     try {
       console.log('Making OpenAI API call for image extraction...');
+      
+      // Set a longer timeout for the API call
       const timeoutPromise = new Promise<null>((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API call timed out after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('OpenAI API call timed out after 45 seconds')), 45000)
       );
       
       const fetchPromise = fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
           model: 'gpt-4o',
@@ -131,9 +182,9 @@ If you see empty cells or missing values, set them to null in the JSON.`
       const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error(`OpenAI API error: ${response.status}`, errorData);
-        toast.error('The AI service encountered an error. Please try again later.');
+        const errorText = await response.text();
+        console.error(`OpenAI API error: ${response.status}`, errorText);
+        toast.error(`AI service error (${response.status}). Please try again later.`);
         return null;
       }
 
@@ -182,10 +233,10 @@ If you see empty cells or missing values, set them to null in the JSON.`
           
           return {
             accountType: item.accountType || null,
-            totalAccounts: null, // Add missing property
+            totalAccounts: null, // Required property
             open: item.open || null,
-            closed: null, // Add missing property
-            balance: null, // Add missing property
+            closed: null, // Required property
+            balance: null, // Required property 
             withBalance: item.withBalance || null,
             totalBalance: ensureCurrencyFormat(item.totalBalance),
             available: ensureCurrencyFormat(item.available),
@@ -204,8 +255,9 @@ If you see empty cells or missing values, set them to null in the JSON.`
         );
         
         if (!hasRealData) {
-          console.log('No real data extracted, returning null');
-          return null;
+          console.log('No real data extracted, returning empty data');
+          // We're returning an empty but properly structured array
+          return formattedData;
         }
         
         return formattedData;
@@ -217,7 +269,8 @@ If you see empty cells or missing values, set them to null in the JSON.`
       }
     } catch (error) {
       console.error('Error calling OpenAI API:', error);
-      toast.error('Failed to communicate with the AI service. Please try again later.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`OpenAI API error: ${errorMessage}. Please check your network connection and try again.`);
       return null;
     }
   } catch (error) {
@@ -288,3 +341,4 @@ export const canUseOpenAI = (): boolean => {
   
   return hasUserKey || hasHardcodedKey;
 };
+
