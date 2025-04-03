@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import EquifaxCreditReport from "@/components/EquifaxCreditReport";
 import ParsingDebugger from "@/components/ParsingDebugger";
 import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
+import OpenAIConfigSection from "@/components/OpenAIConfigSection";
 
 const Index = () => {
   const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
@@ -96,7 +97,6 @@ const Index = () => {
     }, 1000);
   };
   
-  // Effect to navigate when both processing is complete and report data is available
   useEffect(() => {
     if (dataReady && creditReport && !isProcessing) {
       console.log("Data is ready and report is available - navigating to report tab");
@@ -184,6 +184,8 @@ const Index = () => {
                 </AlertDescription>
               </Alert>
             )}
+            
+            <OpenAIConfigSection />
             
             <Card>
               <CardHeader>

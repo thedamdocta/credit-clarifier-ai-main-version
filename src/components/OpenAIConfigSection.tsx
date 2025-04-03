@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Info, CheckCircle, AlertTriangle } from "lucide-react";
+import { Shield, Info, CheckCircle, AlertTriangle, Brain } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
@@ -16,6 +16,7 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
   const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
   const [saved, setSaved] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   
   useEffect(() => {
     // Notify parent if OpenAI is already configured
@@ -36,7 +37,7 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
   };
   
   return (
-    <Card className="mb-6">
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
           <CardTitle className="text-base font-medium flex items-center">
@@ -55,12 +56,21 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
       </CardHeader>
       <CardContent>
         {canUseOpenAI() ? (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-700">
-              Enhanced extraction is configured and ready to use. Your credit report tables will be processed automatically.
-            </AlertDescription>
-          </Alert>
+          <div className="flex justify-between items-center">
+            <Alert className="bg-green-50 border-green-200 flex-1 mr-4">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-700">
+                Enhanced extraction is configured and ready to use
+              </AlertDescription>
+            </Alert>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfig(!showConfig)}
+            >
+              <Brain className="mr-2 h-4 w-4" />
+              Configure API
+            </Button>
+          </div>
         ) : (
           <>
             <Alert className="mb-4 bg-amber-50 border-amber-200">
@@ -70,8 +80,21 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
                 For best results, please provide your OpenAI API key before uploading your credit report.
               </AlertDescription>
             </Alert>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfig(!showConfig)}
+              className="w-full justify-start mb-4"
+            >
+              <Brain className="mr-2 h-4 w-4" />
+              Configure API
+            </Button>
+          </>
+        )}
+        
+        {showConfig && (
+          <div className="mt-4 p-4 border rounded-md bg-slate-50">
             <div className="text-sm mb-3">
-              <p>The app has a built-in OpenAI API key, but you can provide your own for better reliability.</p>
+              <p>Provide your OpenAI API key for better reliability.</p>
             </div>
             <div className="flex gap-2">
               <Input 
@@ -97,7 +120,7 @@ const OpenAIConfigSection: React.FC<OpenAIConfigSectionProps> = ({ onConfigured 
               </Button>
             </div>
             {saved && <p className="text-green-600 text-xs mt-1">API key saved!</p>}
-          </>
+          </div>
         )}
         
         <div className="flex items-center mt-3 text-xs text-muted-foreground">
