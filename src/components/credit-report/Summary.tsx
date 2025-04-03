@@ -22,7 +22,14 @@ const Summary: React.FC<SummaryProps> = ({ report }) => {
   // First create a map of existing account summaries by type
   const summariesByType = new Map<string, AccountSummary>();
   
+  // Log what we're receiving for debugging
+  console.log('Summary component received report with account summaries:', 
+    report.accountSummaries ? report.accountSummaries.length : 0);
+  
   if (report.accountSummaries && report.accountSummaries.length > 0) {
+    // Log the actual data we received for debugging
+    console.log('Raw account summaries in report:', JSON.stringify(report.accountSummaries));
+    
     report.accountSummaries.forEach(summary => {
       if (summary.accountType) {
         // Preserve all existing data including null values
@@ -68,7 +75,20 @@ const Summary: React.FC<SummaryProps> = ({ report }) => {
       <CardContent>
         <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
         
-        {showDebugInfo && <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />}
+        {showDebugInfo && (
+          <>
+            <div className="p-2 mb-4 bg-amber-50 border border-amber-200 rounded-md">
+              <p className="text-sm font-medium text-amber-800">Debug Information</p>
+              <p className="text-xs text-amber-700">
+                Account Summaries Count: {report.accountSummaries?.length || 0}
+              </p>
+              <p className="text-xs text-amber-700 truncate">
+                Raw Data: {JSON.stringify(report.accountSummaries).substring(0, 100)}...
+              </p>
+            </div>
+            <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />
+          </>
+        )}
         
         <CreditAccountsTable accountSummaries={accountSummaries} />
       </CardContent>

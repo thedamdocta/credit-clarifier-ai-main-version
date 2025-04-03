@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
@@ -99,6 +100,7 @@ export const handleEnhancedExtraction = async (
     console.log("Starting enhanced extraction process for report:", report?.reportId);
     
     if (report.accountSummaries && report.accountSummaries.length > 0) {
+      console.log("Checking existing account summaries:", report.accountSummaries);
       const existingDataHasValues = hasRealData(report.accountSummaries);
       
       if (existingDataHasValues) {
@@ -109,17 +111,24 @@ export const handleEnhancedExtraction = async (
           toast.success("Using existing account data from report");
         }
         return;
+      } else {
+        console.log("Existing account data has no real values, proceeding with extraction");
       }
+    } else {
+      console.log("No existing account data in report, proceeding with extraction");
     }
     
+    console.log("Attempting to extract table image from report");
     const newTableImageUrl = await extractCreditAccountsTableImage(report);
     
     if (!newTableImageUrl) {
       console.log("No table image found, attempting text-based extraction");
       
       if (report.rawText && report.rawText.length > 0) {
+        console.log("Checking raw text for table patterns");
         const tablePattern = /\b(account\s+type|revolving|mortgage|installment|total).+(\d+)\s+(\d+)\s+\$?([\d,]+)/i;
         if (tablePattern.test(report.rawText)) {
+          console.log("Found table pattern in raw text");
           if (forceManualExtraction) {
             toast.info("Attempting to extract data from report text");
           }
@@ -135,12 +144,15 @@ export const handleEnhancedExtraction = async (
               return;
             }
           }
+        } else {
+          console.log("No table pattern found in raw text");
         }
       }
       
+      console.log("Checking for cached report data");
       const cachedData = getExtractedReportData();
       if (cachedData && cachedData.accountSummaries && hasRealData(cachedData.accountSummaries)) {
-        console.log("Using account summaries from cached data");
+        console.log("Using account summaries from cached data:", cachedData.accountSummaries);
         createOrderedAccountSummaries(cachedData.accountSummaries, onDataExtracted, requiredAccountTypes);
         setIsProcessing(false);
         if (forceManualExtraction) {
@@ -165,11 +177,13 @@ export const handleEnhancedExtraction = async (
     console.log("Using table image URL for extraction:", newTableImageUrl);
     
     const tableData = await extractTableFromImage(newTableImageUrl);
+    console.log("Table extraction result:", tableData);
     
     if (tableData && tableData.rows && tableData.rows.length > 0) {
       console.log("Extracted table data:", tableData);
       
       const extractedSummaries = convertTableToAccountSummaries(tableData);
+      console.log("Converted to account summaries:", extractedSummaries);
       
       if (extractedSummaries.length > 0 && hasRealData(extractedSummaries) && !isSampleData(extractedSummaries)) {
         console.log('Successfully extracted account summaries:', extractedSummaries);
