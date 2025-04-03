@@ -35,6 +35,23 @@ const AccountDataAlerts: React.FC<AccountDataAlertsProps> = ({
     );
   }
   
+  if (usingSampleData) {
+    return (
+      <Alert className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription className="flex items-center justify-between">
+          <span>Showing sample account data because we couldn't extract actual data from your PDF.</span>
+          {onRequestUpload && (
+            <Button variant="outline" size="sm" className="ml-4" onClick={onRequestUpload}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Better PDF
+            </Button>
+          )}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  
   return null;
 };
 

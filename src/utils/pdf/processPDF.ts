@@ -1,8 +1,8 @@
+
 import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
-import * as pdfjsTypes from "pdfjs-dist/types/src/display/api";
 
 interface PDFProcessingCallbacks extends ProgressCallbacks {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -59,7 +59,8 @@ export const processPDFDocument = async (
       
       // Try loading the PDF.js library with a more robust approach
       const pdfjsLib = await Promise.race([
-        import("pdfjs-dist").then(module => module as typeof pdfjsTypes),
+        // Import the library and cast to unknown first to avoid type issues
+        import("pdfjs-dist").then(module => module as unknown),
         // Add a timeout promise to handle cases where the import gets stuck
         new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error("PDF library loading timed out. Please refresh the page and try again.")), 15000)
@@ -69,24 +70,43 @@ export const processPDFDocument = async (
       // Clear the warning timeout since we've either loaded or failed
       clearTimeout(pdfLoadingTimeout);
       
-      // Set worker source using a more reliable CDN with version fallback
-      const workerVersion = pdfjsLib.version || '3.11.174';
+      // Now we need to properly access the PDF.js functionality
+      // First check if it has the expected properties
+      if (!pdfjsLib || typeof pdfjsLib !== 'object') {
+        throw new Error("Failed to load PDF.js library");
+      }
+      
+      // Check for version in different possible locations
+      const version = 
+        (pdfjsLib as any).version || 
+        (pdfjsLib as any).default?.version || 
+        '3.11.174'; // Fallback version
+      
+      // Set worker source using multiple potential methods
       const workerUrls = [
-        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${workerVersion}/pdf.worker.min.js`,
-        `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.min.js`,
-        `https://cdn.jsdelivr.net/npm/pdfjs-dist@${workerVersion}/build/pdf.worker.min.js`
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`,
+        `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.js`,
+        `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/build/pdf.worker.min.js`
       ];
       
       // Try setting the worker from each URL until one works
       let workerSet = false;
-      for (const workerUrl of workerUrls) {
-        try {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-          console.log(`Using PDF.js worker from: ${workerUrl}`);
-          workerSet = true;
-          break;
-        } catch (workerError) {
-          console.warn(`Failed to set worker from ${workerUrl}:`, workerError);
+      
+      // Check all possible locations for GlobalWorkerOptions
+      const globalWorkerOptions = 
+        (pdfjsLib as any).GlobalWorkerOptions || 
+        (pdfjsLib as any).default?.GlobalWorkerOptions;
+      
+      if (globalWorkerOptions) {
+        for (const workerUrl of workerUrls) {
+          try {
+            globalWorkerOptions.workerSrc = workerUrl;
+            console.log(`Using PDF.js worker from: ${workerUrl}`);
+            workerSet = true;
+            break;
+          } catch (workerError) {
+            console.warn(`Failed to set worker from ${workerUrl}:`, workerError);
+          }
         }
       }
       
@@ -104,8 +124,17 @@ export const processPDFDocument = async (
           
           try {
             console.log("Loading PDF document from array buffer");
+            // Find the getDocument function (it could be in different places)
+            const getDocument = 
+              (pdfjsLib as any).getDocument || 
+              (pdfjsLib as any).default?.getDocument;
+            
+            if (!getDocument) {
+              throw new Error("Could not find PDF.js getDocument function");
+            }
+            
             // Add timeout for PDF loading operations too
-            const loadPdfPromise = pdfjsLib.getDocument({ data: typedarray }).promise;
+            const loadPdfPromise = getDocument({ data: typedarray }).promise;
             
             // Set a timeout on the PDF document loading
             const pdf = await Promise.race([
