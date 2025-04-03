@@ -109,17 +109,39 @@ export const processPDFDocument = async (
                     }
                   }
                   
-                  // Update progress to 95% to indicate we're almost done
-                  updateProgress(95);
+                  // Update progress to 90% to indicate we're almost done
+                  updateProgress(90);
                   
-                  // Complete processing and pass data to the parent before navigation
-                  updateProgress(100);
-                  completeProgressTracking();
+                  // Delay completion a bit to ensure account data is fully processed
+                  setTimeout(async () => {
+                    try {
+                      // Attempt additional data extraction if needed
+                      if (parsedReport.bureau === 'Equifax' && (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0)) {
+                        console.log("Final attempt at extracting account data");
+                        
+                        // Last attempt to extract account data
+                        const { extractEquifaxAccountSummaries } = await import("@/lib/parsers/equifax/equifaxAccountSummary");
+                        const accountSummaries = await extractEquifaxAccountSummaries(extractedText);
+                        if (accountSummaries && accountSummaries.length > 0) {
+                          parsedReport.accountSummaries = accountSummaries;
+                          console.log("Successfully extracted account data in final attempt");
+                        }
+                      }
+                    } catch (e) {
+                      console.error("Error in final data extraction:", e);
+                    }
+                    
+                    // Complete processing and pass data to the parent before navigation
+                    updateProgress(100);
+                    console.log("PDF processing fully complete with all data extraction");
+                    completeProgressTracking();
+                    
+                    // Pass the extracted text, file, and parsed report to the parent component
+                    onPDFUploaded(file, extractedText, parsedReport);
+                    
+                    toast.success("PDF successfully processed!");
+                  }, 2000); // Add delay to ensure data extraction completes
                   
-                  // Pass the extracted text, file, and parsed report to the parent component
-                  onPDFUploaded(file, extractedText, parsedReport);
-                  
-                  toast.success("PDF successfully processed!");
                 } catch (extractionError) {
                   console.error("Additional extraction error:", extractionError);
                   // Non-critical error, continue with what we have
@@ -134,7 +156,7 @@ export const processPDFDocument = async (
                   updateProgress(100);
                   handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
                   completeProgressTracking();
-                }, 500);
+                }, 1000);
               }
               
             } catch (error) {
@@ -146,7 +168,7 @@ export const processPDFDocument = async (
                 updateProgress(100);
                 handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
                 completeProgressTracking();
-              }, 500);
+              }, 1000);
             }
             
           } catch (error) {
@@ -216,6 +238,9 @@ function handleBasicProcessing(
   // Store this parsed data in our cache
   setExtractedReportData(basicReport);
   
-  onPDFUploaded(file, extractedText, basicReport);
-  toast.success("PDF processed with basic extraction");
+  // Add delay before completing to ensure UI is fully updated
+  setTimeout(() => {
+    onPDFUploaded(file, extractedText, basicReport);
+    toast.success("PDF processed with basic extraction");
+  }, 1000);
 }

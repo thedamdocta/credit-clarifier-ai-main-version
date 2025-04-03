@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import PDFUploader from "@/components/PDFUploader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +24,7 @@ const Index = () => {
   const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingComplete, setProcessingComplete] = useState(false);
+  const [dataFullyReady, setDataFullyReady] = useState(false);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -56,14 +58,11 @@ const Index = () => {
       setProcessingError(null);
       
       if (parsedReport) {
+        console.log("Setting credit report data");
         setCreditReport(parsedReport);
         
-        toast({
-          title: "Credit Report Processed",
-          description: parsedReport.bureau ? 
-            `Successfully processed your ${parsedReport.bureau} credit report.` :
-            `Successfully processed your credit report.`,
-        });
+        // Mark that we have data, but stay on upload page until fully processed
+        setProcessingComplete(true);
       } else {
         toast({
           title: "Using basic parsing",
@@ -82,13 +81,24 @@ const Index = () => {
   };
 
   const handleProcessingComplete = () => {
-    console.log("Processing complete, transitioning to report tab");
+    console.log("All processing complete, navigating to report tab");
+    setDataFullyReady(true);
     setProcessingComplete(true);
     setIsProcessing(false);
     
-    // Only navigate if we actually have a credit report
+    // Now that everything is complete, navigate to the report tab
     if (creditReport) {
-      setActiveTab("report");
+      toast({
+        title: "Credit Report Ready",
+        description: creditReport.bureau ? 
+          `Your ${creditReport.bureau} credit report is ready to view.` :
+          `Your credit report is ready to view.`,
+      });
+      
+      // Use a small delay before tab change for better UX
+      setTimeout(() => {
+        setActiveTab("report");
+      }, 500);
     }
   };
 

@@ -23,18 +23,9 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
     window.location.reload();
   };
   
-  // When progress reaches 100%, trigger the onProcessingComplete callback if processing is finished
-  useEffect(() => {
-    if (progress >= 100 && !isProcessing && onProcessingComplete) {
-      // Add delay to ensure UI updates first
-      const timer = setTimeout(() => {
-        onProcessingComplete();
-      }, 1500); // Increased the delay to ensure processing is complete
-      
-      return () => clearTimeout(timer);
-    }
-  }, [progress, isProcessing, onProcessingComplete]);
-
+  // Only trigger onProcessingComplete if explicitly needed from parent
+  // We'll let the parent component manage the actual completion now
+  
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center space-x-3">
@@ -75,7 +66,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {progress < 100 ? 
               `Processing PDF (${Math.round(progress)}%)...` : 
-              isProcessing ? "Finalizing..." : "PDF processed successfully!"}
+              isProcessing ? "Finalizing data extraction..." : "PDF processed successfully!"}
           </p>
         </>
       )}

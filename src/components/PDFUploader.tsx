@@ -25,6 +25,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showOpenAIConfig, setShowOpenAIConfig] = useState(true);
   const [readyToNavigate, setReadyToNavigate] = useState(false);
+  const [fullProcessingComplete, setFullProcessingComplete] = useState(false);
   
   const {
     isDragging,
@@ -40,20 +41,19 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     processingComplete
   } = usePDFUpload({ 
     onPDFUploaded: (file, text, parsedReport) => {
-      // Process is complete - ready to navigate
+      console.log("PDF processing completed, preparing data before navigation");
       onPDFUploaded(file, text, parsedReport);
       setReadyToNavigate(true);
     },
-    useAI: true, // Keep this for functionality, just removing the visible references
+    useAI: true, // Keep this for functionality
     onProcessingStart: () => {
       setReadyToNavigate(false);
+      setFullProcessingComplete(false);
       setIsProcessing(true);
     },
     onProcessingComplete: () => {
-      // Wait until processing is fully complete before navigating
+      console.log("Initial processing complete, waiting for full data extraction...");
       setIsProcessing(false);
-      
-      // Do not automatically navigate - wait for the button click or PDFProgressDisplay completion
     },
     onError: (error) => {
       console.error("PDF processing error:", error);
@@ -61,13 +61,22 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       setIsProcessing(false);
     }
   });
-
-  // Manual view report button handler
-  const handleViewReport = () => {
-    if (readyToNavigate && !isProcessing) {
-      onProcessingComplete();
+  
+  // Effect to handle automatic navigation once all processing is done
+  useEffect(() => {
+    if (readyToNavigate && !isProcessing && processingComplete && !processingError) {
+      console.log("All processing complete, preparing for navigation...");
+      
+      // Wait a bit longer to ensure all data is fully ready (including account extraction)
+      const timer = setTimeout(() => {
+        console.log("Navigating to report view now");
+        setFullProcessingComplete(true);
+        onProcessingComplete();
+      }, 3000); // Extra delay to ensure data extraction is complete
+      
+      return () => clearTimeout(timer);
     }
-  };
+  }, [readyToNavigate, isProcessing, processingComplete, processingError, onProcessingComplete]);
 
   return (
     <div className="w-full max-w-3xl mx-auto">
@@ -115,23 +124,16 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
         />
         
         {currentFile && uploadProgress > 0 ? (
-          <>
-            <PDFProgressDisplay 
-              file={currentFile} 
-              progress={uploadProgress}
-              error={processingError}
-              isProcessing={isProcessing}
-              onProcessingComplete={handleViewReport}
-            />
-            
-            {readyToNavigate && !isProcessing && !processingError && (
-              <div className="mt-6">
-                <Button onClick={handleViewReport} className="pulse-animation">
-                  View Your Credit Report
-                </Button>
-              </div>
-            )}
-          </>
+          <PDFProgressDisplay 
+            file={currentFile} 
+            progress={uploadProgress}
+            error={processingError}
+            isProcessing={isProcessing || !fullProcessingComplete}
+            onProcessingComplete={() => {
+              // No automatic completion from this component anymore
+              // We let the parent component handle it via useEffect
+            }}
+          />
         ) : (
           <PDFUploadPlaceholder 
             triggerFileInput={triggerFileInput} 
