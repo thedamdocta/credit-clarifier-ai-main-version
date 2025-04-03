@@ -1,8 +1,8 @@
-
 import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
+import * as pdfjsTypes from "pdfjs-dist/types/src/display/api";
 
 interface PDFProcessingCallbacks extends ProgressCallbacks {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -59,12 +59,9 @@ export const processPDFDocument = async (
       
       // Try loading the PDF.js library with a more robust approach
       const pdfjsLib = await Promise.race([
-        import("pdfjs-dist").catch(error => {
-          console.error("Error loading pdfjs-dist package:", error);
-          throw new Error("Failed to load PDF processing library. Please check your network connection and try again.");
-        }),
+        import("pdfjs-dist").then(module => module as typeof pdfjsTypes),
         // Add a timeout promise to handle cases where the import gets stuck
-        new Promise((_, reject) => 
+        new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error("PDF library loading timed out. Please refresh the page and try again.")), 15000)
         )
       ]);
@@ -113,7 +110,7 @@ export const processPDFDocument = async (
             // Set a timeout on the PDF document loading
             const pdf = await Promise.race([
               loadPdfPromise,
-              new Promise((_, reject) => 
+              new Promise<never>((_, reject) => 
                 setTimeout(() => reject(new Error("PDF document loading timed out")), 10000)
               )
             ]);

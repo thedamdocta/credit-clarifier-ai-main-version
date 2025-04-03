@@ -14,10 +14,13 @@ interface AccountDataExtractorProps {
 }
 
 // Sample account data with actual values for demonstration purposes
-const SAMPLE_ACCOUNT_DATA = [
+const SAMPLE_ACCOUNT_DATA: AccountSummary[] = [
   {
     accountType: "Revolving",
+    totalAccounts: 4,
     open: "4",
+    closed: 0,
+    balance: null,
     withBalance: "3",
     totalBalance: "$16,355",
     available: "$18,645",
@@ -27,7 +30,10 @@ const SAMPLE_ACCOUNT_DATA = [
   },
   {
     accountType: "Mortgage",
+    totalAccounts: 1,
     open: "1",
+    closed: 0,
+    balance: null,
     withBalance: "1",
     totalBalance: "$245,678",
     available: "$0",
@@ -37,7 +43,10 @@ const SAMPLE_ACCOUNT_DATA = [
   },
   {
     accountType: "Installment",
+    totalAccounts: 2,
     open: "2",
+    closed: 0,
+    balance: null,
     withBalance: "2",
     totalBalance: "$204,150",
     available: "$15,455",
@@ -47,7 +56,10 @@ const SAMPLE_ACCOUNT_DATA = [
   },
   {
     accountType: "Other",
+    totalAccounts: 0,
     open: "0",
+    closed: 0,
+    balance: null,
     withBalance: "0",
     totalBalance: "$0",
     available: "$0",
@@ -57,7 +69,10 @@ const SAMPLE_ACCOUNT_DATA = [
   },
   {
     accountType: "Total",
+    totalAccounts: 7,
     open: "7",
+    closed: 0,
+    balance: null,
     withBalance: "6",
     totalBalance: "$466,183",
     available: "$34,100",
@@ -243,10 +258,10 @@ const createOrderedAccountSummaries = (
       if (sampleData) {
         orderedSummaries.push({
           accountType: accountType,
-          totalAccounts: null,
+          totalAccounts: sampleData.totalAccounts,
           open: sampleData.open,
-          closed: null,
-          balance: null,
+          closed: sampleData.closed,
+          balance: sampleData.balance,
           withBalance: sampleData.withBalance,
           totalBalance: sampleData.totalBalance,
           available: sampleData.available,
