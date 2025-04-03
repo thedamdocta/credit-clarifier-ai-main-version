@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Settings, AlertCircle, RefreshCw } from "lucide-react";
+import { Upload, FileText, Settings, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { CreditReport } from "@/lib/creditReportParser";
 import CreditReportHeader from "@/components/CreditReportHeader";
 import PersonalInfoCard from "@/components/PersonalInfoCard";

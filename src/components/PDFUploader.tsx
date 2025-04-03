@@ -5,7 +5,7 @@ import { usePDFUpload } from "@/hooks/usePDFUpload";
 import PDFUploadPlaceholder from "./PDFUploadPlaceholder";
 import PDFProgressDisplay from "./PDFProgressDisplay";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
 
