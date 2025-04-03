@@ -43,15 +43,21 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
       onPDFUploaded(file, text, parsedReport);
       setReadyToNavigate(true);
     },
-    useAI: true, // Enable powered extraction
+    useAI: true, // Enable enhanced extraction
     onProcessingStart: () => {
       setReadyToNavigate(false);
       setIsProcessing(true);
     },
     onProcessingComplete: () => {
-      // Mark processing as complete, and automatically navigate
+      // Mark processing as complete
       setIsProcessing(false);
-      onProcessingComplete();
+      
+      // Add a small delay before auto-navigation to ensure UI updates
+      setTimeout(() => {
+        if (onProcessingComplete) {
+          onProcessingComplete();
+        }
+      }, 500);
     },
     onError: (error) => {
       console.error("PDF processing error:", error);
@@ -60,6 +66,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     }
   });
 
+  // Manual view report button handler
   const handleViewReport = () => {
     if (readyToNavigate) {
       onProcessingComplete();
@@ -86,7 +93,7 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
         <div className="mb-4 border rounded-md p-4">
           <h3 className="font-medium text-sm mb-2">OpenAI API Configuration</h3>
           <p className="text-xs mb-3">{canUseOpenAI() 
-            ? "AI-powered extraction is enabled. You can provide your own API key or use our built-in key." 
+            ? "Enhanced extraction is enabled. You can provide your own API key or use our built-in key." 
             : "For best results, provide an OpenAI API key for enhanced table detection."}</p>
           <OpenAIConfigForm />
         </div>

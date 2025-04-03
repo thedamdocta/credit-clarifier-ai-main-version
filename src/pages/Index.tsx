@@ -30,7 +30,6 @@ const Index = () => {
   }, []);
   
   const handleTabChange = (value: string) => {
-    // Prevent switching to the report tab if we're still processing
     if (value === "report" && isProcessing) {
       toast({
         title: "Still processing",
@@ -40,7 +39,6 @@ const Index = () => {
       return;
     }
     
-    // Only allow switching to report tab if we have a report or processing is complete
     if (value === "report" && !creditReport && !processingComplete) {
       toast({
         title: "No report available", 
@@ -58,7 +56,6 @@ const Index = () => {
       setProcessingError(null);
       
       if (parsedReport) {
-        // Store the parsed report
         setCreditReport(parsedReport);
         
         toast({
@@ -86,8 +83,13 @@ const Index = () => {
 
   const handleProcessingComplete = () => {
     setProcessingComplete(true);
-    // Now that we're completely done, switch to the report tab
-    setActiveTab("report");
+    setIsProcessing(false);
+    
+    setTimeout(() => {
+      if (creditReport) {
+        setActiveTab("report");
+      }
+    }, 300);
   };
 
   const handleRefresh = () => {
@@ -166,7 +168,7 @@ const Index = () => {
                 <CardDescription>
                   Upload a credit report PDF from Equifax, Experian, or TransUnion
                   {openAIConfigured && (
-                    <span className="ml-1 text-green-600">• AI-powered extraction enabled</span>
+                    <span className="ml-1 text-green-600">• Enhanced extraction enabled</span>
                   )}
                 </CardDescription>
               </CardHeader>

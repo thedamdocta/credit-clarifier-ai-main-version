@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccountSummary } from "@/lib/types/creditReport";
@@ -25,17 +24,13 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
   const [showOpenAIConfig, setShowOpenAIConfig] = useState(false);
   const { addTrainingExamples, isTraining, examples, resetTrainingExamples } = useTrainingExamples();
   
-  // If we receive new account summaries with actual data, update our stable data
   useEffect(() => {
-    // Only update the stable data if:
-    // 1. We currently have no stable data, or
-    // 2. The new data has actual values that are better than what we currently have
     if (accountSummaries && accountSummaries.length > 0) {
       const newDataHasRealValues = accountSummaries.some(summary => 
         ((summary.open !== null && summary.open !== "" && summary.open !== "0") || 
          (summary.withBalance !== null && summary.withBalance !== "" && summary.withBalance !== "0") || 
          (summary.totalBalance !== null && summary.totalBalance !== "" && summary.totalBalance !== "$0")) &&
-         summary.accountType.toLowerCase() !== "total" // Exclude "Total" from this check
+         summary.accountType.toLowerCase() !== "total"
       );
       
       const currentDataHasNoValues = !stableData || stableData.length === 0 || !stableData.some(summary => 
@@ -53,37 +48,28 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
     }
   }, [accountSummaries]);
   
-  // More robust data validation - check if we have any meaningful data
   const summariesToDisplay = stableData && stableData.length > 0 ? stableData : accountSummaries;
   
-  // Check if this is clearly sample data based on specific values we use in our sample
   const isSampleData = summariesToDisplay && 
     summariesToDisplay.some(s => s.accountType === "Revolving" && s.totalBalance === "$16,355" && s.payment === "$627") &&
     summariesToDisplay.some(s => s.accountType === "Installment" && s.totalBalance === "$204,150" && s.available === "$15,455");
   
-  // Check if all values in the table are null/empty (no extraction)
   const hasNoData = !summariesToDisplay || summariesToDisplay.length === 0 || summariesToDisplay.every(summary =>
     (summary.open === null || summary.open === "") && 
     (summary.withBalance === null || summary.withBalance === "") && 
     (summary.totalBalance === null || summary.totalBalance === "" || summary.totalBalance === "$0")
   );
   
-  // Function to render a cell value with proper formatting based on data type
-  // This improved function adds better handling for edge cases
   const renderCellValue = (fieldName: string, value: any, formatter: (value: any) => string) => {
-    // Try multiple parsing approaches for OCR text
     if (typeof value === 'string' && value.trim() !== '') {
-      // First check if this is already a well-formatted value
       if ((fieldName === 'totalBalance' || fieldName === 'available' || 
           fieldName === 'creditLimit' || fieldName === 'payment') && 
           !value.includes('$') && value !== 'x') {
-        // Try currency parsing for these fields if $ is missing
         const parsedValue = parseCurrencyValue(value);
         if (parsedValue) {
           return formatter(parsedValue);
         }
       } else if (fieldName === 'debtToCredit' && !value.includes('%') && value !== 'x') {
-        // Try percentage parsing if % is missing
         const parsedValue = parsePercentageValue(value);
         if (parsedValue) {
           return formatter(parsedValue);
@@ -91,12 +77,10 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       }
     }
     
-    // Special handling for missing or null values - display "x"
     if (value === null || value === undefined || value === '') {
       return "x";
     }
     
-    // Special handling for zero values (display as "0" or "$0" depending on field)
     if (isZeroValue(value)) {
       if (fieldName === 'debtToCredit') return "0.0%";
       if (fieldName === 'totalBalance' || fieldName === 'available' || 
@@ -104,15 +88,12 @@ const CreditAccountsTable: React.FC<CreditAccountsTableProps> = ({
       return "0";
     }
     
-    // For actual values, format them properly
     return formatter(value);
   };
 
-  // Function to train the parser with the current data as examples
   const handleTrainWithCurrentData = () => {
     if (!summariesToDisplay || summariesToDisplay.length === 0) return;
     
-    // Only train with data that has real values
     const validSummaries = summariesToDisplay.filter(summary => 
       (summary.open !== null && summary.open !== "") || 
       (summary.withBalance !== null && summary.withBalance !== "") ||
