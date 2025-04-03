@@ -76,7 +76,7 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
           <Progress value={progress} className="h-2" />
           <p className="text-sm text-center text-muted-foreground flex items-center justify-center">
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {getMessage()}
+            <span>{getMessage()} ({Math.round(progress)}%)</span>
           </p>
           
           {progress >= 100 && (
