@@ -1,8 +1,10 @@
+
 import React from "react";
 import { Account } from "@/lib/types/creditReport";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Check, AlertCircle } from "lucide-react";
 
 interface AccountPaymentHistoryProps {
   account: Account;
@@ -13,14 +15,23 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
   // Sample payment history data that would come from the account in a real implementation
   const paymentHistory = account.paymentHistory || [];
 
-  // Status code explanations
+  // Status code explanations - expanded with more codes from reference image
   const statusCodes = {
     "OK": "Payment made on time",
     "30": "30 days late",
     "60": "60 days late",
     "90": "90 days late",
     "120": "120 days late",
+    "150": "150 days past due",
+    "180": "180 days past due",
     "COL": "In collections",
+    "C": "Collection account",
+    "CO": "Charge-off",
+    "B": "Included in bankruptcy",
+    "R": "Repossession",
+    "V": "Voluntary surrender",
+    "F": "Foreclosure",
+    "TNT": "Too new to rate",
     "X": "No data available"
   };
 
@@ -30,6 +41,9 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
     return "destructive";
   };
 
+  // Years to display in the payment history
+  const years = ["2024", "2023", "2022"];
+
   return (
     <div className="space-y-6">
       <Card className="border border-gray-200">
@@ -38,14 +52,15 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
         </CardHeader>
         <CardContent>
           <div className="mb-4 text-sm">
-            <p>Payment history is a key factor in your credit score. This shows your payment status for each month.</p>
+            <p className="mb-2">Payment history is a key factor in your credit score. This shows your payment status for each month.</p>
+            <p className="text-xs text-muted-foreground mb-4">View up to 7 years of monthly payment history on this account. The numbers indicate days a payment was past due; letters indicate other account events.</p>
           </div>
 
-          {/* Status Code Legend */}
+          {/* Status Code Legend - Updated with more codes */}
           <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {Object.entries(statusCodes).map(([code, description]) => (
               <div key={code} className="flex items-center space-x-2">
-                <Badge variant={getStatusBadgeVariant(code)} className="w-10 text-center">
+                <Badge variant={getStatusBadgeVariant(code)} className="w-14 text-center">
                   {code}
                 </Badge>
                 <span className="text-xs">{description}</span>
@@ -53,7 +68,28 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
             ))}
           </div>
 
-          {/* Payment History Table */}
+          {/* Payment Status Icons Legend */}
+          <div className="mb-6 grid grid-cols-2 gap-2">
+            <div className="flex items-center space-x-2">
+              <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                <Check className="h-3 w-3 text-green-600" />
+              </div>
+              <span className="text-xs">Paid on time</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-5 h-5">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-muted-foreground opacity-50">
+                  <pattern id="diagonalHatch" width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <line x1="0" y1="0" x2="0" y2="4" style={{ stroke: 'currentColor', strokeWidth: 1 }} />
+                  </pattern>
+                  <rect width="24" height="24" fill="url(#diagonalHatch)" />
+                </svg>
+              </div>
+              <span className="text-xs">No data available</span>
+            </div>
+          </div>
+
+          {/* Payment History Table - Now with 3 rows as requested */}
           <Table>
             <TableHeader>
               <TableRow>
@@ -73,38 +109,72 @@ const AccountPaymentHistory: React.FC<AccountPaymentHistoryProps> = ({ account, 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {/* If no real payment history data, show placeholder row */}
-              {paymentHistory.length === 0 ? (
-                <TableRow>
-                  <TableCell className="font-medium">2024</TableCell>
-                  {Array(12).fill(null).map((_, index) => (
-                    <TableCell key={index}>
-                      <Badge variant="secondary" className="w-10 text-center">X</Badge>
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ) : (
-                // Otherwise show real payment history data
-                // This would need to be structured based on the actual data format
-                <TableRow>
-                  <TableCell className="font-medium">2024</TableCell>
+              {years.map((year, rowIndex) => (
+                <TableRow key={year}>
+                  <TableCell className="font-medium">{year}</TableCell>
                   {Array(12).fill(null).map((_, index) => {
-                    const status = paymentHistory[index] || "X";
+                    // For sample visualization: first 2 months for 2024 and 2023 show check marks
+                    // 2024 year has first 2 months with check marks, rest as X
+                    // 2023 year has all as check marks
+                    // 2022 year has first 2 months as diag pattern, rest as check marks
+                    let content;
+                    if (rowIndex === 0) { // 2024
+                      content = index < 2 ? 
+                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                          <Check className="h-3 w-3 text-green-600" />
+                        </div> : 
+                        <Badge variant="secondary" className="w-10 text-center">X</Badge>;
+                    } else if (rowIndex === 1) { // 2023
+                      content = <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </div>;
+                    } else { // 2022
+                      content = index < 2 ? 
+                        <div className="w-5 h-5">
+                          <svg viewBox="0 0 24 24" className="h-5 w-5 text-muted-foreground opacity-50">
+                            <pattern id={`diagonalHatch${index}`} width="4" height="4" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                              <line x1="0" y1="0" x2="0" y2="4" style={{ stroke: 'currentColor', strokeWidth: 1 }} />
+                            </pattern>
+                            <rect width="24" height="24" fill={`url(#diagonalHatch${index})`} />
+                          </svg>
+                        </div> : 
+                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                          <Check className="h-3 w-3 text-green-600" />
+                        </div>;
+                    }
+                    
                     return (
-                      <TableCell key={index}>
-                        <Badge 
-                          variant={getStatusBadgeVariant(status)} 
-                          className="w-10 text-center"
-                        >
-                          {status}
-                        </Badge>
+                      <TableCell key={`${year}-${index}`}>
+                        {content}
                       </TableCell>
                     );
                   })}
                 </TableRow>
-              )}
+              ))}
             </TableBody>
           </Table>
+
+          {/* Day Ranges Legend */}
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+            <div className="flex items-center">
+              <Badge variant="outline" className="bg-green-100 text-green-600 mr-2">
+                <Check className="h-3 w-3" />
+              </Badge>
+              <span>Paid on Time</span>
+            </div>
+            <div className="flex items-center">
+              <Badge variant="destructive" className="mr-2">30</Badge>
+              <span>30 Days Past Due</span>
+            </div>
+            <div className="flex items-center">
+              <Badge variant="destructive" className="mr-2">60</Badge>
+              <span>60 Days Past Due</span>
+            </div>
+            <div className="flex items-center">
+              <Badge variant="destructive" className="mr-2">90</Badge>
+              <span>90 Days Past Due</span>
+            </div>
+          </div>
 
           <div className="mt-4 text-xs text-muted-foreground">
             <p>Data reported by creditor. Contact your creditor for more details or to dispute any errors.</p>
