@@ -8,7 +8,7 @@ const OtherItemsHeader: React.FC = () => {
     <>
       <CardTitle className="flex items-center">
         <FileText className="h-5 w-5 mr-2" />
-        Other Items
+        Other Items Summary
       </CardTitle>
       <CardDescription>Additional information in your credit file</CardDescription>
     </>
