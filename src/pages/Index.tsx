@@ -23,21 +23,12 @@ const Index = () => {
   const [showDebugger, setShowDebugger] = useState(false);
   const [openAIConfigured, setOpenAIConfigured] = useState(canUseOpenAI());
   const [processingError, setProcessingError] = useState<string | null>(null);
-  const [shouldNavigateToReport, setShouldNavigateToReport] = useState(false);
+  const [processingComplete, setProcessingComplete] = useState(false);
   const { toast } = useToast();
   
   useEffect(() => {
     setOpenAIConfigured(canUseOpenAI());
   }, []);
-  
-  // Effect to handle navigation to report tab only after processing is complete
-  useEffect(() => {
-    // Only navigate if processing is complete and we should navigate
-    if (shouldNavigateToReport && !isProcessing && creditReport) {
-      setActiveTab("report");
-      setShouldNavigateToReport(false);
-    }
-  }, [shouldNavigateToReport, isProcessing, creditReport]);
   
   const handleTabChange = (value: string) => {
     // Prevent switching to the report tab if we're still processing
@@ -50,10 +41,17 @@ const Index = () => {
       return;
     }
     
-    // Only allow tab switching if we're not processing or if we're switching away from the report tab
-    if (!isProcessing || value !== "report") {
-      setActiveTab(value);
+    // Only allow switching to report tab if we have a report or processing is complete
+    if (value === "report" && !creditReport && !processingComplete) {
+      toast({
+        title: "No report available", 
+        description: "Please upload a credit report first.",
+        variant: "default"
+      });
+      return;
     }
+    
+    setActiveTab(value);
   };
   
   const handlePDFUploaded = async (file: File, text: string, parsedReport?: CreditReport) => {
@@ -61,17 +59,17 @@ const Index = () => {
       setProcessingError(null);
       
       if (parsedReport) {
+        // Store the parsed report
         setCreditReport(parsedReport);
         
+        // Note: We don't automatically navigate away
+        // User will click the "View Report" button
         toast({
           title: "Credit Report Processed",
           description: parsedReport.bureau ? 
             `Successfully processed your ${parsedReport.bureau} credit report.` :
             `Successfully processed your credit report.`,
         });
-        
-        // Signal that we should navigate to the report tab when processing is complete
-        setShouldNavigateToReport(true);
       } else {
         toast({
           title: "Using basic parsing",
@@ -89,12 +87,10 @@ const Index = () => {
     }
   };
 
-  const handleOpenAIConfigured = () => {
-    setOpenAIConfigured(true);
-    toast({
-      title: "AI-Powered Extraction Ready",
-      description: "Your credit report tables will now be processed with enhanced AI capabilities.",
-    });
+  const handleProcessingComplete = () => {
+    setProcessingComplete(true);
+    // Now that we're completely done, switch to the report tab
+    setActiveTab("report");
   };
 
   const handleRefresh = () => {
@@ -182,6 +178,7 @@ const Index = () => {
                   onPDFUploaded={handlePDFUploaded}
                   isProcessing={isProcessing}
                   setIsProcessing={setIsProcessing}
+                  onProcessingComplete={handleProcessingComplete}
                 />
               </CardContent>
             </Card>
@@ -193,26 +190,6 @@ const Index = () => {
                 Your credit report data is processed locally in your browser and is never stored on our servers.
               </AlertDescription>
             </Alert>
-            
-            {isProcessing && (
-              <Alert className="bg-blue-50 border-blue-200">
-                <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
-                <AlertTitle className="text-blue-800">Processing PDF</AlertTitle>
-                <AlertDescription className="text-blue-700">
-                  Please wait while we complete processing your credit report. 
-                  This may take a few moments depending on the size of your file.
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            {creditReport && !isProcessing && (
-              <div className="flex justify-center">
-                <Button onClick={() => setActiveTab("report")}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  View Processed Report
-                </Button>
-              </div>
-            )}
           </div>
         </TabsContent>
         

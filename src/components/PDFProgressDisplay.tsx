@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { File, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,30 @@ interface PDFProgressDisplayProps {
   file: File;
   progress: number;
   error?: string | null;
+  onProcessingComplete?: () => void;
 }
 
 const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   file,
   progress,
-  error
+  error,
+  onProcessingComplete
 }) => {
   const handleReloadPage = () => {
     window.location.reload();
   };
+  
+  // When progress reaches 100%, trigger the onProcessingComplete callback
+  useEffect(() => {
+    if (progress >= 100 && onProcessingComplete) {
+      // Add small delay to ensure UI updates first
+      const timer = setTimeout(() => {
+        onProcessingComplete();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [progress, onProcessingComplete]);
 
   return (
     <div className="w-full space-y-4">

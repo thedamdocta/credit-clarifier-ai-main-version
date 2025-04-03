@@ -11,3 +11,25 @@
   border-color: #3b82f6;
   background-color: rgba(59, 130, 246, 0.05);
 }
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.97);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  
+  100% {
+    transform: scale(0.97);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}

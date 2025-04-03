@@ -66,12 +66,13 @@ export const processPDFDocument = async (
             // Use standard text extraction for the main content with table targeting
             const extractedText = await extractTextFromPDF(pdf);
             console.log("Successfully extracted text from PDF, length:", extractedText.length);
-            updateProgress(60);
+            updateProgress(40);
             
             try {
               // Parse the extracted text with the unique report ID
               console.log("Starting PDF content parsing...");
               const parsedReport = await parsePDFContent(extractedText, useAI);
+              updateProgress(60);
               
               // Ensure the report has a unique ID and filename
               if (parsedReport) {
@@ -81,6 +82,7 @@ export const processPDFDocument = async (
                 
                 // Store this parsed data in our cache to prevent overriding with sample data
                 setExtractedReportData(parsedReport);
+                updateProgress(80);
                 
                 // Create a global reference to this PDF for better extraction
                 window.currentPdfData = {
@@ -89,15 +91,13 @@ export const processPDFDocument = async (
                   extractedText: extractedText.substring(0, 1000) // Store preview
                 };
                 
-                // Update progress to 100% to indicate completion
-                updateProgress(100);
-                
                 // Make sure all necessary extraction is performed before completing
                 // Try to extract account tables and other data here instead of waiting until later
                 try {
                   // Force account extraction if it wasn't done during parsing
                   if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
                     console.log("No account summaries found in initial parsing, attempting additional extraction");
+                    updateProgress(85);
                     
                     // Import only if needed to avoid circular dependencies
                     const { extractEquifaxAccountSummaries } = await import("@/lib/parsers/equifax/equifaxAccountSummary");
@@ -109,30 +109,62 @@ export const processPDFDocument = async (
                       }
                     }
                   }
+                  
+                  // Update progress to 95% to indicate we're almost done
+                  updateProgress(95);
+                  
+                  // Slight delay before setting 100% to ensure UI shows the transition
+                  setTimeout(() => {
+                    // Update progress to 100% to indicate completion
+                    updateProgress(100);
+                    
+                    // Small delay before finalizing to show the 100% progress
+                    setTimeout(() => {
+                      completeProgressTracking();
+                      
+                      // Pass the extracted text, file, and parsed report to the parent component
+                      onPDFUploaded(file, extractedText, parsedReport);
+                      
+                      toast.success("PDF successfully processed!");
+                    }, 1000);
+                  }, 500);
                 } catch (extractionError) {
                   console.error("Additional extraction error:", extractionError);
                   // Non-critical error, continue with what we have
+                  updateProgress(100);
+                  
+                  // Small delay before finalizing
+                  setTimeout(() => {
+                    completeProgressTracking();
+                    onPDFUploaded(file, extractedText, parsedReport);
+                  }, 500);
                 }
-                
-                // Ensure we wait just a moment for UI to catch up before completing
-                setTimeout(() => {
-                  completeProgressTracking();
-                  
-                  // Pass the extracted text, file, and parsed report to the parent component
-                  onPDFUploaded(file, extractedText, parsedReport);
-                  
-                  toast.success("PDF successfully processed!");
-                }, 500);
               } else {
-                handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
-                completeProgressTracking();
+                // If we don't have a parsed report, use basic processing
+                updateProgress(90);
+                setTimeout(() => {
+                  updateProgress(100);
+                  
+                  // Small delay to show 100%
+                  setTimeout(() => {
+                    handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
+                    completeProgressTracking();
+                  }, 1000);
+                }, 500);
               }
               
             } catch (error) {
               console.error("Error parsing PDF content:", error);
               // Fall back to basic processing
-              handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
-              completeProgressTracking();
+              updateProgress(90);
+              
+              setTimeout(() => {
+                updateProgress(100);
+                setTimeout(() => {
+                  handleBasicProcessing(uniqueReportId, file, extractedText, targetTable, onPDFUploaded);
+                  completeProgressTracking();
+                }, 1000);
+              }, 500);
             }
             
           } catch (error) {

@@ -22,11 +22,14 @@ export const usePDFUpload = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [processingComplete, setProcessingComplete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processPDF = (file: File) => {
-    // Reset any previous errors
+    // Reset any previous errors and states
     setProcessingError(null);
+    setProcessingComplete(false);
+    setUploadProgress(0);
     
     // Notify that processing has started
     if (onProcessingStart) {
@@ -41,12 +44,18 @@ export const usePDFUpload = ({
         setUploadProgress,
         onPDFUploaded: (file, text, parsedReport) => {
           // Only call this when processing is 100% complete to ensure full data is available
-          onPDFUploaded(file, text, parsedReport);
+          setProcessingComplete(true);
           
-          // Processing is complete - call the callback
-          if (onProcessingComplete) {
-            onProcessingComplete();
-          }
+          // Wait a moment to ensure UI is updated to show 100%
+          setTimeout(() => {
+            // Pass data to the parent component
+            onPDFUploaded(file, text, parsedReport);
+            
+            // Processing is complete - call the callback
+            if (onProcessingComplete) {
+              onProcessingComplete();
+            }
+          }, 500);
         },
         useImageExtraction: true, // Enable image extraction for table detection
         targetTable: "Credit Accounts", // Specifically target the Credit Accounts table
@@ -54,6 +63,8 @@ export const usePDFUpload = ({
           console.error("PDF processing error:", error);
           const errorMessage = error?.message || "Failed to process the PDF file. Please try again.";
           setProcessingError(errorMessage);
+          setProcessingComplete(true);
+          
           if (onError) onError(error);
           // On error, processing is also complete
           if (onProcessingComplete) {
@@ -65,6 +76,8 @@ export const usePDFUpload = ({
       const typedError = error as Error;
       console.error("Exception during PDF processing:", typedError);
       setProcessingError(typedError.message || "An unexpected error occurred");
+      setProcessingComplete(true);
+      
       if (onError) onError(typedError);
       setUploadProgress(0);
       // On exception, processing is also complete
@@ -120,6 +133,7 @@ export const usePDFUpload = ({
     handleDrop,
     handleFileInputChange,
     triggerFileInput,
-    processingError
+    processingError,
+    processingComplete
   };
 };
