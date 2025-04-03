@@ -4,7 +4,7 @@ import { AccountSummary } from '@/lib/types/creditReport';
 
 // Hardcoded API key as fallback (replace with your actual key)
 // NOTE: This is not the ideal approach for production. Consider moving this to a server-side implementation.
-const HARDCODED_API_KEY = 'sk-your-actual-api-key-here'; // Replace with your actual OpenAI API key
+const HARDCODED_API_KEY = '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';
 
 // OpenAI API for credit report OCR and extraction
 export const extractTableWithOpenAI = async (imageUrl: string): Promise<AccountSummary[] | null> => {
