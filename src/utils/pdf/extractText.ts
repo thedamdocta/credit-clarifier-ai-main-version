@@ -1,3 +1,4 @@
+
 // Global storage for the current PDF being processed
 let currentPdfData: {
   pdfFile?: File;
@@ -7,8 +8,7 @@ let currentPdfData: {
   fileName?: string;
   extractedText?: string;
   tableImageUrl?: string; 
-  targetTable?: string; // Add targetTable to the interface
-  collectionTableImageUrl?: string; // Add property for collection table image
+  targetTable?: string;
 } = {};
 
 // Import the function for PDF to image conversion
@@ -48,13 +48,6 @@ export const getExtractedReportData = () => {
 export const resetCurrentReportImage = () => {
   if (currentPdfData && currentPdfData.tableImageUrl) {
     currentPdfData.tableImageUrl = undefined;
-  }
-};
-
-// Reset the current collection image
-export const resetCurrentCollectionImage = () => {
-  if (currentPdfData && currentPdfData.collectionTableImageUrl) {
-    currentPdfData.collectionTableImageUrl = undefined;
   }
 };
 
@@ -255,170 +248,6 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
     }
   } catch (error) {
     console.error("Error extracting credit accounts table image:", error);
-    return null;
-  }
-};
-
-/**
- * Extract the collections table image from the PDF
- * This uses image-based extraction specifically for collections
- */
-export const extractCollectionsTableImage = async (report: any): Promise<string | null> => {
-  try {
-    console.log("Attempting to extract collections table image");
-    
-    // If we already have a collections table image URL cached, return it
-    if (currentPdfData.collectionTableImageUrl) {
-      console.log("Using cached collections table image URL");
-      return currentPdfData.collectionTableImageUrl;
-    }
-    
-    // If no PDF document is available, we can't extract an image
-    if (!currentPdfData.pdfDocument) {
-      console.error("No PDF document available for collections image extraction");
-      return null;
-    }
-    
-    const pdfDocument = currentPdfData.pdfDocument;
-    const numPages = pdfDocument.numPages;
-    
-    // Keywords to identify the collections section
-    const collectionsKeywords = [
-      'collections',
-      'collection agency',
-      'original creditor',
-      'amount owed',
-      'date reported',
-      'date assigned',
-      'date of first delinquency',
-      'balance date',
-      'status date',
-      'unpaid'
-    ];
-    
-    // First, try to find which page contains "Collections" header specifically
-    let collectionsPage = -1;
-    let highestScore = 0;
-    
-    // Check each page for "Collections" header
-    for (let i = 1; i <= numPages; i++) {
-      try {
-        const page = await pdfDocument.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
-        
-        // Explicitly check for "Collections" header
-        if (pageText.includes("collections")) {
-          console.log(`Found "Collections" header on page ${i}`);
-          
-          // Count occurrences of other collection keywords to confirm it's the right section
-          let score = 100; // Give high base score for "Collections" heading
-          
-          collectionsKeywords.forEach(keyword => {
-            const regex = new RegExp(keyword, 'gi');
-            const matches = pageText.match(regex);
-            if (matches) {
-              score += matches.length * 10;
-            }
-          });
-          
-          // Check for specific collection patterns
-          if (/(collection agency|original creditor).*?(amount|date)/i.test(pageText)) {
-            score += 50; // Very strong indicator of collections section
-          }
-          
-          // Look for specific collection-related terms
-          if (/status.*?(unpaid|paid|settled|disputed)/i.test(pageText)) {
-            score += 40; // Likely collection status information
-          }
-          
-          console.log(`Page ${i} score for collections section: ${score}`);
-          
-          // If this page has the highest score, use it
-          if (score > highestScore) {
-            highestScore = score;
-            collectionsPage = i;
-          }
-        }
-      } catch (error) {
-        console.error(`Error analyzing page ${i} for collections:`, error);
-      }
-    }
-    
-    // If we didn't find a page with "Collections" header, fall back to keyword scoring
-    if (collectionsPage === -1) {
-      console.log("No page with explicit 'Collections' header found, falling back to keyword analysis");
-      
-      // Process each page to find the one with collection information
-      for (let i = 1; i <= numPages; i++) {
-        try {
-          // Get the page text content
-          const page = await pdfDocument.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
-          
-          // Count occurrences of collection keywords
-          let score = 0;
-          collectionsKeywords.forEach(keyword => {
-            const regex = new RegExp(keyword, 'gi');
-            const matches = pageText.match(regex);
-            if (matches) {
-              score += matches.length * 5;
-            }
-          });
-          
-          // Extra score for specific patterns in collections
-          if (/(collection agency|original creditor).*?(date|amount)/i.test(pageText)) {
-            score += 30; // Good indicator of collection content
-          }
-          
-          // Look for dates and money amounts (common in collections)
-          if (/\$\d+.*?(date|unpaid|assigned)/i.test(pageText)) {
-            score += 25; // Likely collection amounts
-          }
-          
-          console.log(`Page ${i} score for collections detection: ${score}`);
-          
-          // Update best page if this one has a higher score
-          if (score > highestScore) {
-            highestScore = score;
-            collectionsPage = i;
-          }
-        } catch (error) {
-          console.error(`Error processing page ${i} for collections detection:`, error);
-        }
-      }
-    }
-    
-    console.log(`Best page for collections: ${collectionsPage} with score ${highestScore}`);
-    
-    // If no good page was found, return null
-    if (collectionsPage === -1 || highestScore < 10) {
-      console.log("No good page found for collections extraction");
-      return null;
-    }
-    
-    // Extract the image of the best page
-    try {
-      const pageImage = await convertPDFPageToImage(pdfDocument, collectionsPage);
-      
-      if (!pageImage) {
-        console.error("Failed to convert page to image for collections extraction");
-        return null;
-      }
-      
-      console.log(`Successfully extracted image for collections page ${collectionsPage}`);
-      
-      // Store the image URL in the current PDF data
-      currentPdfData.collectionTableImageUrl = pageImage;
-      
-      return pageImage;
-    } catch (error) {
-      console.error("Error extracting collections image:", error);
-      return null;
-    }
-  } catch (error) {
-    console.error("Error extracting collections table image:", error);
     return null;
   }
 };
