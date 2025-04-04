@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -97,12 +96,28 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         <>
           <div className="space-y-4 mb-6">
             <h3 className="font-medium">Previous Addresses</h3>
-            <AddressesTable addresses={addresses} />
+            {addresses.length > 0 ? (
+              <AddressesTable addresses={addresses} />
+            ) : (
+              <div className="py-4 text-center bg-muted/20 rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  No address information found in the report
+                </p>
+              </div>
+            )}
           </div>
           
           <div className="space-y-4">
             <h3 className="font-medium">Employment History</h3>
-            <EmploymentTable employments={employments} />
+            {employments.length > 0 ? (
+              <EmploymentTable employments={employments} />
+            ) : (
+              <div className="py-4 text-center bg-muted/20 rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  No employment information found in the report
+                </p>
+              </div>
+            )}
           </div>
           
           {showDebugInfo && (

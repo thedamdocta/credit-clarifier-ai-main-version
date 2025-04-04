@@ -148,16 +148,6 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
     if (result.addresses.length === 0 || result.employments.length === 0) {
       // Fallback to text extraction would go here
       console.log("Image extraction provided insufficient data, falling back to text extraction");
-      
-      // For development/testing, create sample data
-      if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
-        if (result.addresses.length === 0) {
-          result.addresses = createSampleAddresses();
-        }
-        if (result.employments.length === 0) {
-          result.employments = createSampleEmployment();
-        }
-      }
     }
     
     console.log("Contact information extraction complete:", result);
@@ -411,43 +401,3 @@ function parseEmploymentFromText(text: string): EmploymentInfo[] {
     return [];
   }
 }
-
-/**
- * Create sample addresses for development testing
- */
-function createSampleAddresses(): AddressInfo[] {
-  return [
-    {
-      address: "123 Main Street, Anytown, CA 12345",
-      status: "Current",
-      dateReported: "Dec 27, 2024"
-    },
-    {
-      address: "456 Oak Avenue, Old City, CA 54321",
-      status: "Former",
-      dateReported: "Jan 15, 2022"
-    },
-    {
-      address: "789 Pine Boulevard, Somewhere, CA 67890",
-      status: "Former",
-      dateReported: "Mar 3, 2018"
-    }
-  ];
-}
-
-/**
- * Create sample employment for development testing
- */
-function createSampleEmployment(): EmploymentInfo[] {
-  return [
-    {
-      company: "SUNSTATE SECURITY",
-      occupation: "SECURITY OFFICER"
-    },
-    {
-      company: "PREVIOUS COMPANY INC",
-      occupation: "SALES ASSOCIATE"
-    }
-  ];
-}
-

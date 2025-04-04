@@ -41,27 +41,10 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
     }
   };
 
-  // Create a default collection if none exist
+  // Use collections if they exist, otherwise an empty array
   const collections = report.collections && report.collections.length > 0 
     ? report.collections 
-    : [{
-        dateReported: null,
-        collectionAgency: "Sample Collection Agency",
-        balanceDate: null,
-        originalCreditorName: null,
-        accountDesignatorCode: null,
-        dateAssigned: null,
-        accountNumber: "XXXX-XXXX-XXXX-5678",
-        originalAmountOwed: null,
-        creditorClassification: null,
-        amount: null,
-        lastPaymentDate: null,
-        statusDate: null,
-        dateOfFirstDelinquency: null,
-        status: null,
-        comments: ["This is a placeholder collection. No actual collections were detected in your report."],
-        contact: ["No contact information available"]
-      }];
+    : [];
   
   const header = (
     <div className="flex flex-row items-center justify-between w-full">
@@ -129,11 +112,18 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
             Please wait while we analyze your collection accounts
           </p>
         </div>
-      ) : (
+      ) : collections.length > 0 ? (
         <CollectionsList 
           collections={collections} 
           showDebugInfo={showDebugInfo} 
         />
+      ) : (
+        <div className="py-8 text-center bg-muted/20 rounded-md">
+          <p className="text-sm font-medium">No collection accounts found</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Good news! We didn't detect any collections in your credit report.
+          </p>
+        </div>
       )}
     </>
   );
