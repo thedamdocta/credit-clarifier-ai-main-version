@@ -1,5 +1,7 @@
 
-import { PDFDocumentProxy, PDFPageProxy, TextItem, TextMarkedContent } from 'pdfjs-dist';
+// Import from the correct pdfjs-dist types path
+import { PDFDocumentProxy } from 'pdfjs-dist';
+import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api';
 import { CreditReport } from "@/lib/types/creditReport";
 
 // Store the extracted report data
@@ -45,7 +47,7 @@ export const extractTextFromPDF = async (pdf: PDFDocumentProxy): Promise<string>
       .map(item => {
         // TypeScript check for the TextItem type which has the 'str' property
         if ('str' in item) {
-          return item.str;
+          return (item as TextItem).str;
         }
         return ''; // Return empty string for TextMarkedContent
       })
@@ -88,7 +90,9 @@ export const parsePDFContent = async (text: string, useAI: boolean): Promise<Cre
     if (text.includes("EQUIFAX")) {
       // Correctly import the function from our creditReportParser
       const { parseEquifaxReport } = await import("@/lib/parsers/equifax/equifaxParser");
-      return parseEquifaxReport(text);
+      const report = await parseEquifaxReport(text);
+      // Ensure we're returning a complete CreditReport object with all required fields
+      return report as CreditReport;
     } else if (text.includes("Experian")) {
       // Placeholder for Experian parsing
       console.log("Experian report detected, but parsing is not yet implemented.");

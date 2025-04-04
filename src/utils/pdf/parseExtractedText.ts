@@ -1,7 +1,12 @@
+
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
-// Import extractCreditAccountsTableImage directly from extractText
-import { extractCreditAccountsTableImage, resetCurrentReportImage, getExtractedReportData } from "./extractText";
+// Import from extractText.ts with the correct export
+import { 
+  extractCreditAccountsTableImage,
+  resetCurrentReportImage, 
+  getExtractedReportData 
+} from "./extractText";
 // Import the table extraction utilities
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 

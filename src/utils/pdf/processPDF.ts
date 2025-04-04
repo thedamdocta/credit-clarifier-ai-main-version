@@ -10,21 +10,23 @@ interface PDFProcessingCallbacks extends ProgressCallbacks {
   onError?: (error: Error | null) => void;
 }
 
-// Define proper PDFJSLib interface
+// Using any for pdfjsLib to avoid type conflicts
 interface PDFJSLib {
-  getDocument: (source: { data: Uint8Array }) => { promise: Promise<PDFDocumentProxy> };
+  getDocument: (source: { data: Uint8Array }) => { promise: Promise<any> };
   GlobalWorkerOptions: { workerSrc: string };
   version: string;
 }
 
-// Update the interface definition for PDFDocumentProxy to match our needs
+// Use a more generic PDFDocumentProxy interface to avoid conflicts
 interface PDFDocumentProxy {
   numPages: number;
   getPage: (pageNumber: number) => Promise<PDFPageProxy>;
+  [key: string]: any; // Allow additional properties
 }
 
 interface PDFPageProxy {
-  getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
+  getTextContent: () => Promise<{ items: Array<any> }>;
+  [key: string]: any; // Allow additional properties
 }
 
 let pdfJsLoadingWarned = false;
@@ -78,7 +80,7 @@ export const processPDFDocument = async (
         )
       ]);
       
-      // Cast the imported module to our interface
+      // Cast the imported module to our interface to avoid type conflicts
       const pdfjsLib = pdfjsModule as unknown as PDFJSLib;
       
       clearTimeout(pdfLoadingTimeout);
@@ -117,17 +119,22 @@ export const processPDFDocument = async (
             console.log("Loading PDF document from array buffer");
             const loadPdfPromise = pdfjsLib.getDocument({ data: typedarray }).promise;
             
-            // Use the type assertion to ensure TypeScript doesn't complain about PDF document type
+            // Use a generic type to prevent conflicts
             const pdf = await Promise.race([
               loadPdfPromise,
               new Promise<never>((_, reject) => 
                 setTimeout(() => reject(new Error("PDF document loading timed out")), 10000)
               )
-            ]) as unknown as PDFDocumentProxy;
+            ]);
             
             const numPages = pdf.numPages;
             console.log(`PDF loaded with ${numPages} pages`);
             updateProgress(15);
+            
+            // Store pdf document for later use in image extraction
+            if (currentPDFData) {
+              currentPDFData.pdfDocument = pdf;
+            }
             
             const extractedText = await extractTextFromPDF(pdf);
             console.log("Successfully extracted text from PDF, length:", extractedText.length);
