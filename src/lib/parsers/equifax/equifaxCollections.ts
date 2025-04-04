@@ -21,10 +21,7 @@ export const convertToCollection = (text: string): Collection[] => {
       /COLLECTIONS?(?:\s+ACCOUNTS?)?(?:\s+INFORMATION)?[^\n]*\n([\s\S]*?)(?:(?:PUBLIC\s+RECORDS)|(?:CREDIT\s+INQUIRIES)|(?:PERSONAL\s+STATEMENT)|$)/i,
       
       // Alternative format with description paragraph
-      /Collections[\s\S]*?Collections are accounts with[\s\S]*?(?:(?=\d+\.\s*[A-Z][a-z]+)|$)/i,
-      
-      // Single line collections header followed by data
-      /Collections\s*\n([\s\S]*?)(?:(?=\d+\.\s*[A-Z][a-z]+)|$)/i
+      /Collections[\s\S]*?Collections are accounts with[\s\S]*?(?:(?=\d+\.\s*[A-Z][a-z]+)|$)/i
     ];
     
     let collectionsText = "";
@@ -41,21 +38,7 @@ export const convertToCollection = (text: string): Collection[] => {
     
     if (!collectionsText) {
       console.log("No collections section found in text");
-      // Try broader search - look for lines containing "Collection Agency"
-      const collectionAgencyMatch = text.match(/Collection Agency[^\n]*\n([\s\S]*?)(?:\n\s*\n|\n(?=\d+\.\s*[A-Z][a-z]+))/i);
-      if (collectionAgencyMatch && collectionAgencyMatch[0]) {
-        collectionsText = collectionAgencyMatch[0];
-        console.log("Found collections through 'Collection Agency' mention");
-      } else {
-        // Try to find any mentions of collections accounts
-        const collectionAccountsMatch = text.match(/(?:placed in collections|collection account|sent to collections)([^.]*\.[^.]*)/gi);
-        if (collectionAccountsMatch && collectionAccountsMatch.length > 0) {
-          collectionsText = collectionAccountsMatch.join("\n");
-          console.log("Found collection mentions in text");
-        } else {
-          return [];
-        }
-      }
+      return [];
     }
     
     console.log("Found collections section:", collectionsText.substring(0, 200) + "...");
@@ -70,13 +53,7 @@ export const convertToCollection = (text: string): Collection[] => {
       /Collection\s+Agency\s*:\s*([^\n]+)(?:\n(?!Collection\s+Agency)[^\n]*)*(?=\n\s*(?:Collection\s+Agency|$))/gi,
       
       // Format with field-value pairs
-      /((?:Collection Agency|Date Reported|Original Creditor|Date Assigned|Amount|Status)[^\n]*(?:\n(?!Collection Agency|Date Reported)[^\n]*)*)+/gi,
-      
-      // Format with section headers followed by data blocks
-      /COLLECTION[S]?\s+INFORMATION(?:\n(?!PUBLIC\s+RECORDS|INQUIRIES)[^\n]*)*(?=\n\s*(?:PUBLIC\s+RECORDS|INQUIRIES|$))/gi,
-      
-      // Look for any paragraph containing collection information
-      /([^\n.]+(?:collection|collector|debt)(?:[^\n.]*)\.)/gi
+      /((?:Collection Agency|Date Reported|Original Creditor|Date Assigned|Amount|Status)[^\n]*(?:\n(?!Collection Agency|Date Reported)[^\n]*)*)+/gi
     ];
     
     let accountMatches = null;
@@ -90,81 +67,28 @@ export const convertToCollection = (text: string): Collection[] => {
       }
     }
     
-    // If we didn't find matches with the specific patterns, try a more general approach
-    if (!accountMatches || accountMatches.length === 0) {
-      // Look for paragraphs that might contain collection info
-      const paragraphPattern = /([^\n]+(?:collection|collector|debt)[^\n]+(?:\n(?![\n\d+\.])[^\n]+)*)/gi;
-      accountMatches = collectionsText.match(paragraphPattern);
-      console.log(`Found ${accountMatches?.length || 0} collection paragraphs using general pattern`);
-    }
-    
-    if (!accountMatches || accountMatches.length === 0) {
-      // As a last resort, split the collections text into chunks
-      const chunks = collectionsText.split(/\n\s*\n/).filter(chunk => 
-        chunk.length > 20 && 
-        (chunk.toLowerCase().includes('collection') || 
-         chunk.toLowerCase().includes('creditor') || 
-         chunk.toLowerCase().includes('debt'))
-      );
-      
-      if (chunks.length > 0) {
-        accountMatches = chunks;
-        console.log(`Created ${chunks.length} collection chunks from text`);
-      } else {
-        console.log("No collection accounts found in text");
-        return [];
-      }
+    if (!accountMatches) {
+      console.log("No collection accounts found in text");
+      return [];
     }
     
     // Process each collection account
     for (const accountText of accountMatches) {
-      // Skip very short texts or ones that don't look like collection entries
-      if (accountText.length < 20 || (!accountText.toLowerCase().includes('collection') && 
-                                      !accountText.toLowerCase().includes('creditor') && 
-                                      !accountText.toLowerCase().includes('debt'))) {
-        continue;
-      }
-      
       const collection: Collection = {
-        dateReported: extractValue(accountText, /(?:Date\s+Reported|Report\s+Date):\s*([^\n]+)/i) || 
-                      extractValue(accountText, /(?:Reported|Reported\s+Date)[^\w]+([a-zA-Z]{3,}\s+\d{1,2},?\s+\d{4})/i),
-                      
-        collectionAgency: extractValue(accountText, /(?:Collection\s+Agency|Creditor\s+Name|Collector):\s*([^\n]+)/i) || 
-                          extractValue(accountText, /(?:placed|sent)[^\w]+(?:with|to)\s+([A-Z][A-Za-z\s]+)(?:\s+for\s+collection|\s+to\s+collect)/i),
-                          
+        dateReported: extractValue(accountText, /(?:Date\s+Reported|Report\s+Date):\s*([^\n]+)/i),
+        collectionAgency: extractValue(accountText, /(?:Collection\s+Agency|Creditor\s+Name):\s*([^\n]+)/i),
         balanceDate: extractValue(accountText, /Balance\s+(?:as\s+of|Date):\s*([^\n]+)/i),
-        
-        originalCreditorName: extractValue(accountText, /Original\s+Creditor(?:\s+Name)?:\s*([^\n]+)/i) || 
-                             extractValue(accountText, /originally\s+(?:with|from)\s+([A-Z][A-Za-z\s]+)(?:,|\.|and)/i),
-                             
+        originalCreditorName: extractValue(accountText, /Original\s+Creditor(?:\s+Name)?:\s*([^\n]+)/i),
         accountDesignatorCode: extractValue(accountText, /Account\s+Designator(?:\s+Code)?:\s*([^\n]+)/i),
-        
-        dateAssigned: extractValue(accountText, /(?:Date\s+Assigned|Assigned\s+Date):\s*([^\n]+)/i) || 
-                     extractValue(accountText, /(?:assigned|placed)[^\w]+(?:on|in)\s+([a-zA-Z]{3,}\s+\d{1,2},?\s+\d{4})/i),
-                     
-        accountNumber: extractValue(accountText, /Account\s+(?:Number|#):\s*([^\n]+)/i) || 
-                      extractValue(accountText, /(?:account|acct)(?:[^\w]+|\s+)(?:no|number|#)[^\w:]*\s*([A-Za-z0-9*]+)/i),
-                      
-        originalAmountOwed: extractValue(accountText, /Original\s+Amount(?:\s+Owed)?:\s*([^\n]+)/i) || 
-                           extractValue(accountText, /original(?:ly)?\s+(?:amount|balance)[^\w:]*\s*\$?\s*(\d[\d,.]+)/i),
-                           
+        dateAssigned: extractValue(accountText, /(?:Date\s+Assigned|Assigned\s+Date):\s*([^\n]+)/i),
+        accountNumber: extractValue(accountText, /Account\s+(?:Number|#):\s*([^\n]+)/i),
+        originalAmountOwed: extractValue(accountText, /Original\s+Amount(?:\s+Owed)?:\s*([^\n]+)/i),
         creditorClassification: extractValue(accountText, /Creditor\s+Classification:\s*([^\n]+)/i),
-        
-        amount: extractValue(accountText, /(?:Balance|Amount(?:\s+Owed)?):\s*([^\n]+)/i) || 
-               extractValue(accountText, /(?:current\s+balance|amount\s+due|owes)[^\w:]*\s*\$?\s*(\d[\d,.]+)/i) ||
-               extractValue(accountText, /\$(\d[\d,.]+)/),
-               
-        lastPaymentDate: extractValue(accountText, /Last\s+Payment(?:\s+Date)?:\s*([^\n]+)/i) || 
-                        extractValue(accountText, /last\s+paid[^\w]+(?:on|in)\s+([a-zA-Z]{3,}\s+\d{1,2},?\s+\d{4})/i),
-                        
+        amount: extractValue(accountText, /(?:Balance|Amount(?:\s+Owed)?):\s*([^\n]+)/i),
+        lastPaymentDate: extractValue(accountText, /Last\s+Payment(?:\s+Date)?:\s*([^\n]+)/i),
         statusDate: extractValue(accountText, /Status\s+Date:\s*([^\n]+)/i),
-        
-        dateOfFirstDelinquency: extractValue(accountText, /Date\s+of\s+First\s+Delinquency:\s*([^\n]+)/i) || 
-                               extractValue(accountText, /(?:first|initially)\s+(?:delinquent|past\s+due)[^\w]+(?:on|in)\s+([a-zA-Z]{3,}\s+\d{1,2},?\s+\d{4})/i),
-                               
-        status: extractValue(accountText, /Status:\s*([^\n]+)/i) || 
-               extractValue(accountText, /(?:account|collection)(?:\s+is|\s+status)?\s+([A-Za-z\s]+)(?:\.|\n|,)/i),
-               
+        dateOfFirstDelinquency: extractValue(accountText, /Date\s+of\s+First\s+Delinquency:\s*([^\n]+)/i),
+        status: extractValue(accountText, /Status:\s*([^\n]+)/i),
         comments: extractComments(accountText),
         contact: extractContact(accountText)
       };
@@ -174,15 +98,6 @@ export const convertToCollection = (text: string): Collection[] => {
         collection.collectionAgency || 
         collection.originalCreditorName || 
         collection.amount;
-      
-      // If we have a collection amount text but couldn't parse it as a formal amount field,
-      // try to extract it from the general text
-      if (!collection.amount && accountText.match(/\$\s*[\d,.]+/)) {
-        const amountMatch = accountText.match(/\$\s*([\d,.]+)/);
-        if (amountMatch && amountMatch[1]) {
-          collection.amount = '$' + amountMatch[1].trim();
-        }
-      }
       
       if (hasRequiredFields) {
         collections.push(collection);
@@ -225,21 +140,6 @@ const extractComments = (text: string): string[] => {
     const statusMatch = text.match(/Status:\s*([^\n]+)(?:\n(.+))?/i);
     if (statusMatch && statusMatch[2] && !statusMatch[2].includes(':')) {
       comments.push(statusMatch[2].trim());
-    }
-    
-    // Look for entire sentences that might be comments
-    const sentencePattern = /(?<=\.|\n)\s*([A-Z][^.!?]+[.!?])(?=\s|\n|$)/g;
-    let sentenceMatch;
-    while ((sentenceMatch = sentencePattern.exec(text)) !== null) {
-      if (sentenceMatch[1] && 
-          sentenceMatch[1].length > 15 && 
-          !sentenceMatch[1].includes(':') && 
-          (sentenceMatch[1].includes('collection') || 
-           sentenceMatch[1].includes('creditor') ||
-           sentenceMatch[1].includes('payment') ||
-           sentenceMatch[1].includes('account'))) {
-        comments.push(sentenceMatch[1].trim());
-      }
     }
   }
   

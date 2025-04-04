@@ -71,10 +71,7 @@ export const convertTableToCollections = (tableData: ExtractedTableData): Collec
         contact: []
       };
       
-      // Only add non-empty collections
-      if (collection.collectionAgency || collection.originalCreditorName || collection.amount) {
-        collections.push(collection);
-      }
+      collections.push(collection);
     }
     
     return collections;
@@ -127,17 +124,6 @@ function parseKeyValueCollectionFormat(tableData: ExtractedTableData): Collectio
   let currentCollection: Partial<Collection> = {};
   let collectingContactInfo = false;
   let contactInfo: string[] = [];
-  
-  // If the tableData is just one big block of text in a single cell,
-  // we need to try to parse it differently
-  if (tableData.rows.length === 1 && tableData.rows[0].length === 1) {
-    // The collection data is in one big text block
-    const text = tableData.rows[0][0];
-    if (text && text.length > 0) {
-      const parsedCollections = parseCollectionTextBlock(text);
-      return parsedCollections;
-    }
-  }
   
   for (let i = 0; i < tableData.rows.length; i++) {
     const row = tableData.rows[i];
@@ -220,91 +206,7 @@ function parseKeyValueCollectionFormat(tableData: ExtractedTableData): Collectio
     if (!currentCollection.comments) currentCollection.comments = [];
     if (!currentCollection.contact) currentCollection.contact = [];
     
-    // Only add if we have at least one identifying field
-    if (currentCollection.collectionAgency || currentCollection.originalCreditorName || currentCollection.amount) {
-      collections.push(currentCollection as Collection);
-    }
-  }
-  
-  return collections;
-}
-
-// Parse a single block of text that contains collection information
-function parseCollectionTextBlock(text: string): Collection[] {
-  const collections: Collection[] = [];
-  const collection: Partial<Collection> = {
-    comments: [],
-    contact: []
-  };
-  
-  // Common patterns from the collection text (based on the image example)
-  const dateReportedMatch = text.match(/(?:Date Reported|Report Date)[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-  if (dateReportedMatch) collection.dateReported = dateReportedMatch[1].trim();
-  
-  const collectionAgencyMatch = text.match(/Collection Agency[:\s]+([^.]*)(?=Balance Date|Original Creditor|Account Des|$)/i);
-  if (collectionAgencyMatch) collection.collectionAgency = collectionAgencyMatch[1].trim();
-  
-  const balanceDateMatch = text.match(/Balance Date[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-  if (balanceDateMatch) collection.balanceDate = balanceDateMatch[1].trim();
-  
-  const originalCreditorMatch = text.match(/Original Creditor[^:]*:[:\s]+([^.]*)(?=Account Des|Date Assigned|$)/i);
-  if (originalCreditorMatch) collection.originalCreditorName = originalCreditorMatch[1].trim();
-  
-  const accountDesignatorMatch = text.match(/Account Designator Code[:\s]+([^.]*)(?=Date Assigned|Account Number|$)/i);
-  if (accountDesignatorMatch) collection.accountDesignatorCode = accountDesignatorMatch[1].trim();
-  
-  const dateAssignedMatch = text.match(/Date Assigned[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-  if (dateAssignedMatch) collection.dateAssigned = dateAssignedMatch[1].trim();
-  
-  const accountNumberMatch = text.match(/Account Number[:\s]+([^.]*)(?=Original Amount|$)/i);
-  if (accountNumberMatch) collection.accountNumber = accountNumberMatch[1].trim();
-  
-  const originalAmountMatch = text.match(/Original Amount[:\s]+\$?([\d.,]+)/i);
-  if (originalAmountMatch) collection.originalAmountOwed = '$' + originalAmountMatch[1].trim();
-  
-  const creditorClassificationMatch = text.match(/Creditor Classification[:\s]+([^.]*)(?=Amount|Last Payment|$)/i);
-  if (creditorClassificationMatch) collection.creditorClassification = creditorClassificationMatch[1].trim();
-  
-  const amountMatch = text.match(/Amount[:\s]+\$?([\d.,]+)/i);
-  if (amountMatch) collection.amount = '$' + amountMatch[1].trim();
-  
-  const lastPaymentMatch = text.match(/Last Payment Date[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-  if (lastPaymentMatch) collection.lastPaymentDate = lastPaymentMatch[1].trim();
-  
-  const statusDateMatch = text.match(/Status Date[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-  if (statusDateMatch) collection.statusDate = statusDateMatch[1].trim();
-  
-  const firstDelinquencyMatch = text.match(/Date of First Delinquency[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
-  if (firstDelinquencyMatch) collection.dateOfFirstDelinquency = firstDelinquencyMatch[1].trim();
-  
-  const statusMatch = text.match(/Status[:\s]+([^.]*)(?=Comments|Contact|$)/i);
-  if (statusMatch) collection.status = statusMatch[1].trim();
-  
-  // Look for contact information
-  const contactMatch = text.match(/Contact[:\s]+(.*?)(?=Comments|$)/is);
-  if (contactMatch) {
-    const contactText = contactMatch[1].trim();
-    // Split contact info by lines and filter out empty ones
-    collection.contact = contactText
-      .split(/[\n\r]/)
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-  }
-  
-  // Look for comments
-  const commentsMatch = text.match(/Comments[:\s]+(.*?)(?=Contact|$)/is);
-  if (commentsMatch) {
-    const commentsText = commentsMatch[1].trim();
-    // Split comments by lines and filter out empty ones
-    collection.comments = commentsText
-      .split(/[\n\r]/)
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-  }
-  
-  // Only add if we have at least basic information
-  if (collection.collectionAgency || collection.originalCreditorName || collection.amount) {
-    collections.push(collection as Collection);
+    collections.push(currentCollection as Collection);
   }
   
   return collections;

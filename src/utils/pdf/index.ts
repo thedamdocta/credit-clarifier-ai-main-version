@@ -3,7 +3,6 @@
 export * from './processPDF';
 export * from './parseExtractedText';
 export * from './progressHandling';
-export * from './extractCollectionsTableImage';
 
 // Export everything from extractText except parsePDFContent to avoid ambiguity
 export {

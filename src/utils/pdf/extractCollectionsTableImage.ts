@@ -36,10 +36,7 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
       "collections",
       "collection agency",
       "10. collections", // Format in the example image
-      "collections are accounts with outstanding debt",
-      "placed for collection",
-      "placed with collection",
-      "debt collector"
+      "collections are accounts with outstanding debt"
     ];
     
     // Search text for collections section
@@ -92,10 +89,7 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
         /collection agency\s*:\s*([^\n]+)/i,
         /date reported\s*:\s*([^\n]+)/i,
         /original creditor\s*:\s*([^\n]+)/i,
-        /account designator code\s*:/i,
-        /placed (?:with|for) collection/i,
-        /debt (?:collector|collection)/i,
-        /account (?:sent|placed|assigned) (?:to|with) collection/i
+        /account designator code\s*:/i
       ];
       
       for (const pattern of collectionPatterns) {
@@ -142,7 +136,7 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
     
     // If we still don't have a valid image, try a few pages before and after
     if (!imageUrl) {
-      const pagesToCheck: number[] = [];
+      const pagesToCheck = [];
       // Add 2 pages before and after the estimated page, but prioritize pages after
       for (let i = 1; i <= 2; i++) {
         if (collectionsPageNumber + i <= numPages) {
@@ -160,30 +154,6 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
           imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, pageNum);
           if (imageUrl) {
             console.log(`Found collections image on page ${pageNum}`);
-            break;
-          }
-        }
-      }
-    }
-    
-    // If still no image found, try scanning all pages as a last resort
-    if (!imageUrl && numPages <= 20) { // Only do this for reasonable-sized documents
-      console.log("No collections found on expected pages, scanning all pages");
-      // Create array of pages we've already checked to avoid redundant processing
-      const previouslyCheckedPages = [collectionsPageNumber];
-      
-      // Add the pages we've already checked from our earlier attempts
-      if (pagesToCheck && pagesToCheck.length > 0) {
-        previouslyCheckedPages.push(...pagesToCheck);
-      }
-      
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        // Skip pages we've already checked
-        if (!previouslyCheckedPages.includes(pageNum)) {
-          console.log(`Scanning page ${pageNum} for collections`);
-          imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, pageNum);
-          if (imageUrl) {
-            console.log(`Found potential collections image on page ${pageNum}`);
             break;
           }
         }
