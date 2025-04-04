@@ -1,46 +1,19 @@
 
-
 export interface Account {
   accountName: string;
   accountNumber: string;
   accountType: string;
   openDate: string;
   status: string;
-  balance: number | null;
+  balance: string | null;
   paymentHistory: string[];
-  comments?: string[];
-}
-
-export interface AccountSummary {
-  // Required properties from the original interface
-  type: string;
-  count: number;
-  highCredit: number | null;
-  pastDue: number | null;
-  balance: number | null;
-  payment: number | null;
-  
-  // Additional properties used in the codebase
-  accountType: string;
-  totalAccounts: number | null;
-  open: string | number | null;
-  withBalance: string | number | null;
-  closed: string | number | null;
-  totalBalance: string | number | null;
-  available: string | number | null;
-  creditLimit: string | number | null;
-  debtToCredit: string | number | null;
-}
-
-export interface Inquiry {
-  date: string;
-  company: string;
-}
-
-export interface PublicRecord {
-  date: string;
-  type: string;
-  description: string;
+  creditLimit?: string | null;
+  highestBalance?: string | null;
+  paymentStatus?: string;
+  totalAccounts?: number;
+  openAccounts?: number;
+  closedAccounts?: number;
+  comments?: string[]; // Adding comments property
 }
 
 export interface Collection {
@@ -53,39 +26,13 @@ export interface Collection {
   accountNumber: string | null;
   originalAmountOwed: string | null;
   creditorClassification: string | null;
-  amount: number | null;
+  amount: string | null;
   lastPaymentDate: string | null;
   statusDate: string | null;
   dateOfFirstDelinquency: string | null;
   status: string | null;
-  comments?: string[];
-  contact?: string[];
-}
-
-export interface CreditScore {
-  date: string;
-  score: number;
-  type: string;
-  range: string;
-  provider?: string;
-}
-
-export interface Alert {
-  type: string;
-  description: string;
-}
-
-export interface HardInquiry {
-  date: string | null;
-  company: string | null;
-  requestOriginator: string | null;
-}
-
-export interface SoftInquiry {
-  date: string | null;
-  company: string | null;
-  requestOriginator: string | null;
-  description: string | null;
+  comments: string[];
+  contact: string[];
 }
 
 export interface PersonalInfo {
@@ -93,45 +40,74 @@ export interface PersonalInfo {
   addresses: string[];
   ssn?: string;
   dob?: string;
-  phoneNumbers?: string[];
-  employmentHistory?: string[];
-  otherInfo?: Record<string, string>;
+  employmentHistory?: string;
+}
+
+export interface CreditScore {
+  score: number;
+  range: string;
+  provider: string;
+  date: string;
+}
+
+export interface AccountSummary {
+  accountType: string;
+  totalAccounts: number | null;
+  open: string | null; // Changed: always string or null, not number
+  closed: number | null;
+  balance: string | null;
+  withBalance: string | null; // Changed: always string or null, not number
+  totalBalance: string | null; // Changed: always string or null, not number
+  available: string | null; // Changed: always string or null, not number
+  creditLimit: string | null; // Changed: always string or null, not number
+  debtToCredit: string | null; // Changed: always string or null, not number
+  payment: string | null; // Changed: always string or null, not number
 }
 
 export interface CreditReport {
-  reportId?: string;
-  fileName?: string;
-  reportDate: string;
   bureau: 'Equifax' | 'Experian' | 'TransUnion' | 'Unknown';
+  reportDate: string;
   personalInfo: PersonalInfo;
   accounts: Account[];
+  collections: Collection[]; // Add collections array
   accountSummaries?: AccountSummary[];
-  inquiries: Inquiry[];
-  publicRecords: PublicRecord[];
-  collections: Collection[];
+  inquiries: any[];
+  publicRecords: any[];
   creditScores: CreditScore[];
-  alerts?: Alert[];
-  fileNumber?: string;
-  hardInquiries?: HardInquiry[];
-  softInquiries?: SoftInquiry[];
+  rawText: string;
   
-  // Additional fields used in the codebase
-  rawText?: string;
-  consumerName?: string;
+  // Add reportId property to track unique reports
+  reportId?: string;
+  
+  // Add fileName property to track the original file name
+  fileName?: string;
+  
+  // Add targetTable property to specify which table to extract
+  targetTable?: string;
+  
+  // Additional fields for displaying in the report
+  recentInquiry?: string;
+  personalInfoItemCount?: number;
+  inquiryCount?: number;
+  publicRecordCount?: number;
+  collectionCount?: number;
+  statementCount?: number;
   confirmationNumber?: string;
   creditFileStatus?: string;
   alertContacts?: string;
   averageAccountAge?: string;
   lengthOfCreditHistory?: string;
-  accountsWithNegativeInfo?: number | string;
-  oldestAccount?: { name: string; date: string };
-  recentAccount?: { name: string; date: string };
-  statementCount?: number;
-  personalInfoItemCount?: number;
-  inquiryCount?: number;
-  recentInquiry?: string;
-  publicRecordCount?: number;
-  collectionCount?: number;
+  accountsWithNegativeInfo?: string | number;
+  oldestAccount?: {
+    accountName: string;
+    openDate: string;
+  };
+  recentAccount?: {
+    accountName: string;
+    openDate: string;
+  };
+  consumerName?: string;
+  
+  // Error information
   parsingError?: string;
 }
-

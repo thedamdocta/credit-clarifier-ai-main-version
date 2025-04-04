@@ -1,36 +1,35 @@
+
 import { CreditScore } from "../types/creditReport";
+import { extractDate } from "./dateParser";
 
 export const extractCreditScores = (text: string): CreditScore[] => {
   const scores: CreditScore[] = [];
-
-  // Regex to find credit score entries
-  const scoreRegex = /(\d{3,4})\s*(?:-|to)\s*\d{3,4}.*?(Equifax|Experian|TransUnion)\s*Score\s*(\d{1,2}\/\d{1,2}\/\d{4})/;
-  const matches = text.matchAll(scoreRegex);
-
-  for (const match of matches) {
-    if (match && match.length > 3) {
-      const scoreValue = parseInt(match[1], 10);
-      const provider = match[2];
-      const date = match[3];
-
-      // Basic validation to ensure score is within a reasonable range
-      if (scoreValue >= 300 && scoreValue <= 850) {
-        scores.push({
-          score: scoreValue,
-          range: '300-850', // Default range, can be adjusted if needed
-          date: date,
-          type: 'FICO', // Assuming FICO score, adjust if necessary
-          provider: provider
-        });
+  
+  const scorePatterns = [
+    /(?:fico|credit|vantage)\s*score:?\s*(\d{3})/i,
+    /score:?\s*(\d{3})/i,
+    /(\d{3})\s*(?:fico|credit|vantage)\s*score/i
+  ];
+  
+  for (const pattern of scorePatterns) {
+    const matches = text.matchAll(new RegExp(pattern, 'gi'));
+    for (const match of matches) {
+      if (match && match[1]) {
+        const score = parseInt(match[1], 10);
+        if (score >= 300 && score <= 850) {
+          const provider = text.includes('FICO') ? 'FICO' : 
+                         text.includes('VantageScore') ? 'VantageScore' : 'Unknown';
+          
+          scores.push({
+            score,
+            range: '300-850',
+            provider,
+            date: extractDate(text)
+          });
+        }
       }
     }
   }
   
-  return scores.map(score => ({
-    score: score.score,
-    range: score.range,
-    date: score.date,
-    type: score.type || 'Unspecified', // Add default type if not provided
-    provider: score.provider
-  }));
+  return scores;
 };

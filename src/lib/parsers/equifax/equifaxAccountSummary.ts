@@ -1,3 +1,4 @@
+
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { 
@@ -12,33 +13,13 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
   console.log("Starting account summary extraction with isolated row processing");
   parsingLogger.logEvent("Starting equifax account summary extraction with isolated row approach");
   
-  // Define the empty account summaries structure with all required properties
+  // Define the empty account summaries structure 
   const accountSummaries: AccountSummary[] = [
-    { 
-      type: 'Revolving', count: 0, highCredit: null, pastDue: null, balance: null, payment: null,
-      accountType: 'Revolving', totalAccounts: null, open: null, closed: null, withBalance: null, 
-      totalBalance: null, available: null, creditLimit: null, debtToCredit: null
-    },
-    { 
-      type: 'Mortgage', count: 0, highCredit: null, pastDue: null, balance: null, payment: null,
-      accountType: 'Mortgage', totalAccounts: null, open: null, closed: null, withBalance: null, 
-      totalBalance: null, available: null, creditLimit: null, debtToCredit: null
-    },
-    { 
-      type: 'Installment', count: 0, highCredit: null, pastDue: null, balance: null, payment: null,
-      accountType: 'Installment', totalAccounts: null, open: null, closed: null, withBalance: null, 
-      totalBalance: null, available: null, creditLimit: null, debtToCredit: null
-    },
-    { 
-      type: 'Other', count: 0, highCredit: null, pastDue: null, balance: null, payment: null,
-      accountType: 'Other', totalAccounts: null, open: null, closed: null, withBalance: null, 
-      totalBalance: null, available: null, creditLimit: null, debtToCredit: null
-    },
-    { 
-      type: 'Total', count: 0, highCredit: null, pastDue: null, balance: null, payment: null,
-      accountType: 'Total', totalAccounts: null, open: null, closed: null, withBalance: null, 
-      totalBalance: null, available: null, creditLimit: null, debtToCredit: null
-    }
+    { accountType: 'Revolving', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Mortgage', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Installment', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Other', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null },
+    { accountType: 'Total', totalAccounts: null, open: null, closed: null, balance: null, withBalance: null, totalBalance: null, available: null, creditLimit: null, debtToCredit: null, payment: null }
   ];
 
   try {

@@ -4,15 +4,31 @@ import { CreditReport } from '../../types/creditReport';
 /**
  * Extracts summary information from Equifax credit report format
  */
-export const extractEquifaxSummary = async (text: string): Promise<Partial<CreditReport>> => {
+export const extractEquifaxSummary = async (text: string): Promise<{
+  creditFileStatus?: string;
+  alertContacts?: string;
+  averageAccountAge?: string;
+  lengthOfCreditHistory?: string;
+  accountsWithNegativeInfo?: string;
+  oldestAccount?: {
+    accountName: string;
+    openDate: string;
+  };
+  recentAccount?: {
+    accountName: string;
+    openDate: string;
+  };
+  consumerName?: string;
+  confirmationNumber?: string;
+}> => {
   console.log("Extracting Equifax summary...");
   
   // Initialize return object
-  const summaryData: any = {};
+  const summary: any = {};
   
   try {
     // Try AI-enhanced extraction first
-    const enhancedSummary = await enhanceEquifaxSummaryWithAI(text, summaryData);
+    const enhancedSummary = await enhanceEquifaxSummaryWithAI(text, summary);
     
     // Convert accountsWithNegativeInfo to string if it's a number
     if (typeof enhancedSummary.accountsWithNegativeInfo === 'number') {
@@ -20,18 +36,18 @@ export const extractEquifaxSummary = async (text: string): Promise<Partial<Credi
     }
     
     // Always use default credit file status unless we find very specific pattern
-    summaryData.creditFileStatus = "No fraud indicator on file";
+    summary.creditFileStatus = "No fraud indicator on file";
     
     // Handle modular extraction for each field separately
-    extractCreditFileStatus(text, summaryData);
-    extractAlertContacts(text, summaryData);
-    extractAccountAge(text, summaryData);
-    extractCreditHistory(text, summaryData);
-    extractNegativeAccounts(text, summaryData);
-    extractOldestAccount(text, summaryData);
-    extractRecentAccount(text, summaryData);
-    extractConsumerName(text, summaryData);
-    extractConfirmationNumber(text, summaryData);
+    extractCreditFileStatus(text, summary);
+    extractAlertContacts(text, summary);
+    extractAccountAge(text, summary);
+    extractCreditHistory(text, summary);
+    extractNegativeAccounts(text, summary);
+    extractOldestAccount(text, summary);
+    extractRecentAccount(text, summary);
+    extractConsumerName(text, summary);
+    extractConfirmationNumber(text, summary);
     
     // If AI extraction was successful, selectively merge specific fields
     if (Object.keys(enhancedSummary).length > 0) {
@@ -39,42 +55,42 @@ export const extractEquifaxSummary = async (text: string): Promise<Partial<Credi
       
       // Merge only fields that were successfully extracted
       if (enhancedSummary.alertContacts && enhancedSummary.alertContacts.length < 30) {
-        summaryData.alertContacts = enhancedSummary.alertContacts;
+        summary.alertContacts = enhancedSummary.alertContacts;
       }
       
       if (enhancedSummary.averageAccountAge && enhancedSummary.averageAccountAge.length < 30) {
-        summaryData.averageAccountAge = enhancedSummary.averageAccountAge;
+        summary.averageAccountAge = enhancedSummary.averageAccountAge;
       }
       
       if (enhancedSummary.lengthOfCreditHistory && enhancedSummary.lengthOfCreditHistory.length < 30) {
-        summaryData.lengthOfCreditHistory = enhancedSummary.lengthOfCreditHistory;
+        summary.lengthOfCreditHistory = enhancedSummary.lengthOfCreditHistory;
       }
       
       if (enhancedSummary.accountsWithNegativeInfo && 
           (typeof enhancedSummary.accountsWithNegativeInfo === 'string' && 
            enhancedSummary.accountsWithNegativeInfo.length < 10)) {
-        summaryData.accountsWithNegativeInfo = enhancedSummary.accountsWithNegativeInfo;
+        summary.accountsWithNegativeInfo = enhancedSummary.accountsWithNegativeInfo;
       }
       
       if (enhancedSummary.oldestAccount && 
           enhancedSummary.oldestAccount.accountName && 
           enhancedSummary.oldestAccount.accountName.length < 50) {
-        summaryData.oldestAccount = enhancedSummary.oldestAccount;
+        summary.oldestAccount = enhancedSummary.oldestAccount;
       }
       
       if (enhancedSummary.recentAccount && 
           enhancedSummary.recentAccount.accountName && 
           enhancedSummary.recentAccount.accountName.length < 50) {
-        summaryData.recentAccount = enhancedSummary.recentAccount;
+        summary.recentAccount = enhancedSummary.recentAccount;
       }
       
       if (enhancedSummary.confirmationNumber && 
           enhancedSummary.confirmationNumber.length < 30) {
-        summaryData.confirmationNumber = enhancedSummary.confirmationNumber;
+        summary.confirmationNumber = enhancedSummary.confirmationNumber;
       }
     }
     
-    return summaryData;
+    return summary;
   } catch (error) {
     console.error("Error extracting Equifax summary:", error);
     return {};
@@ -83,77 +99,75 @@ export const extractEquifaxSummary = async (text: string): Promise<Partial<Credi
 
 // Modular extraction functions
 
-function extractCreditFileStatus(text: string, summaryData: any): void {
+function extractCreditFileStatus(text: string, summary: any): void {
   // Only look for very specific "fraud indicator" text
   const fraudPattern = /fraud\s+indicator\s*:?\s*none/i;
   if (fraudPattern.test(text)) {
-    summaryData.creditFileStatus = "No fraud indicator on file";
+    summary.creditFileStatus = "No fraud indicator on file";
   } else {
-    summaryData.creditFileStatus = "No fraud indicator on file"; // Default value
+    summary.creditFileStatus = "No fraud indicator on file"; // Default value
   }
 }
 
-function extractAlertContacts(text: string, summaryData: any): void {
+function extractAlertContacts(text: string, summary: any): void {
   const alertPattern = /Alert\s+Contacts\s+(\d+)\s+Records\s+Found/i;
   const alertMatch = text.match(alertPattern);
   if (alertMatch && alertMatch[1]) {
-    summaryData.alertContacts = `${alertMatch[1]} Records Found`;
+    summary.alertContacts = `${alertMatch[1]} Records Found`;
   }
 }
 
-function extractAccountAge(text: string, summaryData: any): void {
+function extractAccountAge(text: string, summary: any): void {
   const avgAgePattern = /Average\s+Account\s+Age\s+(\d+\s+Years?,\s+\d+\s+Months?)/i;
   const avgAgeMatch = text.match(avgAgePattern);
   if (avgAgeMatch && avgAgeMatch[1]) {
-    summaryData.averageAccountAge = avgAgeMatch[1].trim();
+    summary.averageAccountAge = avgAgeMatch[1].trim();
   }
 }
 
-function extractCreditHistory(text: string, summaryData: any): void {
+function extractCreditHistory(text: string, summary: any): void {
   // Updated pattern to match both "X Years, Y Months" and "X Years" formats
   const historyPattern = /Length\s+of\s+Credit\s+History\s+(\d+\s+Years?(?:,\s+\d+\s+Months?)?)/i;
   const historyMatch = text.match(historyPattern);
   if (historyMatch && historyMatch[1]) {
-    summaryData.lengthOfCreditHistory = historyMatch[1].trim();
+    summary.lengthOfCreditHistory = historyMatch[1].trim();
   }
 }
 
-function extractNegativeAccounts(text: string, summaryData: any): void {
+function extractNegativeAccounts(text: string, summary: any): void {
   const negInfoPattern = /Accounts\s+with\s+Negative\s+Information\s+(\d+)/i;
   const negInfoMatch = text.match(negInfoPattern);
   if (negInfoMatch && negInfoMatch[1]) {
-    summaryData.accountsWithNegativeInfo = negInfoMatch[1].trim();
+    summary.accountsWithNegativeInfo = negInfoMatch[1].trim();
   }
 }
 
-function extractOldestAccount(text: string, summaryData: any): void {
+function extractOldestAccount(text: string, summary: any): void {
   // Improved pattern to handle accounts with commas, periods, and other special characters
-  const oldestAccountPattern = /oldest\s+account.*?:.*?([\w\s\/.&]+)\s+opened.*?(\d{1,2}\/\d{1,2}\/\d{2,4})/i;
-  const oldestMatch = text.match(oldestAccountPattern);
-  if (oldestMatch && oldestMatch[1] && oldestMatch[2]) {
-    summaryData.oldestAccount = { 
-      name: oldestMatch[1].trim(), 
-      date: oldestMatch[2].trim() 
+  const oldestAccountPattern = /Oldest\s+Account\s+([^(\n]+?)\s+\(Opened\s+([^)]+)\)/i;
+  const oldestAccountMatch = text.match(oldestAccountPattern);
+  if (oldestAccountMatch && oldestAccountMatch[1] && oldestAccountMatch[2]) {
+    summary.oldestAccount = {
+      accountName: oldestAccountMatch[1].trim(),
+      openDate: oldestAccountMatch[2].trim()
     };
-    console.log(`Found oldest account: ${summaryData.oldestAccount.name}, ${summaryData.oldestAccount.date}`);
   }
 }
 
-function extractRecentAccount(text: string, summaryData: any): void {
+function extractRecentAccount(text: string, summary: any): void {
   // Improved pattern to handle accounts with commas, periods, and other special characters  
-  const recentAccountPattern = /(?:most\s+recent|newest)\s+account.*?:.*?([\w\s\/.&]+)\s+opened.*?(\d{1,2}\/\d{1,2}\/\d{2,4})/i;
-  const recentMatch = text.match(recentAccountPattern);
-  if (recentMatch && recentMatch[1] && recentMatch[2]) {
-    summaryData.recentAccount = { 
-      name: recentMatch[1].trim(), 
-      date: recentMatch[2].trim() 
+  const recentAccountPattern = /(?:Most\s+Recent|Newest)\s+Account\s+([^(\n]+?)\s+\(Opened\s+([^)]+)\)/i;
+  const recentAccountMatch = text.match(recentAccountPattern);
+  if (recentAccountMatch && recentAccountMatch[1] && recentAccountMatch[2]) {
+    summary.recentAccount = {
+      accountName: recentAccountMatch[1].trim(),
+      openDate: recentAccountMatch[2].trim()
     };
-    console.log(`Found recent account: ${summaryData.recentAccount.name}, ${summaryData.recentAccount.date}`);
   }
 }
 
 // Add new function to extract consumer name
-function extractConsumerName(text: string, summaryData: any): void {
+function extractConsumerName(text: string, summary: any): void {
   // Try various patterns to extract consumer name
   const namePatterns = [
     /Name:\s*([A-Za-z\s\.,'-]+?)(?:\n|$|\s{2,})/i,
@@ -164,14 +178,14 @@ function extractConsumerName(text: string, summaryData: any): void {
   for (const pattern of namePatterns) {
     const nameMatch = text.match(pattern);
     if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 2) {
-      summaryData.consumerName = nameMatch[1].trim();
+      summary.consumerName = nameMatch[1].trim();
       return;
     }
   }
 }
 
 // Add specific function to extract confirmation number
-function extractConfirmationNumber(text: string, summaryData: any): void {
+function extractConfirmationNumber(text: string, summary: any): void {
   // Try multiple patterns to extract confirmation number
   const confirmationPatterns = [
     /Confirmation\s+Number\s*:?\s*#?(\d{2}-\d{7}|\w{5}-\w{5}|[A-Z0-9]{10,})/i,
@@ -183,8 +197,8 @@ function extractConfirmationNumber(text: string, summaryData: any): void {
   for (const pattern of confirmationPatterns) {
     const confirmationMatch = text.match(pattern);
     if (confirmationMatch && confirmationMatch[1] && confirmationMatch[1].trim().length > 3) {
-      summaryData.confirmationNumber = confirmationMatch[1].trim();
-      console.log("Found confirmation number:", summaryData.confirmationNumber);
+      summary.confirmationNumber = confirmationMatch[1].trim();
+      console.log("Found confirmation number:", summary.confirmationNumber);
       return;
     }
   }
@@ -193,7 +207,7 @@ function extractConfirmationNumber(text: string, summaryData: any): void {
   const genericPattern = /(?:Confirmation|Report)\s+(?:Number|ID)?\s*[:.]?\s*([A-Z0-9]{6,})/i;
   const genericMatch = text.match(genericPattern);
   if (genericMatch && genericMatch[1] && genericMatch[1].trim().length > 5) {
-    summaryData.confirmationNumber = genericMatch[1].trim();
-    console.log("Found generic confirmation number:", summaryData.confirmationNumber);
+    summary.confirmationNumber = genericMatch[1].trim();
+    console.log("Found generic confirmation number:", summary.confirmationNumber);
   }
 }
