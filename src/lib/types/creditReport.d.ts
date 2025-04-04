@@ -14,6 +14,7 @@ export interface CreditReport {
   rawText: string;
   accountSummaries?: AccountSummary[];
   collections?: Collection[];
+  accounts?: Account[];
 }
 
 export interface AccountSummary {
@@ -47,4 +48,21 @@ export interface Collection {
   status: string | null;
   comments: string | null;
   contact: string | null;
+}
+
+export interface Account {
+  accountName: string;
+  accountNumber: string;
+  accountType: string;
+  openDate: string;
+  status: string;
+  balance: string | null;
+  paymentHistory: string[];
+  creditLimit?: string | null;
+  highestBalance?: string | null;
+  paymentStatus?: string;
+  totalAccounts?: number;
+  openAccounts?: number;
+  closedAccounts?: number;
+  comments?: string[];
 }

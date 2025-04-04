@@ -16,8 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { OpenAIConfigForm } from "@/lib/ai/openai/openaiService";
 import AccountDataDebug from "@/components/credit-report/accounts/AccountDataDebug";
-import EnhancedCreditAccounts from "@/components/credit-report/accounts/EnhancedCreditAccounts";
-import AccountsComponent from "@/components/AccountsList";
+import EnhancedCreditAccounts from "@/components/credit-report/EnhancedCreditAccounts";
+import AccountsComponent from "@/components/credit-report/accounts/AccountsComponent";
 import DisputeInformation from "@/components/credit-report/DisputeInformation";
 
 // Import the new CollectionsComponent
@@ -56,7 +56,6 @@ const EquifaxCreditReport = ({ report, showDebugInfo }: EquifaxCreditReportProps
   };
   
   return (
-    
     <div className="container py-8">
       <div className="mb-6 flex items-center justify-between">
         <div className="space-y-1">
@@ -170,7 +169,6 @@ const EquifaxCreditReport = ({ report, showDebugInfo }: EquifaxCreditReportProps
         />
       )}
     </div>
-    
   );
 };
 
