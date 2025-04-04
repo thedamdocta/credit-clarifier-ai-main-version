@@ -1,4 +1,3 @@
-
 import { extractTextFromImageWithOCR, processImageWithEnhancedOCR, extractTextFromImageRegion } from './ocrExtraction';
 import { convertPDFPageToImage } from '@/utils/pdf/pdfToImage';
 
@@ -71,11 +70,6 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
   const relevantPageNumbers: number[] = [];
   
   try {
-    if (!pdfDocument || !pdfDocument.numPages) {
-      addLog("Invalid PDF document provided");
-      throw new Error("Invalid PDF document provided for extraction");
-    }
-    
     const numPages = pdfDocument.numPages;
     addLog(`PDF has ${numPages} pages, starting analysis`);
     
@@ -90,51 +84,75 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
       
     addLog(`Top candidate pages for contact info: ${sortedPages.join(', ')}`);
     
-    // Always attempt to convert all top pages to images
-    for (const pageNum of sortedPages) {
-      try {
-        addLog(`Converting page ${pageNum} to image for visualization`);
-        const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
+    if (sortedPages.length > 0) {
+      // Analyze top pages in detail
+      for (const pageNum of sortedPages) {
+        addLog(`Analyzing page ${pageNum} in detail`);
+        relevantPageNumbers.push(pageNum);
         
-        if (pageImage) {
-          addLog(`Successfully created image for page ${pageNum}, size: ${Math.round(pageImage.length / 1024)}KB`);
-          storePageImage(pageImage, pageNum);
-          
-          if (!relevantPageNumbers.includes(pageNum)) {
-            relevantPageNumbers.push(pageNum);
-          }
-        } else {
-          addLog(`Failed to create image for page ${pageNum} - null result`);
-        }
-      } catch (imgError) {
-        addLog(`Error generating image for page ${pageNum}: ${(imgError as Error).message}`);
-      }
-    }
-    
-    // If no pages have high scores or we still don't have images, try the first few pages
-    if (sortedPages.length === 0 || extractedTableImages.length === 0) {
-      addLog("No high-scoring pages found or no images extracted, trying first few pages");
-      const fallbackPages = [1, 2, 3, 4, 5].filter(p => p <= numPages && !relevantPageNumbers.includes(p));
-      
-      for (const pageNum of fallbackPages) {
+        // Explicitly generate and store page images for visualization
         try {
-          addLog(`Trying fallback image extraction for page ${pageNum}`);
+          addLog(`Converting page ${pageNum} to image for visualization`);
           const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
           
           if (pageImage) {
+            addLog(`Successfully created image for page ${pageNum}, size: ${Math.round(pageImage.length / 1024)}KB`);
             storePageImage(pageImage, pageNum);
-            if (!relevantPageNumbers.includes(pageNum)) {
-              relevantPageNumbers.push(pageNum);
-            }
+          } else {
+            addLog(`Failed to create image for page ${pageNum} - null result`);
           }
-        } catch (fallbackError) {
-          addLog(`Fallback image generation failed for page ${pageNum}: ${(fallbackError as Error).message}`);
+        } catch (imgError) {
+          addLog(`Error generating image for page ${pageNum}: ${(imgError as Error).message}`);
         }
+        
+        // Extract addresses from this page
+        const pageAddresses = await extractAddressesFromPage(pdfDocument, pageNum);
+        if (pageAddresses && pageAddresses.length > 0) {
+          addLog(`Found ${pageAddresses.length} addresses on page ${pageNum}`);
+          addresses.push(...pageAddresses);
+        } else {
+          addLog(`No addresses found on page ${pageNum}`);
+        }
+        
+        // Extract employments from this page
+        const pageEmployments = await extractEmploymentsFromPage(pdfDocument, pageNum);
+        if (pageEmployments && pageEmployments.length > 0) {
+          addLog(`Found ${pageEmployments.length} employment entries on page ${pageNum}`);
+          employments.push(...pageEmployments);
+        } else {
+          addLog(`No employment entries found on page ${pageNum}`);
+        }
+      }
+    } else {
+      // Fallback to text extraction from all pages
+      addLog("No high-scoring pages found, trying text extraction from all pages");
+      const { extractedAddresses, extractedEmployments, pagesWithInfo } = 
+        await extractFromAllPages(pdfDocument, numPages);
+        
+      addresses.push(...extractedAddresses);
+      employments.push(...extractedEmployments);
+      relevantPageNumbers.push(...pagesWithInfo);
+    }
+    
+    // If we still have no images, try to generate at least one from the first page
+    if (extractedTableImages.length === 0 && numPages > 0) {
+      addLog("No debug images were generated, adding fallback from page 1");
+      try {
+        const firstPageImage = await convertPDFPageToImage(pdfDocument, 1);
+        if (firstPageImage) {
+          storePageImage(firstPageImage, 1);
+          if (!relevantPageNumbers.includes(1)) {
+            relevantPageNumbers.push(1);
+          }
+        }
+      } catch (fallbackError) {
+        addLog(`Fallback image generation failed: ${(fallbackError as Error).message}`);
       }
     }
     
     // Log the final results
-    addLog(`Extraction complete. Generated ${extractedTableImages.length} page images for debugging`);
+    addLog(`Extraction complete. Found ${addresses.length} addresses and ${employments.length} employment records`);
+    addLog(`Generated ${extractedTableImages.length} page images for debugging`);
     
     return {
       addresses,
@@ -156,7 +174,7 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
 const scanPagesForContactInfo = async (pdfDocument: any, numPages: number): Promise<Record<number, number>> => {
   const pageScores: Record<number, number> = {};
   
-  for (let i = 1; i <= Math.min(numPages, 10); i++) {
+  for (let i = 1; i <= numPages; i++) {
     try {
       addLog(`Quick scanning page ${i}/${numPages}`);
       const page = await pdfDocument.getPage(i);
@@ -167,8 +185,7 @@ const scanPagesForContactInfo = async (pdfDocument: any, numPages: number): Prom
       let score = 0;
       
       // Address-related keywords
-      const addressKeywords = ['address', 'street', 'avenue', 'blvd', 'lane', 'road', 'apt', 'suite', 
-                              'current', 'former', 'previous', 'residence'];
+      const addressKeywords = ['address', 'street', 'avenue', 'blvd', 'lane', 'road', 'apt', 'suite', 'current', 'former', 'previous', 'residence'];
       addressKeywords.forEach(keyword => {
         const matches = pageText.match(new RegExp(keyword, 'gi'));
         if (matches) score += matches.length * 2;
@@ -218,7 +235,158 @@ const scanPagesForContactInfo = async (pdfDocument: any, numPages: number): Prom
   return pageScores;
 };
 
-// Extract address information from text - used for supplementing image extraction
+// Extract contact info from all pages as a fallback
+const extractFromAllPages = async (pdfDocument: any, numPages: number): Promise<{
+  extractedAddresses: AddressInfo[];
+  extractedEmployments: EmploymentInfo[];
+  pagesWithInfo: number[];
+}> => {
+  const extractedAddresses: AddressInfo[] = [];
+  const extractedEmployments: EmploymentInfo[] = [];
+  const pagesWithInfo: number[] = [];
+  
+  for (let i = 1; i <= numPages; i++) {
+    try {
+      const page = await pdfDocument.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(" ");
+      
+      // Look for addresses
+      const addresses = extractAddressesFromText(pageText);
+      if (addresses.length > 0) {
+        extractedAddresses.push(...addresses);
+        
+        if (!pagesWithInfo.includes(i)) {
+          pagesWithInfo.push(i);
+          
+          // Generate debug image for this page
+          try {
+            const pageImage = await convertPDFPageToImage(pdfDocument, i);
+            if (pageImage) {
+              storePageImage(pageImage, i);
+              addLog(`Generated debug image for page ${i} with addresses`);
+            }
+          } catch (error) {
+            addLog(`Failed to generate image for page ${i}: ${(error as Error).message}`);
+          }
+        }
+      }
+      
+      // Look for employment
+      const employments = extractEmploymentsFromText(pageText);
+      if (employments.length > 0) {
+        extractedEmployments.push(...employments);
+        
+        if (!pagesWithInfo.includes(i)) {
+          pagesWithInfo.push(i);
+          
+          // Generate debug image for this page
+          try {
+            const pageImage = await convertPDFPageToImage(pdfDocument, i);
+            if (pageImage) {
+              storePageImage(pageImage, i);
+              addLog(`Generated debug image for page ${i} with employment info`);
+            }
+          } catch (error) {
+            addLog(`Failed to generate image for page ${i}: ${(error as Error).message}`);
+          }
+        }
+      }
+    } catch (error) {
+      addLog(`Error processing page ${i}: ${(error as Error).message}`);
+    }
+  }
+  
+  return { extractedAddresses, extractedEmployments, pagesWithInfo };
+};
+
+// Extract address information from a single page
+const extractAddressesFromPage = async (pdfDocument: any, pageNum: number): Promise<AddressInfo[]> => {
+  try {
+    // Get text from the page
+    const page = await pdfDocument.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    
+    // First try extracting from text
+    const textExtractedAddresses = extractAddressesFromText(pageText);
+    if (textExtractedAddresses.length > 0) {
+      addLog(`Extracted ${textExtractedAddresses.length} addresses from page ${pageNum} text`);
+      return textExtractedAddresses;
+    }
+    
+    // If that fails, try using image-based extraction
+    addLog(`Attempting image-based address extraction for page ${pageNum}`);
+    const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
+    if (pageImage) {
+      addLog(`Generated image for page ${pageNum} OCR processing, size: ${Math.round(pageImage.length / 1024)}KB`);
+      // Use extractTextFromImageWithOCR instead of extractTextFromImage
+      const imageText = await extractTextFromImageWithOCR(pageImage);
+      if (imageText) {
+        addLog(`OCR text extracted from page ${pageNum} image: ${imageText.length} characters`);
+        const imageExtractedAddresses = extractAddressesFromText(imageText);
+        if (imageExtractedAddresses.length > 0) {
+          addLog(`Extracted ${imageExtractedAddresses.length} addresses from page ${pageNum} image`);
+          return imageExtractedAddresses;
+        }
+      } else {
+        addLog(`No text extracted from page ${pageNum} image`);
+      }
+    } else {
+      addLog(`Failed to generate image for page ${pageNum} for OCR processing`);
+    }
+    
+    return [];
+  } catch (error) {
+    addLog(`Error extracting addresses from page ${pageNum}: ${(error as Error).message}`);
+    return [];
+  }
+};
+
+// Extract employment information from a single page
+const extractEmploymentsFromPage = async (pdfDocument: any, pageNum: number): Promise<EmploymentInfo[]> => {
+  try {
+    // Get text from the page
+    const page = await pdfDocument.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    
+    // First try extracting from text
+    const textExtractedEmployments = extractEmploymentsFromText(pageText);
+    if (textExtractedEmployments.length > 0) {
+      addLog(`Extracted ${textExtractedEmployments.length} employment records from page ${pageNum} text`);
+      return textExtractedEmployments;
+    }
+    
+    // If that fails, try using image-based extraction
+    addLog(`Attempting image-based employment extraction for page ${pageNum}`);
+    const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
+    if (pageImage) {
+      addLog(`Generated image for page ${pageNum} OCR processing, size: ${Math.round(pageImage.length / 1024)}KB`);
+      // Use extractTextFromImageWithOCR instead of extractTextFromImage
+      const imageText = await extractTextFromImageWithOCR(pageImage);
+      if (imageText) {
+        addLog(`OCR text extracted from page ${pageNum} image: ${imageText.length} characters`);
+        const imageExtractedEmployments = extractEmploymentsFromText(imageText);
+        if (imageExtractedEmployments.length > 0) {
+          addLog(`Extracted ${imageExtractedEmployments.length} employment records from page ${pageNum} image`);
+          return imageExtractedEmployments;
+        }
+      } else {
+        addLog(`No text extracted from page ${pageNum} image`);
+      }
+    } else {
+      addLog(`Failed to generate image for page ${pageNum} for OCR processing`);
+    }
+    
+    return [];
+  } catch (error) {
+    addLog(`Error extracting employments from page ${pageNum}: ${(error as Error).message}`);
+    return [];
+  }
+};
+
+// Extract address information from text
 export const extractAddressesFromText = (text: string): AddressInfo[] => {
   const addresses: AddressInfo[] = [];
   
@@ -252,60 +420,120 @@ export const extractAddressesFromText = (text: string): AddressInfo[] => {
         const address = match[1].trim();
         
         if (address && address.length > 10 && !addresses.some(a => a.address === address)) {
+          // Determine if it's current or former based on position in the text
+          // Usually the first address is current, others are former
+          const status = addresses.length === 0 ? "Current" : "Former";
+          
           addresses.push({
             address: address,
-            status: "Unknown",
+            status: status,
             dateReported: ""
           });
         }
       }
     }
     
-    return addresses;
+    // Basic address patterns without extra context
+    const basicAddressPattern = /(\d+\s+[A-Za-z\s\.]+(?:,\s*[A-Za-z\s]+){1,2},\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)/gi;
+    while ((match = basicAddressPattern.exec(text)) !== null) {
+      const address = match[1].trim();
+      
+      if (address && address.length > 10 && !addresses.some(a => a.address === address)) {
+        const status = addresses.length === 0 ? "Current" : "Former";
+        
+        addresses.push({
+          address: address,
+          status: status,
+          dateReported: ""
+        });
+      }
+    }
   } catch (error) {
-    console.error("Error extracting addresses from text:", error);
-    return [];
+    addLog(`Error in address text extraction: ${(error as Error).message}`);
   }
+  
+  return addresses;
 };
 
-// Extract employment information from text - used for supplementing image extraction
+// Extract employment information from text
 export const extractEmploymentsFromText = (text: string): EmploymentInfo[] => {
   const employments: EmploymentInfo[] = [];
   
   try {
-    // Look for employment sections
-    const employmentSectionMatch = text.match(/employment\s+history([\s\S]*?)(?:contact|personal|credit|address|public)/i);
-    if (employmentSectionMatch && employmentSectionMatch[1]) {
-      const employmentSection = employmentSectionMatch[1].trim();
-      
-      // Look for company name followed by occupation
-      const companyLines = employmentSection.split('\n');
-      for (let i = 0; i < companyLines.length; i++) {
-        const line = companyLines[i].trim();
-        if (line && line.length > 3 && !/^(company|occupation|employer):/i.test(line)) {
-          employments.push({
-            company: line,
-            occupation: (i + 1 < companyLines.length) ? companyLines[i + 1].trim() : ""
-          });
-          break; // Just get the first one for now
-        }
-      }
-    }
+    // Pattern for "Employer: Company Name, Title: Job Title"
+    const employerTitlePattern = /employer:?\s*([^,]+)(?:,\s*title:?\s*([^,\n]+))?/i;
+    const match = text.match(employerTitlePattern);
     
-    // If no employment found in a dedicated section, look for employment keywords
-    if (employments.length === 0) {
-      const employerMatch = text.match(/(?:employer|employment):\s*([^\.]+)/i);
-      if (employerMatch && employerMatch[1]) {
+    if (match) {
+      const company = match[1].trim();
+      const occupation = match[2] ? match[2].trim() : "";
+      
+      if (company && company.length > 2 && !employments.some(e => e.company === company)) {
         employments.push({
-          company: employerMatch[1].trim(),
-          occupation: ""
+          company,
+          occupation
         });
       }
     }
     
-    return employments;
+    // Pattern for "Employment: Company Name"
+    const employmentPattern = /employment:?\s*([^\.]+)/i;
+    const empMatch = text.match(employmentPattern);
+    
+    if (empMatch) {
+      const company = empMatch[1].trim();
+      
+      if (company && company.length > 2 && !employments.some(e => e.company === company)) {
+        // Check if this is just a header and not actual employment data
+        if (!company.toLowerCase().includes("history is") && !company.toLowerCase().includes("section contains")) {
+          employments.push({
+            company,
+            occupation: ""
+          });
+        }
+      }
+    }
+    
+    // For reports that list "Company: ABC Corp, Occupation: Manager" format
+    const companyOccupationPattern = /company:?\s*([^,]+)(?:,\s*occupation:?\s*([^,\n]+))?/i;
+    const compMatch = text.match(companyOccupationPattern);
+    
+    if (compMatch) {
+      const company = compMatch[1].trim();
+      const occupation = compMatch[2] ? compMatch[2].trim() : "";
+      
+      if (company && company.length > 2 && !employments.some(e => e.company === company)) {
+        employments.push({
+          company,
+          occupation
+        });
+      }
+    }
+    
+    // Last resort: Look for standalone employment-related keywords and extract surrounding text
+    if (employments.length === 0) {
+      const employmentKeywords = ['employed at', 'works at', 'working at', 'employed by', 'works for'];
+      
+      for (const keyword of employmentKeywords) {
+        const keywordRegex = new RegExp(`${keyword}\\s+([^\\.,;]+)`, 'i');
+        const kwMatch = text.match(keywordRegex);
+        
+        if (kwMatch && kwMatch[1]) {
+          const company = kwMatch[1].trim();
+          
+          if (company && company.length > 2 && !company.toLowerCase().includes("history") && 
+              !employments.some(e => e.company === company)) {
+            employments.push({
+              company,
+              occupation: ""
+            });
+          }
+        }
+      }
+    }
   } catch (error) {
-    console.error("Error extracting employments from text:", error);
-    return [];
+    addLog(`Error in employment text extraction: ${(error as Error).message}`);
   }
+  
+  return employments;
 };

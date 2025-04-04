@@ -1,63 +1,52 @@
 
 import React from "react";
-import { FileCog, BadgeInfo } from "lucide-react";
+import { PersonalInfo } from "@/lib/types/creditReport";
+import { User, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface ContactInfoHeaderProps {
-  personalInfo: any;
+  personalInfo: PersonalInfo;
+  showDebugInfo?: boolean;
+  toggleDebug?: () => void;
 }
 
-const ContactInfoHeader: React.FC<ContactInfoHeaderProps> = ({ personalInfo }) => {
-  const getName = () => {
-    if (!personalInfo || !personalInfo.name) {
-      return "No Name Available";
-    }
-    
-    // Clean up the name, removing "formerly known as" and other extraneous information
-    let name = personalInfo.name;
-    
-    // Remove "formerly known as" and the text after it
-    name = name.split("Formerly known as")[0].trim();
-    
-    // Remove "Social Security Number" and the text after it
-    name = name.split("Social Security Number")[0].trim();
-    
-    return name;
-  };
-
-  const getAddressCount = () => {
-    if (!personalInfo || !personalInfo.addresses) {
-      return 0;
-    }
-    return personalInfo.addresses.length;
-  };
-
-  const hasEmploymentInfo = () => {
-    return personalInfo && personalInfo.employmentHistory;
-  };
+const ContactInfoHeader: React.FC<ContactInfoHeaderProps> = ({ 
+  personalInfo,
+  showDebugInfo = false,
+  toggleDebug 
+}) => {
+  // Add check to ensure personalInfo exists and has addresses
+  const addressCount = personalInfo?.addresses?.length || 0;
 
   return (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center space-x-2">
-        <FileCog className="h-5 w-5 text-muted-foreground" />
-        <div>
-          <h3 className="text-base font-medium">Contact Information</h3>
-          <p className="text-sm text-muted-foreground">{getName()}</p>
-        </div>
+    <div className="flex items-center space-x-4">
+      <User className="h-5 w-5 text-muted-foreground" />
+      <div>
+        <h3 className="text-lg font-medium leading-none">
+          Contact Information
+        </h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          Address history and employment details
+        </p>
       </div>
       
-      <div className="flex items-center space-x-2">
-        <Badge variant="outline" className="bg-muted/50 hover:bg-muted">
-          {getAddressCount()} Address{getAddressCount() !== 1 ? 'es' : ''}
+      <div className="flex-1" />
+      
+      {addressCount > 1 && (
+        <Badge variant="outline" className="ml-auto">
+          {addressCount} Addresses
         </Badge>
-        
-        {hasEmploymentInfo() && (
-          <Badge variant="outline" className="bg-muted/50 hover:bg-muted">
-            <BadgeInfo className="h-3 w-3 mr-1" />
-            Employment Info
-          </Badge>
-        )}
-      </div>
+      )}
+      
+      {showDebugInfo !== undefined && toggleDebug && (
+        <button 
+          onClick={toggleDebug}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center"
+        >
+          <FileText className="h-3 w-3 mr-1" />
+          {showDebugInfo ? "Hide Details" : "Show Details"}
+        </button>
+      )}
     </div>
   );
 };
