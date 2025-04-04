@@ -72,6 +72,6 @@ export const convertTableToCollections = (tableData: ExtractedTableData): Collec
 
 // Convert collections data from parsed report text
 export const convertToCollections = (text: string): Collection[] => {
-  // Implement text-based extraction (fallback method)
+  // Use the equifaxCollections parser for text-based extraction
   return convertToCollection(text);
 };

@@ -22,7 +22,7 @@ export const extractPublicRecordsTableImage = async (report: CreditReport): Prom
     
     // Get PDF data from current session
     const pdfData = getCurrentPDFData();
-    if (!pdfData || !pdfData.pdfDoc) {
+    if (!pdfData || !pdfData.pdfDocument) {
       console.error("No PDF document available for public records table extraction");
       return null;
     }
@@ -56,20 +56,20 @@ export const extractPublicRecordsTableImage = async (report: CreditReport): Prom
     
     // If not found, try page estimation based on document structure
     if (publicRecordsPageNumber === -1) {
-      const totalPages = pdfData.pdfDoc.numPages;
+      const totalPages = pdfData.pdfDocument.numPages;
       // Public records typically appear in the first third of credit reports
       publicRecordsPageNumber = Math.floor(totalPages / 3);
       console.log(`No public records keyword found, trying estimated page ${publicRecordsPageNumber}`);
     }
     
     // Ensure page number is valid
-    const numPages = pdfData.pdfDoc.numPages;
+    const numPages = pdfData.pdfDocument.numPages;
     if (publicRecordsPageNumber < 1) publicRecordsPageNumber = 1;
     if (publicRecordsPageNumber > numPages) publicRecordsPageNumber = numPages;
     
     // Convert the page to an image
     console.log(`Converting public records page ${publicRecordsPageNumber} to image`);
-    const imageUrl = await convertPDFPageToImage(pdfData.pdfDoc, publicRecordsPageNumber);
+    const imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, publicRecordsPageNumber);
     
     if (imageUrl) {
       console.log("Successfully extracted public records table image");

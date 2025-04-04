@@ -22,7 +22,7 @@ export const extractInquiriesTableImage = async (report: CreditReport): Promise<
     
     // Get PDF data from current session
     const pdfData = getCurrentPDFData();
-    if (!pdfData || !pdfData.pdfDoc) {
+    if (!pdfData || !pdfData.pdfDocument) {
       console.error("No PDF document available for inquiries table extraction");
       return null;
     }
@@ -56,20 +56,20 @@ export const extractInquiriesTableImage = async (report: CreditReport): Promise<
     
     // If not found, try page estimation based on document structure
     if (inquiriesPageNumber === -1) {
-      const totalPages = pdfData.pdfDoc.numPages;
+      const totalPages = pdfData.pdfDocument.numPages;
       // Inquiries typically appear near the end of credit reports
       inquiriesPageNumber = Math.floor(2 * totalPages / 3);
       console.log(`No inquiries keyword found, trying estimated page ${inquiriesPageNumber}`);
     }
     
     // Ensure page number is valid
-    const numPages = pdfData.pdfDoc.numPages;
+    const numPages = pdfData.pdfDocument.numPages;
     if (inquiriesPageNumber < 1) inquiriesPageNumber = 1;
     if (inquiriesPageNumber > numPages) inquiriesPageNumber = numPages;
     
     // Convert the page to an image
     console.log(`Converting inquiries page ${inquiriesPageNumber} to image`);
-    const imageUrl = await convertPDFPageToImage(pdfData.pdfDoc, inquiriesPageNumber);
+    const imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, inquiriesPageNumber);
     
     if (imageUrl) {
       console.log("Successfully extracted inquiries table image");

@@ -22,7 +22,7 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
     
     // Get PDF data from current session
     const pdfData = getCurrentPDFData();
-    if (!pdfData || !pdfData.pdfDoc) {
+    if (!pdfData || !pdfData.pdfDocument) {
       console.error("No PDF document available for collections table extraction");
       return null;
     }
@@ -55,20 +55,20 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
     
     // If not found, try page estimation based on document structure
     if (collectionsPageNumber === -1) {
-      const totalPages = pdfData.pdfDoc.numPages;
+      const totalPages = pdfData.pdfDocument.numPages;
       // Collections typically appear in the middle of credit reports
       collectionsPageNumber = Math.floor(totalPages / 2);
       console.log(`No collections keyword found, trying estimated page ${collectionsPageNumber}`);
     }
     
     // Ensure page number is valid
-    const numPages = pdfData.pdfDoc.numPages;
+    const numPages = pdfData.pdfDocument.numPages;
     if (collectionsPageNumber < 1) collectionsPageNumber = 1;
     if (collectionsPageNumber > numPages) collectionsPageNumber = numPages;
     
     // Convert the page to an image
     console.log(`Converting collections page ${collectionsPageNumber} to image`);
-    const imageUrl = await convertPDFPageToImage(pdfData.pdfDoc, collectionsPageNumber);
+    const imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, collectionsPageNumber);
     
     if (imageUrl) {
       console.log("Successfully extracted collections table image");
