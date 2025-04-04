@@ -1,3 +1,4 @@
+
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -13,6 +14,25 @@ export interface Account {
   openAccounts?: number;
   closedAccounts?: number;
   comments?: string[]; // Adding comments property
+}
+
+export interface Collection {
+  dateReported: string | null;
+  collectionAgency: string | null;
+  balanceDate: string | null;
+  originalCreditorName: string | null;
+  accountDesignatorCode: string | null;
+  dateAssigned: string | null;
+  accountNumber: string | null;
+  originalAmountOwed: string | null;
+  creditorClassification: string | null;
+  amount: string | null;
+  lastPaymentDate: string | null;
+  statusDate: string | null;
+  dateOfFirstDelinquency: string | null;
+  status: string | null;
+  comments: string[];
+  contact: string[];
 }
 
 export interface PersonalInfo {
@@ -49,10 +69,10 @@ export interface CreditReport {
   reportDate: string;
   personalInfo: PersonalInfo;
   accounts: Account[];
+  collections: Collection[]; // Add collections array
   accountSummaries?: AccountSummary[];
   inquiries: any[];
   publicRecords: any[];
-  collections: any[];
   creditScores: CreditScore[];
   rawText: string;
   
