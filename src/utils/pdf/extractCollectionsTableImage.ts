@@ -169,15 +169,16 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
     // If still no image found, try scanning all pages as a last resort
     if (!imageUrl && numPages <= 20) { // Only do this for reasonable-sized documents
       console.log("No collections found on expected pages, scanning all pages");
+      // Create array of pages we've already checked to avoid redundant processing
+      const pagesToTry = [collectionsPageNumber];
+      
+      // Add the pages we've already checked from our earlier attempts
+      // We need to reference the pagesToCheck that was defined above
+      const previouslyCheckedPages = pagesToCheck || [];
+      pagesToTry.push(...previouslyCheckedPages);
+      
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         // Skip pages we've already checked
-        // Define pagesToTry based on the pages we've already checked
-        const pagesToTry = [collectionsPageNumber];
-        // Also add the pages we tried from our pagesToCheck array
-        if (typeof pagesToCheck !== 'undefined') {
-          pagesToTry.push(...pagesToCheck);
-        }
-        
         if (!pagesToTry.includes(pageNum)) {
           console.log(`Scanning page ${pageNum} for collections`);
           imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, pageNum);
