@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table, TableHead, TableHeader, TableRow, TableBody, TableCell } from "@/components/ui/table";
@@ -109,7 +110,8 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             status = 'Former';
           }
           
-          const dateMatch = typeof address === 'string' ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : null;
+          // Fix: Ensure address is not null before calling match
+          const dateMatch = address !== null ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : null;
             
           if (dateMatch) {
             dateReported = dateMatch[0];
