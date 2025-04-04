@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
@@ -18,6 +17,7 @@ interface PDFJSLib {
   version: string;
 }
 
+// Update the interface definition for PDFDocumentProxy to match our needs
 interface PDFDocumentProxy {
   numPages: number;
   getPage: (pageNumber: number) => Promise<PDFPageProxy>;
@@ -117,12 +117,13 @@ export const processPDFDocument = async (
             console.log("Loading PDF document from array buffer");
             const loadPdfPromise = pdfjsLib.getDocument({ data: typedarray }).promise;
             
+            // Use the type assertion to ensure TypeScript doesn't complain about PDF document type
             const pdf = await Promise.race([
               loadPdfPromise,
               new Promise<never>((_, reject) => 
                 setTimeout(() => reject(new Error("PDF document loading timed out")), 10000)
               )
-            ]);
+            ]) as unknown as PDFDocumentProxy;
             
             const numPages = pdf.numPages;
             console.log(`PDF loaded with ${numPages} pages`);

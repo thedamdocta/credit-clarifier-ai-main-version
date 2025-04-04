@@ -1,8 +1,9 @@
 import { toast } from "sonner";
 import { parseCreditReport } from "@/lib/creditReportParser";
+// Import extractCreditAccountsTableImage directly from extractText
+import { extractCreditAccountsTableImage, resetCurrentReportImage, getExtractedReportData } from "./extractText";
 // Import the table extraction utilities
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
-import { extractCreditAccountsTableImage, resetCurrentReportImage } from "./extractText";
 
 export const identifyDocumentPatterns = (extractedText: string) => {
   // Pre-process text to better identify account tables
