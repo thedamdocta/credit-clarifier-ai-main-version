@@ -7,9 +7,14 @@ import CollectionsDataDebug from "./CollectionsDataDebug";
 interface CollectionsListProps {
   collections: Collection[];
   showDebugInfo: boolean;
+  tableImageUrl?: string | null;
 }
 
-const CollectionsList: React.FC<CollectionsListProps> = ({ collections, showDebugInfo }) => {
+const CollectionsList: React.FC<CollectionsListProps> = ({ 
+  collections, 
+  showDebugInfo,
+  tableImageUrl
+}) => {
   // Create a null collection placeholder when no real collections exist
   const nullCollection: Collection = {
     dateReported: null,
@@ -35,7 +40,7 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ collections, showDebu
 
   return (
     <div className="space-y-6">
-      {showDebugInfo && <CollectionsDataDebug collections={collections} />}
+      {showDebugInfo && <CollectionsDataDebug collections={collections} tableImageUrl={tableImageUrl} />}
       
       {collections.length === 0 && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">

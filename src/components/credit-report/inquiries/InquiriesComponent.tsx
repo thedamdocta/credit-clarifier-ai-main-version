@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { CreditReport } from "@/lib/types/creditReport";
 import InquiriesHeader from "./InquiriesHeader";
 import InquiriesList from "./InquiriesList";
 import CollapsibleCard from "../common/CollapsibleCard";
+import { extractInquiriesTableImage, resetInquiriesTableImage } from "@/utils/pdf/extractInquiriesTableImage";
 
 interface InquiriesComponentProps {
   report: CreditReport;
@@ -15,16 +16,54 @@ interface InquiriesComponentProps {
 const InquiriesComponent: React.FC<InquiriesComponentProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   
-  const handleRetryExtraction = () => {
+  useEffect(() => {
+    // Reset state when report changes
+    if (report && report.reportId) {
+      resetInquiriesTableImage();
+      setTableImageUrl(null);
+      
+      // Auto-extract table image on component mount
+      const extractImage = async () => {
+        try {
+          const imageUrl = await extractInquiriesTableImage(report);
+          if (imageUrl) {
+            console.log("Successfully extracted inquiries table image");
+            setTableImageUrl(imageUrl);
+          }
+        } catch (error) {
+          console.error("Error extracting inquiries table image:", error);
+        }
+      };
+      
+      extractImage();
+    }
+  }, [report?.reportId]);
+  
+  const handleRetryExtraction = async () => {
     setIsProcessing(true);
     toast.info("Retrying inquiries extraction...");
     
-    // Simulate processing
-    setTimeout(() => {
+    try {
+      // Extract the inquiries table image
+      const imageUrl = await extractInquiriesTableImage(report);
+      if (imageUrl) {
+        setTableImageUrl(imageUrl);
+        toast.success("Successfully extracted inquiries table image");
+      } else {
+        toast.error("Could not extract the inquiries table image");
+      }
+      
+      // For now, we'll just simulate processing since actual extraction is more complex
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 1500);
+    } catch (error) {
+      console.error("Error during inquiries extraction:", error);
+      toast.error("Error extracting inquiries");
       setIsProcessing(false);
-      toast.success("Inquiries extraction completed");
-    }, 1500);
+    }
   };
   
   const handleTrainParser = () => {
@@ -115,7 +154,8 @@ const InquiriesComponent: React.FC<InquiriesComponentProps> = ({ report }) => {
         <InquiriesList 
           hardInquiries={hardInquiries}
           softInquiries={softInquiries}
-          showDebugInfo={showDebugInfo} 
+          showDebugInfo={showDebugInfo}
+          tableImageUrl={tableImageUrl}
         />
       )}
     </>

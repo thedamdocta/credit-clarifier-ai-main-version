@@ -1,18 +1,17 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Collection } from "@/lib/types/creditReport";
 import { Code, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface CollectionsDataDebugProps {
-  collections: Collection[];
+interface PublicRecordsDataDebugProps {
+  publicRecords: any;
   tableImageUrl?: string | null;
 }
 
-const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({ 
-  collections,
-  tableImageUrl
+const PublicRecordsDataDebug: React.FC<PublicRecordsDataDebugProps> = ({ 
+  publicRecords,
+  tableImageUrl 
 }) => {
   const [enlargeImage, setEnlargeImage] = useState(false);
 
@@ -21,12 +20,12 @@ const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({
       <CardHeader className="py-2 px-4 bg-slate-100">
         <div className="flex items-center gap-2">
           <Code className="h-4 w-4 text-slate-500" />
-          <h4 className="text-sm font-medium text-slate-700">Collection Data Debug</h4>
+          <h4 className="text-sm font-medium text-slate-700">Public Records Data Debug</h4>
         </div>
       </CardHeader>
       <CardContent className="py-2 px-4">
         <div className="bg-slate-800 text-slate-200 p-3 rounded text-xs font-mono overflow-x-auto">
-          <pre>{JSON.stringify(collections, null, 2)}</pre>
+          <pre>{JSON.stringify(publicRecords, null, 2)}</pre>
         </div>
         
         {tableImageUrl && (
@@ -55,7 +54,7 @@ const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({
             <div className={`relative overflow-hidden border ${enlargeImage ? 'h-[400px]' : 'h-[200px]'}`}>
               <img 
                 src={tableImageUrl} 
-                alt="Collections table" 
+                alt="Public records table" 
                 className="w-full h-auto object-contain"
               />
             </div>
@@ -66,4 +65,4 @@ const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({
   );
 };
 
-export default CollectionsDataDebug;
+export default PublicRecordsDataDebug;

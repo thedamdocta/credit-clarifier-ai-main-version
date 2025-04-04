@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,8 @@ import { CreditReport, Collection } from "@/lib/types/creditReport";
 import CollectionsHeader from "./CollectionsHeader";
 import CollectionsList from "./CollectionsList";
 import CollapsibleCard from "../common/CollapsibleCard";
+import { extractCollectionsTableImage, resetCollectionsTableImage } from "@/utils/pdf/extractCollectionsTableImage";
+import { extractCollectionsFromImage } from "@/lib/ai/collectionExtraction";
 
 interface CollectionsComponentProps {
   report: CreditReport;
@@ -15,16 +17,78 @@ interface CollectionsComponentProps {
 const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
+  const [collections, setCollections] = useState<Collection[]>([]);
   
-  const handleRetryExtraction = () => {
+  useEffect(() => {
+    // Reset state when report changes
+    if (report && report.reportId) {
+      resetCollectionsTableImage();
+      setTableImageUrl(null);
+      
+      // Initialize collections from the report data
+      if (report.collections && report.collections.length > 0) {
+        setCollections(report.collections);
+      } else {
+        setCollections([]);
+      }
+      
+      // Auto-extract table image on component mount
+      const extractImage = async () => {
+        try {
+          const imageUrl = await extractCollectionsTableImage(report);
+          if (imageUrl) {
+            console.log("Successfully extracted collections table image");
+            setTableImageUrl(imageUrl);
+          }
+        } catch (error) {
+          console.error("Error extracting collections table image:", error);
+        }
+      };
+      
+      extractImage();
+    }
+  }, [report?.reportId]);
+  
+  const handleRetryExtraction = async () => {
     setIsProcessing(true);
     toast.info("Retrying collections extraction...");
     
-    // Simulate processing
-    setTimeout(() => {
+    try {
+      // First, ensure we have a table image
+      if (!tableImageUrl) {
+        const imageUrl = await extractCollectionsTableImage(report);
+        if (imageUrl) {
+          setTableImageUrl(imageUrl);
+        } else {
+          toast.error("Could not extract the collections table image");
+          setIsProcessing(false);
+          return;
+        }
+      }
+      
+      // Extract collections from the image
+      const extractedCollections = await extractCollectionsFromImage(tableImageUrl);
+      
+      if (extractedCollections && extractedCollections.length > 0) {
+        setCollections(extractedCollections);
+        toast.success("Successfully extracted collection accounts");
+      } else {
+        // If no collections found, check if report already has any
+        if (report.collections && report.collections.length > 0) {
+          setCollections(report.collections);
+          toast.success("Using collections from report data");
+        } else {
+          setCollections([]);
+          toast.info("No collection accounts found in your report");
+        }
+      }
+    } catch (error) {
+      console.error("Error during collections extraction:", error);
+      toast.error("Error extracting collection accounts");
+    } finally {
       setIsProcessing(false);
-      toast.success("Collections extraction completed");
-    }, 1500);
+    }
   };
   
   const handleTrainParser = () => {
@@ -42,10 +106,6 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
   };
 
   // Use collections if they exist, otherwise an empty array
-  const collections = report.collections && report.collections.length > 0 
-    ? report.collections 
-    : [];
-  
   const pdfAvailable = report && report.rawText && report.rawText.length > 0;
   
   const header = (
@@ -125,7 +185,8 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
       ) : (
         <CollectionsList 
           collections={collections} 
-          showDebugInfo={showDebugInfo} 
+          showDebugInfo={showDebugInfo}
+          tableImageUrl={tableImageUrl}
         />
       )}
     </>

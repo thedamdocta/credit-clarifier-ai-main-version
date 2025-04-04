@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { CreditReport } from "@/lib/types/creditReport";
 import PublicRecordsHeader from "./PublicRecordsHeader";
 import PublicRecordsList from "./PublicRecordsList";
 import CollapsibleCard from "../common/CollapsibleCard";
+import { extractPublicRecordsTableImage, resetPublicRecordsTableImage } from "@/utils/pdf/extractPublicRecordsTableImage";
 
 interface PublicRecordsComponentProps {
   report: CreditReport;
@@ -15,16 +16,54 @@ interface PublicRecordsComponentProps {
 const PublicRecordsComponent: React.FC<PublicRecordsComponentProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   
-  const handleRetryExtraction = () => {
+  useEffect(() => {
+    // Reset state when report changes
+    if (report && report.reportId) {
+      resetPublicRecordsTableImage();
+      setTableImageUrl(null);
+      
+      // Auto-extract table image on component mount
+      const extractImage = async () => {
+        try {
+          const imageUrl = await extractPublicRecordsTableImage(report);
+          if (imageUrl) {
+            console.log("Successfully extracted public records table image");
+            setTableImageUrl(imageUrl);
+          }
+        } catch (error) {
+          console.error("Error extracting public records table image:", error);
+        }
+      };
+      
+      extractImage();
+    }
+  }, [report?.reportId]);
+  
+  const handleRetryExtraction = async () => {
     setIsProcessing(true);
     toast.info("Retrying public records extraction...");
     
-    // Simulate processing
-    setTimeout(() => {
+    try {
+      // Extract the public records table image
+      const imageUrl = await extractPublicRecordsTableImage(report);
+      if (imageUrl) {
+        setTableImageUrl(imageUrl);
+        toast.success("Successfully extracted public records table image");
+      } else {
+        toast.error("Could not extract the public records table image");
+      }
+      
+      // For now, we'll just simulate processing since actual extraction is more complex
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 1500);
+    } catch (error) {
+      console.error("Error during public records extraction:", error);
+      toast.error("Error extracting public records");
       setIsProcessing(false);
-      toast.success("Public records extraction completed");
-    }, 1500);
+    }
   };
   
   const handleTrainParser = () => {
@@ -141,7 +180,8 @@ const PublicRecordsComponent: React.FC<PublicRecordsComponentProps> = ({ report 
       ) : (
         <PublicRecordsList 
           publicRecords={publicRecords} 
-          showDebugInfo={showDebugInfo} 
+          showDebugInfo={showDebugInfo}
+          tableImageUrl={tableImageUrl}
         />
       )}
     </>
