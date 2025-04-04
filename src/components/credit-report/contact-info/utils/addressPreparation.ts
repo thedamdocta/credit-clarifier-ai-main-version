@@ -41,7 +41,7 @@ export const prepareAddresses = (report: CreditReport): AddressInfo[] => {
         }
         
         // Make sure address is a string and not null before calling match()
-        const dateMatch = typeof address === 'string' ? 
+        const dateMatch = address ? 
           address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : 
           null;
           
