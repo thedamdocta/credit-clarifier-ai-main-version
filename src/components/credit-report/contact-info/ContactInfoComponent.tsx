@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table, TableHead, TableHeader, TableRow, TableBody, TableCell } from "@/components/ui/table";
@@ -21,7 +20,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [imageLoadStatus, setImageLoadStatus] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
-    // Get any existing extracted images on component mount
     const existingImages = getContactTableImages();
     if (existingImages.length > 0) {
       console.log("Found existing contact table images:", existingImages.length);
@@ -30,7 +28,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     }
   }, []);
 
-  // Track image load status
   const handleImageLoad = (index: number) => {
     setImageLoadStatus(prev => ({ ...prev, [index]: true }));
     console.log(`Contact table image ${index} loaded successfully`);
@@ -48,7 +45,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     toast.info("Attempting to extract contact information tables...");
     
     try {
-      // Access the PDF document from the window object (set during PDF processing)
       const pdfData = (window as any).currentPdfDocument;
       
       if (!pdfData) {
@@ -62,7 +58,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       console.log("Starting contact table extraction from PDF");
       const result = await extractContactInfoTables(pdfData);
       
-      // Update the images array after extraction
       const newImages = getContactTableImages();
       setTableImages(newImages);
       
@@ -82,22 +77,18 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     }
   };
 
-  // Format address for display - fixed to handle null values
   const formatAddress = (address: string | null): string => {
-    if (!address) return ""; // Return empty string for null addresses
+    if (!address) return "";
     
-    // Remove any "Current" or "Former" prefixes that might have been captured
     return address.replace(/^(current|former)\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}\s+/i, '');
   };
 
-  // Prepare addresses in the format expected by AddressesTable
   const prepareAddresses = () => {
     if (!report.personalInfo || !report.personalInfo.addresses) {
       return [];
     }
 
     return report.personalInfo.addresses.map((address, index) => {
-      // Check if this is actually an address with status info
       const isAddressObj = typeof address === 'object' && address !== null && 'address' in address;
       
       if (isAddressObj) {
@@ -108,11 +99,9 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           dateReported: addressObj.dateReported || ''
         };
       } else {
-        // Simple string address without status info
         let status = 'Unknown';
         let dateReported = '';
         
-        // Try to extract status from the address string
         if (typeof address === 'string') {
           if (address.toLowerCase().includes('current')) {
             status = 'Current';
@@ -120,10 +109,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             status = 'Former';
           }
           
-          // Fixed the null check issue - ensure address is a string before calling match
-          const dateMatch = typeof address === 'string' && address 
-            ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) 
-            : null;
+          const dateMatch = typeof address === 'string' ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : null;
             
           if (dateMatch) {
             dateReported = dateMatch[0];
@@ -139,13 +125,11 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     });
   };
 
-  // Prepare employment data
   const prepareEmployment = () => {
     if (!report.personalInfo || !report.personalInfo.employmentHistory) {
       return [];
     }
 
-    // For now we're just wrapping the string in an object
     return [{
       company: "History",
       occupation: "Employment history is the information in your credit file that indicates your current and former employment as reported to Equifax"
@@ -157,19 +141,16 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
 
   return (
     <div className="space-y-8">
-      {/* Previous Addresses Section */}
       <div>
         <h3 className="text-lg font-medium mb-4">Previous Addresses</h3>
         <AddressesTable addresses={addresses} />
       </div>
 
-      {/* Employment History Section */}
       <div>
         <h3 className="text-lg font-medium mb-4">Employment History</h3>
         <EmploymentTable employments={employment} />
       </div>
       
-      {/* Contact Information Images Section */}
       <div className="mt-6 border rounded-lg p-3 bg-gray-50 shadow-sm">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-sm font-medium">Contact Information Images</h3>
