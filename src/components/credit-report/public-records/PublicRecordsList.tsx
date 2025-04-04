@@ -36,19 +36,19 @@ const PublicRecordsList: React.FC<PublicRecordsListProps> = ({ publicRecords, sh
           <TabsTrigger value="bankruptcies" className="relative">
             Bankruptcies
             <Badge className="ml-2 bg-red-100 text-red-600 hover:bg-red-100 absolute -top-2 -right-2 text-xs">
-              {bankruptcies.length}
+              {bankruptcies.length || "0"}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="judgements" className="relative">
             Judgements
             <Badge className="ml-2 bg-amber-100 text-amber-600 hover:bg-amber-100 absolute -top-2 -right-2 text-xs">
-              {judgements.length}
+              {judgements.length || "0"}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="liens" className="relative">
             Liens
             <Badge className="ml-2 bg-blue-100 text-blue-600 hover:bg-blue-100 absolute -top-2 -right-2 text-xs">
-              {liens.length}
+              {liens.length || "0"}
             </Badge>
           </TabsTrigger>
         </TabsList>
