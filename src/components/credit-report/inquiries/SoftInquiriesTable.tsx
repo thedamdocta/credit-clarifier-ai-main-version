@@ -15,13 +15,14 @@ interface SoftInquiriesTableProps {
 }
 
 const SoftInquiriesTable: React.FC<SoftInquiriesTableProps> = ({ inquiries }) => {
-  if (inquiries.length === 0) {
-    return (
-      <div className="text-center py-8 border rounded-md bg-gray-50">
-        <p className="text-muted-foreground">No soft inquiries found in your credit report.</p>
-      </div>
-    );
-  }
+  // Default data when no inquiries are present
+  const defaultData = [
+    { date: null, company: null, requestor: null, description: null },
+    { date: null, company: null, requestor: null, description: null }
+  ];
+
+  // Use the provided inquiries if available, otherwise use default data
+  const tableData = inquiries.length > 0 ? inquiries : defaultData;
   
   return (
     <div className="rounded-md border">
@@ -35,12 +36,12 @@ const SoftInquiriesTable: React.FC<SoftInquiriesTableProps> = ({ inquiries }) =>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {inquiries.map((inquiry, index) => (
+          {tableData.map((inquiry, index) => (
             <TableRow key={`soft-inquiry-${index}`}>
-              <TableCell className="font-medium">{inquiry.date || 'Unknown'}</TableCell>
-              <TableCell>{inquiry.company || 'Unknown'}</TableCell>
-              <TableCell className="hidden md:table-cell">{inquiry.requestor || 'Unknown'}</TableCell>
-              <TableCell className="hidden md:table-cell">{inquiry.description || 'No description provided'}</TableCell>
+              <TableCell className="font-medium">{inquiry.date || '-'}</TableCell>
+              <TableCell>{inquiry.company || '-'}</TableCell>
+              <TableCell className="hidden md:table-cell">{inquiry.requestor || '-'}</TableCell>
+              <TableCell className="hidden md:table-cell">{inquiry.description || '-'}</TableCell>
             </TableRow>
           ))}
         </TableBody>
