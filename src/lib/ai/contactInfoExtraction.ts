@@ -1,5 +1,4 @@
-
-import { extractTextFromImage } from './ocrExtraction';
+import { extractTextFromImageWithOCR, processImageWithEnhancedOCR, extractTextFromImageRegion } from './ocrExtraction';
 import { convertPDFPageToImage } from '@/utils/pdf/pdfToImage';
 
 export interface AddressInfo {
@@ -281,7 +280,8 @@ const extractAddressesFromPage = async (pdfDocument: any, pageNum: number): Prom
     addLog(`Attempting image-based address extraction for page ${pageNum}`);
     const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
     if (pageImage) {
-      const imageText = await extractTextFromImage(pageImage);
+      // Use extractTextFromImageWithOCR instead of extractTextFromImage
+      const imageText = await extractTextFromImageWithOCR(pageImage);
       if (imageText) {
         const imageExtractedAddresses = extractAddressesFromText(imageText);
         if (imageExtractedAddresses.length > 0) {
@@ -317,7 +317,8 @@ const extractEmploymentsFromPage = async (pdfDocument: any, pageNum: number): Pr
     addLog(`Attempting image-based employment extraction for page ${pageNum}`);
     const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
     if (pageImage) {
-      const imageText = await extractTextFromImage(pageImage);
+      // Use extractTextFromImageWithOCR instead of extractTextFromImage
+      const imageText = await extractTextFromImageWithOCR(pageImage);
       if (imageText) {
         const imageExtractedEmployments = extractEmploymentsFromText(imageText);
         if (imageExtractedEmployments.length > 0) {
