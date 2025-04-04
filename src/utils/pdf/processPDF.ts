@@ -1,5 +1,6 @@
+
 import { toast } from "sonner";
-import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
+import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData, getCurrentPDFData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
 
@@ -132,6 +133,7 @@ export const processPDFDocument = async (
             updateProgress(15);
             
             // Store pdf document for later use in image extraction
+            const currentPDFData = getCurrentPDFData();
             if (currentPDFData) {
               currentPDFData.pdfDocument = pdf;
             }
