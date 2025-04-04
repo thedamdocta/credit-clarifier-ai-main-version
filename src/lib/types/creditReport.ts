@@ -1,4 +1,3 @@
-
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -110,4 +109,13 @@ export interface CreditReport {
   
   // Error information
   parsingError?: string;
+}
+
+export interface Inquiry {
+  type: 'hard' | 'soft';
+  date: string;
+  company: string;
+  requestor: string;
+  description?: string;
+  accountNumber?: string;
 }
