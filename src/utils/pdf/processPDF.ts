@@ -1,6 +1,6 @@
 
 import { toast } from "sonner";
-import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData, getCurrentPDFData } from "./extractText";
+import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
 
@@ -11,23 +11,20 @@ interface PDFProcessingCallbacks extends ProgressCallbacks {
   onError?: (error: Error | null) => void;
 }
 
-// Using any for pdfjsLib to avoid type conflicts
+// Define proper PDFJSLib interface
 interface PDFJSLib {
-  getDocument: (source: { data: Uint8Array }) => { promise: Promise<any> };
+  getDocument: (source: { data: Uint8Array }) => { promise: Promise<PDFDocumentProxy> };
   GlobalWorkerOptions: { workerSrc: string };
   version: string;
 }
 
-// Use a more generic PDFDocumentProxy interface to avoid conflicts
 interface PDFDocumentProxy {
   numPages: number;
   getPage: (pageNumber: number) => Promise<PDFPageProxy>;
-  [key: string]: any; // Allow additional properties
 }
 
 interface PDFPageProxy {
-  getTextContent: () => Promise<{ items: Array<any> }>;
-  [key: string]: any; // Allow additional properties
+  getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
 }
 
 let pdfJsLoadingWarned = false;
@@ -81,7 +78,7 @@ export const processPDFDocument = async (
         )
       ]);
       
-      // Cast the imported module to our interface to avoid type conflicts
+      // Cast the imported module to our interface
       const pdfjsLib = pdfjsModule as unknown as PDFJSLib;
       
       clearTimeout(pdfLoadingTimeout);
@@ -120,7 +117,6 @@ export const processPDFDocument = async (
             console.log("Loading PDF document from array buffer");
             const loadPdfPromise = pdfjsLib.getDocument({ data: typedarray }).promise;
             
-            // Use a generic type to prevent conflicts
             const pdf = await Promise.race([
               loadPdfPromise,
               new Promise<never>((_, reject) => 
@@ -131,12 +127,6 @@ export const processPDFDocument = async (
             const numPages = pdf.numPages;
             console.log(`PDF loaded with ${numPages} pages`);
             updateProgress(15);
-            
-            // Store pdf document for later use in image extraction
-            const currentPDFData = getCurrentPDFData();
-            if (currentPDFData) {
-              currentPDFData.pdfDocument = pdf;
-            }
             
             const extractedText = await extractTextFromPDF(pdf);
             console.log("Successfully extracted text from PDF, length:", extractedText.length);
