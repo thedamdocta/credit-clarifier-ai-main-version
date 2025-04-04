@@ -8,6 +8,7 @@ import ContactInfoHeader from "./ContactInfoHeader";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
 import { CreditReport } from "@/lib/types/creditReport";
+import { extractRegionFromPDFPage } from "@/utils/pdf/pdfToImage";
 
 interface ContactInfoComponentProps {
   report: CreditReport;
@@ -16,12 +17,32 @@ interface ContactInfoComponentProps {
 const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [tableImage, setTableImage] = useState<string | null>(null);
   
-  const handleRetryExtraction = () => {
+  const handleRetryExtraction = async () => {
     setIsProcessing(true);
     toast.info("Retrying contact information extraction...");
     
-    // Simulate processing
+    // Attempt to extract an image of the contact info table region
+    try {
+      const pdfDocument = (window as any).currentPdfDocument;
+      if (pdfDocument) {
+        // Extract the 1st or 2nd page where contact info usually appears
+        const pageNum = 1;
+        // Approximate region for contact info (these coordinates would need adjustment)
+        const region = { x: 50, y: 200, width: 500, height: 300 };
+        
+        const extractedImage = await extractRegionFromPDFPage(pdfDocument, pageNum, region);
+        if (extractedImage) {
+          setTableImage(extractedImage);
+          toast.success("Contact information table image extracted");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to extract contact information table image:", error);
+    }
+    
+    // Simulate processing completion
     setTimeout(() => {
       setIsProcessing(false);
       toast.success("Contact information extraction completed");
@@ -122,15 +143,32 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             </div>
             
             {showDebugInfo && (
-              <div className="mt-4 p-4 bg-muted/50 rounded-md border border-dashed">
+              <div className="mt-4 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
                 <h4 className="text-sm font-medium mb-2">Debug Information</h4>
-                <pre className="text-xs overflow-x-auto">
-                  {JSON.stringify({
-                    addresses: addresses,
-                    employments: employments,
-                    personalInfo: report.personalInfo
-                  }, null, 2)}
-                </pre>
+                
+                {tableImage && (
+                  <div className="space-y-2">
+                    <h5 className="text-xs font-medium">Extracted Table Image:</h5>
+                    <div className="border rounded-md overflow-hidden">
+                      <img 
+                        src={tableImage} 
+                        alt="Extracted contact information table" 
+                        className="max-w-full h-auto"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <h5 className="text-xs font-medium">Parsed Data:</h5>
+                  <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md">
+                    {JSON.stringify({
+                      addresses: addresses,
+                      employments: employments,
+                      personalInfo: report.personalInfo
+                    }, null, 2)}
+                  </pre>
+                </div>
               </div>
             )}
           </>
