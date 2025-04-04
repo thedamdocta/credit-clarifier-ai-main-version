@@ -8,7 +8,7 @@ let currentPdfData: {
   fileName?: string;
   extractedText?: string;
   tableImageUrl?: string; 
-  targetTable?: string;
+  targetTable?: string; // Add targetTable to the interface
 } = {};
 
 // Import the function for PDF to image conversion
@@ -29,7 +29,7 @@ export const setCurrentPDFData = (file: File, options?: { targetTable?: string }
   return reportId;
 };
 
-// Get the current PDF data
+// Add getCurrentPDFData export to fix the error
 export const getCurrentPDFData = () => {
   return currentPdfData;
 };

@@ -1,34 +1,14 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collection } from "@/lib/types/creditReport";
-import { Code, Image as ImageIcon } from "lucide-react";
-import { extractCollectionsTableImage } from "@/utils/pdf/extractText";
+import { Code } from "lucide-react";
 
 interface CollectionsDataDebugProps {
   collections: Collection[];
 }
 
 const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({ collections }) => {
-  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
-  
-  useEffect(() => {
-    async function loadCollectionImage() {
-      try {
-        console.log('Attempting to extract collection table image for debug display');
-        const imageUrl = await extractCollectionsTableImage({});
-        if (imageUrl) {
-          console.log('Successfully extracted collection table image for debug display');
-          setTableImageUrl(imageUrl);
-        }
-      } catch (error) {
-        console.error('Error extracting collection table image for debug:', error);
-      }
-    }
-    
-    loadCollectionImage();
-  }, []);
-
   return (
     <Card className="bg-slate-50 border-slate-200 mb-4">
       <CardHeader className="py-2 px-4 bg-slate-100">
@@ -43,22 +23,10 @@ const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({ collections
         </div>
         
         <div className="mt-3 p-3 border rounded bg-white">
-          <h5 className="text-xs font-medium mb-2">Extracted Collection Table Image</h5>
-          {tableImageUrl ? (
-            <div className="bg-slate-100 rounded overflow-hidden">
-              <img 
-                src={tableImageUrl} 
-                alt="Collection table from PDF" 
-                className="w-full h-auto"
-                onError={() => console.error("Error loading collection table image")}
-              />
-            </div>
-          ) : (
-            <div className="bg-slate-100 p-4 rounded text-center text-xs text-slate-500 flex items-center justify-center">
-              <ImageIcon className="h-4 w-4 mr-2 text-slate-400" />
-              No collection table image available
-            </div>
-          )}
+          <h5 className="text-xs font-medium mb-2">Extracted Table Image</h5>
+          <div className="bg-slate-100 p-4 rounded text-center text-xs text-slate-500">
+            [Collection table extraction image would appear here]
+          </div>
         </div>
       </CardContent>
     </Card>
