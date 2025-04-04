@@ -112,18 +112,11 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
             Please wait while we analyze your collection accounts
           </p>
         </div>
-      ) : collections.length > 0 ? (
+      ) : (
         <CollectionsList 
           collections={collections} 
           showDebugInfo={showDebugInfo} 
         />
-      ) : (
-        <div className="py-8 text-center bg-muted/20 rounded-md">
-          <p className="text-sm font-medium">No collection accounts found</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Good news! We didn't detect any collections in your credit report.
-          </p>
-        </div>
       )}
     </>
   );
