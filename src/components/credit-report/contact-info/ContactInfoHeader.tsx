@@ -15,6 +15,9 @@ const ContactInfoHeader: React.FC<ContactInfoHeaderProps> = ({
   showDebugInfo = false,
   toggleDebug 
 }) => {
+  // Add check to ensure personalInfo exists and has addresses
+  const addressCount = personalInfo?.addresses?.length || 0;
+
   return (
     <div className="flex items-center space-x-4">
       <User className="h-5 w-5 text-muted-foreground" />
@@ -29,9 +32,9 @@ const ContactInfoHeader: React.FC<ContactInfoHeaderProps> = ({
       
       <div className="flex-1" />
       
-      {personalInfo.addresses.length > 1 && (
+      {addressCount > 1 && (
         <Badge variant="outline" className="ml-auto">
-          {personalInfo.addresses.length} Addresses
+          {addressCount} Addresses
         </Badge>
       )}
       

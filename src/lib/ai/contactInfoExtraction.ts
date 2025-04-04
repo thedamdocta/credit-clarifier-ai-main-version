@@ -240,16 +240,16 @@ async function extractAddressesWithOpenAI(imageUrl: string): Promise<AddressInfo
     console.log("Using OpenAI to extract addresses");
     
     // The prompt formatting is similar to the Account Summaries extraction
-    const addresses = await extractTableWithOpenAI(imageUrl);
+    const extractedData = await extractTableWithOpenAI(imageUrl);
     
-    // Convert the generic response to AddressInfo format
-    if (addresses && Array.isArray(addresses)) {
-      return addresses
-        .filter(item => item.address && typeof item.address === 'string')
+    // Fix: Convert the generic response to AddressInfo format correctly
+    if (extractedData && Array.isArray(extractedData)) {
+      return extractedData
+        .filter(item => item && typeof item === 'object')
         .map(item => ({
-          address: item.address || 'Unknown',
-          status: item.status || 'Unknown',
-          dateReported: item.dateReported || ''
+          address: item.address || item.value || item.text || 'Unknown',
+          status: item.status || item.type || 'Unknown',
+          dateReported: item.dateReported || item.date || ''
         }));
     }
     
@@ -268,15 +268,15 @@ async function extractEmploymentWithOpenAI(imageUrl: string): Promise<Employment
     console.log("Using OpenAI to extract employment");
     
     // The prompt formatting is similar to the Account Summaries extraction
-    const employments = await extractTableWithOpenAI(imageUrl);
+    const extractedData = await extractTableWithOpenAI(imageUrl);
     
-    // Convert the generic response to EmploymentInfo format
-    if (employments && Array.isArray(employments)) {
-      return employments
-        .filter(item => item.company && typeof item.company === 'string')
+    // Fix: Convert the generic response to EmploymentInfo format correctly
+    if (extractedData && Array.isArray(extractedData)) {
+      return extractedData
+        .filter(item => item && typeof item === 'object')
         .map(item => ({
-          company: item.company || 'Unknown',
-          occupation: item.occupation || ''
+          company: item.company || item.employer || item.name || item.value || 'Unknown',
+          occupation: item.occupation || item.position || item.title || item.job || ''
         }));
     }
     
