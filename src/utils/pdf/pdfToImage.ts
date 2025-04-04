@@ -12,14 +12,12 @@
  */
 export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<string | null> {
   try {
-    console.log(`Starting page ${pageNum} conversion to image`);
-    
     // Get the page
     const page = await pdf.getPage(pageNum);
     
     // Calculate desired dimensions (higher resolution for better OCR)
     // Use an even higher scale factor for better quality
-    const scale = 2.0; // Reduced from 4.0 for better performance
+    const scale = 4.0; // Increased from 3.5 for even better detail
     const viewport = page.getViewport({ scale: scale });
     
     // Create a canvas element
@@ -57,18 +55,12 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     // Apply enhanced image processing for better OCR
     enhanceImageForOCR(context, canvas.width, canvas.height);
     
-    // Convert the canvas to a data URL (JPEG format for smaller size)
-    const imageQuality = 0.85; // Higher quality (0-1)
-    const imageData = canvas.toDataURL('image/jpeg', imageQuality);
+    // Convert the canvas to a data URL (PNG format for better quality)
+    const imageData = canvas.toDataURL('image/png', 1.0);
     
     // Add logging for image size to help with debugging
     const dataSizeKB = Math.round(imageData.length / 1024);
-    console.log(`Generated image for page ${pageNum}: ${canvas.width}x${canvas.height}, ${dataSizeKB}KB`);
-    
-    if (imageData.length < 100) {
-      console.error(`Error: Generated image for page ${pageNum} is too small (${imageData.length} bytes)`);
-      return null;
-    }
+    console.log(`Generated image for page ${pageNum} with size ${dataSizeKB}KB`);
     
     return imageData;
   } catch (error) {

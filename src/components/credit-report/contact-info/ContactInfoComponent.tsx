@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText, Image as ImageIcon } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText } from "lucide-react";
 import { toast } from "sonner";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
@@ -29,12 +30,13 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
   const [extractionPageNumbers, setExtractionPageNumbers] = useState<number[]>([]);
   const [analyzedText, setAnalyzedText] = useState<string>("");
-  const [imageStatus, setImageStatus] = useState<Record<number, boolean>>({});
   
+  // Extract contact information on component mount
   useEffect(() => {
     const extractContactInfo = async () => {
       const pdfDocument = (window as any).currentPdfDocument;
       
+      // Initialize with personal info data right away
       if (report.personalInfo && report.personalInfo.addresses) {
         const formattedAddresses = report.personalInfo.addresses
           .filter(addr => addr !== 'Not Found' && addr.length > 5)
@@ -50,15 +52,19 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       }
       
       if (report.personalInfo && report.personalInfo.employmentHistory) {
+        // Handle the case where employment history is descriptive text, not actual employment
         const employmentText = report.personalInfo.employmentHistory;
         
         if (employmentText) {
+          // First check if this is just descriptive text
           if (!employmentText.toLowerCase().includes("history employment history is")) {
+            // Try to parse structured employment data
             const extractedEmployments = extractEmploymentsFromText(employmentText);
             
             if (extractedEmployments.length > 0) {
               setEmployments(extractedEmployments);
             } else {
+              // Use as raw text if no structured data found
               setEmployments([{
                 company: employmentText,
                 occupation: ""
@@ -66,20 +72,25 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             }
           }
           
+          // Save the text for analysis
           setAnalyzedText(employmentText);
         }
       }
       
+      // Only attempt PDF extraction if a document is available
       if (pdfDocument) {
         setIsProcessing(true);
         try {
+          // Attempt to extract from PDF
           const { addresses: extractedAddresses, employments: extractedEmployments, pageNumbers } = 
             await extractContactInfoTables(pdfDocument);
           
+          // Store extracted page numbers for debugging
           if (pageNumbers && pageNumbers.length > 0) {
             setExtractionPageNumbers(pageNumbers);
           }
           
+          // If extraction was successful, use the extracted data
           if (extractedAddresses.length > 0) {
             setAddresses(extractedAddresses);
           }
@@ -87,29 +98,18 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           if (extractedEmployments.length > 0) {
             setEmployments(extractedEmployments);
           } else {
+            // If no employment data was extracted, try to parse from personal info
             const personalInfoEmployment = parseEmploymentFromPersonalInfo(report.personalInfo?.employmentHistory || '');
             if (personalInfoEmployment) {
               setEmployments([personalInfoEmployment]);
             }
           }
           
+          // Get extracted table images for debugging
           const images = getContactTableImages();
-          console.log(`Retrieved ${images.length} debug images:`, images.map(img => img?.substring(0, 30) + '...'));
           setTableImages(images);
           
-          const newImageStatus: Record<number, boolean> = {};
-          for (let i = 0; i < images.length; i++) {
-            try {
-              const img = new Image();
-              img.src = images[i];
-              newImageStatus[i] = true;
-            } catch (error) {
-              console.error(`Error checking image ${i}:`, error);
-              newImageStatus[i] = false;
-            }
-          }
-          setImageStatus(newImageStatus);
-          
+          // Get extraction logs
           const logs = getContactExtractionLogs();
           setExtractionLogs(logs);
           
@@ -127,11 +127,14 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     extractContactInfo();
   }, [report]);
   
+  // Helper function to parse employment data from personal info text
   const parseEmploymentFromPersonalInfo = (employmentText: string): EmploymentInfo | null => {
     if (!employmentText || employmentText.toLowerCase().includes("history employment history is")) {
+      // This is just descriptive text, not actual employment
       return null;
     }
     
+    // Try to extract meaningful employment info
     const lines = employmentText.split(/[\n\r]+/);
     for (const line of lines) {
       if (line.includes(':')) {
@@ -145,6 +148,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       }
     }
     
+    // If no structured format found, just use the text as company name
     return {
       company: employmentText,
       occupation: ''
@@ -155,15 +159,18 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     setIsProcessing(true);
     toast.info("Retrying contact information extraction...");
     
-    const pdfDocument = (window as any).currentPdfDocument;
-    if (pdfDocument) {
-      try {
+    // Attempt to extract contact information
+    try {
+      const pdfDocument = (window as any).currentPdfDocument;
+      if (pdfDocument) {
         const { addresses, employments, pageNumbers } = await extractContactInfoTables(pdfDocument);
         
+        // Update extracted page numbers
         if (pageNumbers && pageNumbers.length > 0) {
           setExtractionPageNumbers(pageNumbers);
         }
         
+        // Only update if we got actual data
         if (addresses && addresses.length > 0) {
           setAddresses(addresses);
         }
@@ -171,6 +178,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         if (employments && employments.length > 0) {
           setEmployments(employments);
         } else {
+          // If no employment data was extracted, make a second attempt with different pages
           const personalInfoEmployment = parseEmploymentFromPersonalInfo(report.personalInfo?.employmentHistory || '');
           if (personalInfoEmployment) {
             setEmployments([personalInfoEmployment]);
@@ -184,12 +192,12 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         setExtractionLogs(logs);
         
         toast.success("Contact information extraction completed");
-      } catch (error) {
-        console.error("Failed to extract contact information:", error);
-        toast.error("Failed to extract contact information");
+      } else {
+        toast.error("PDF document not available. Please upload a PDF file first.");
       }
-    } else {
-      toast.error("PDF document not available. Please upload a PDF file first.");
+    } catch (error) {
+      console.error("Failed to extract contact information:", error);
+      toast.error("Failed to extract contact information");
     }
     
     setIsProcessing(false);
@@ -197,6 +205,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   
   const handleTrainParser = () => {
     toast.info("Training parser with current contact information data...");
+    // Add training logic here in the future
     setTimeout(() => {
       toast.success("Parser training complete");
     }, 1500);
@@ -307,6 +316,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
+              {/* Analyzed Text Section */}
               {analyzedText && (
                 <div className="space-y-2 mb-4">
                   <h5 className="text-xs font-medium flex items-center">
@@ -319,6 +329,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
+              {/* Extraction Logs Section */}
               {extractionLogs.length > 0 && (
                 <div className="space-y-2 mb-4">
                   <h5 className="text-xs font-medium">Extraction Logs:</h5>
@@ -332,62 +343,21 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
               
               {tableImages.length > 0 ? (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-medium flex items-center">
-                    <ImageIcon className="h-3 w-3 mr-1" />
-                    Extracted Page Images ({tableImages.length}):
-                  </h5>
-                  
-                  {tableImages.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {tableImages.map((imageUrl, index) => (
-                        <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
-                          <div className="bg-muted/50 px-2 py-1 text-xs font-medium flex justify-between">
-                            <span>Page Image {extractionPageNumbers[index] || index + 1}</span>
-                            <span className={imageStatus[index] ? "text-green-600" : "text-red-500"}>
-                              {imageStatus[index] ? "✓ Valid" : "✗ Invalid"}
-                            </span>
-                          </div>
-                          <div className="relative h-56 bg-slate-100">
-                            <img 
-                              src={imageUrl} 
-                              alt={`Extracted page ${extractionPageNumbers[index] || index + 1}`}
-                              className="max-w-full h-full object-contain mx-auto"
-                              onError={(e) => {
-                                console.error(`Error loading image ${index}`);
-                                const newStatus = {...imageStatus};
-                                newStatus[index] = false;
-                                setImageStatus(newStatus);
-                                e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%23f87171' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.88 9.88a3 3 0 1 0 4.24 4.24'%3E%3C/path%3E%3Cpath d='M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68'%3E%3C/path%3E%3Cpath d='M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61'%3E%3C/path%3E%3Cline x1='2' x2='22' y1='2' y2='22'%3E%3C/line%3E%3C/svg%3E";
-                              }}
-                              onLoad={() => {
-                                console.log(`Image ${index} loaded successfully`);
-                                const newStatus = {...imageStatus};
-                                newStatus[index] = true;
-                                setImageStatus(newStatus);
-                              }}
-                            />
-                            {!imageStatus[index] && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-red-50/50">
-                                <div className="text-xs text-red-500 text-center">
-                                  <span className="block mb-1">❌ Image failed to load</span>
-                                  <span className="text-xs">Check console for details</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <div className="bg-muted/20 p-1 text-xs text-center text-muted-foreground">
-                            {imageUrl?.substring(0, 30)}...
-                          </div>
+                  <h5 className="text-xs font-medium">Extracted Page Images:</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {tableImages.map((imageUrl, index) => (
+                      <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
+                        <div className="bg-muted/50 px-2 py-1 text-xs font-medium">
+                          Page Image {extractionPageNumbers[index] || index + 1}
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground p-8 border border-dashed rounded-md text-center bg-slate-50">
-                      <ImageIcon className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-                      <p>No page images were extracted during processing</p>
-                      <p className="text-xs mt-2">Try using the "Retry Extraction" button</p>
-                    </div>
-                  )}
+                        <img 
+                          src={imageUrl} 
+                          alt={`Extracted page ${extractionPageNumbers[index] || index + 1}`}
+                          className="max-w-full h-auto"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground p-4 border border-dashed rounded-md text-center">
@@ -397,7 +367,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
               
               <div className="space-y-2">
                 <h5 className="text-xs font-medium">Parsed Data:</h5>
-                <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md max-h-96 overflow-y-auto">
+                <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md">
                   {JSON.stringify({
                     addresses,
                     employments,
