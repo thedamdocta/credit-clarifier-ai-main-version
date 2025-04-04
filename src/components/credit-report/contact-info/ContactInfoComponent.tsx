@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table, TableHead, TableHeader, TableRow, TableBody, TableCell } from "@/components/ui/table";
@@ -83,8 +82,10 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     }
   };
 
-  // Format address for display
-  const formatAddress = (address: string) => {
+  // Format address for display - fixed to handle null values
+  const formatAddress = (address: string | null): string => {
+    if (!address) return ""; // Return empty string for null addresses
+    
     // Remove any "Current" or "Former" prefixes that might have been captured
     return address.replace(/^(current|former)\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}\s+/i, '');
   };
