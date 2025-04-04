@@ -1,39 +1,46 @@
 
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-interface Address {
-  address: string | null;
-  status: string | null;
-  dateReported: string | null;
-}
+import { AddressInfo } from "@/lib/ai/contactInfoExtraction";
 
 interface AddressesTableProps {
-  addresses: Address[];
+  addresses: AddressInfo[];
+  isLoading?: boolean;
 }
 
-const AddressesTable: React.FC<AddressesTableProps> = ({ addresses }) => {
-  // If there are no addresses, display a default row with "-" values
-  const displayAddresses = addresses.length > 0 
-    ? addresses 
-    : [{ address: null, status: null, dateReported: null }];
+const AddressesTable: React.FC<AddressesTableProps> = ({ addresses, isLoading = false }) => {
+  if (isLoading) {
+    return (
+      <div className="text-sm text-muted-foreground text-center py-4">
+        Loading address information...
+      </div>
+    );
+  }
+
+  if (!addresses || addresses.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground text-center py-4">
+        No address information available
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-md border">
+    <div className="border rounded-md overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50%]">Address</TableHead>
-            <TableHead className="w-[25%]">Status</TableHead>
-            <TableHead className="w-[25%]">Date Reported</TableHead>
+          <TableRow className="bg-muted/50">
+            <TableHead>Address</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date Reported</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {displayAddresses.map((address, index) => (
-            <TableRow key={index}>
-              <TableCell>{address.address || "-"}</TableCell>
-              <TableCell>{address.status || "-"}</TableCell>
-              <TableCell>{address.dateReported || "-"}</TableCell>
+          {addresses.map((address, index) => (
+            <TableRow key={`address-${index}`}>
+              <TableCell className="font-medium">{address.address}</TableCell>
+              <TableCell>{address.status}</TableCell>
+              <TableCell>{address.dateReported}</TableCell>
             </TableRow>
           ))}
         </TableBody>

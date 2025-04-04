@@ -1,36 +1,44 @@
 
 import React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-interface Employment {
-  company: string | null;
-  occupation: string | null;
-}
+import { EmploymentInfo } from "@/lib/ai/contactInfoExtraction";
 
 interface EmploymentTableProps {
-  employments: Employment[];
+  employments: EmploymentInfo[];
+  isLoading?: boolean;
 }
 
-const EmploymentTable: React.FC<EmploymentTableProps> = ({ employments }) => {
-  // If there are no employments, display a default row with "Not Reported" values
-  const displayEmployments = employments.length > 0 
-    ? employments 
-    : [{ company: null, occupation: null }];
+const EmploymentTable: React.FC<EmploymentTableProps> = ({ employments, isLoading = false }) => {
+  if (isLoading) {
+    return (
+      <div className="text-sm text-muted-foreground text-center py-4">
+        Loading employment information...
+      </div>
+    );
+  }
+
+  if (!employments || employments.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground text-center py-4">
+        No employment information available
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-md border">
+    <div className="border rounded-md overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50%]">Company</TableHead>
-            <TableHead className="w-[50%]">Occupation</TableHead>
+          <TableRow className="bg-muted/50">
+            <TableHead>Company</TableHead>
+            <TableHead>Occupation</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {displayEmployments.map((employment, index) => (
-            <TableRow key={index}>
-              <TableCell>{employment.company || "Not Reported"}</TableCell>
-              <TableCell>{employment.occupation || "Not Reported"}</TableCell>
+          {employments.map((employment, index) => (
+            <TableRow key={`employment-${index}`}>
+              <TableCell className="font-medium">{employment.company}</TableCell>
+              <TableCell>{employment.occupation}</TableCell>
             </TableRow>
           ))}
         </TableBody>

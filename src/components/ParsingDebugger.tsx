@@ -1,14 +1,14 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { parsingLogger } from "@/utils/parsingLogger";
-import { Bug, Code, Table } from "lucide-react";
+import { Bug, Code, Table, Users } from "lucide-react";
 import CreditAccounts from "@/components/credit-report/CreditAccounts";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getContactTableImages } from "@/lib/ai/contactInfoExtraction";
 
 interface ParsingDebuggerProps {
   isVisible?: boolean;
@@ -19,6 +19,7 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
   const [summary, setSummary] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(isVisible);
   const [debugReport, setDebugReport] = useState<CreditReport | null>(null);
+  const [contactTableImages, setContactTableImages] = useState<string[]>([]);
   
   useEffect(() => {
     // Update logs every second while parsing is in progress
@@ -33,6 +34,9 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
         if (reportLog && reportLog.report) {
           setDebugReport(reportLog.report);
         }
+        
+        // Get contact table images
+        setContactTableImages(getContactTableImages());
       }
     }, 1000);
     
@@ -117,6 +121,10 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
           <TabsTrigger value="accounts" className="flex items-center">
             <Table className="h-4 w-4 mr-2" />
             Account Table
+          </TabsTrigger>
+          <TabsTrigger value="contact" className="flex items-center">
+            <Users className="h-4 w-4 mr-2" />
+            Contact Info
           </TabsTrigger>
           <TabsTrigger value="logs">Raw Logs</TabsTrigger>
         </TabsList>
@@ -246,6 +254,33 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
             ) : (
               <div className="text-center py-4 text-muted-foreground">
                 No account summary data available yet
+              </div>
+            )}
+          </CardContent>
+        </TabsContent>
+        
+        <TabsContent value="contact">
+          <CardContent className="pt-4">
+            <div className="text-xs text-muted-foreground mb-2">
+              Contact Information Table Images
+            </div>
+            
+            {contactTableImages.length > 0 ? (
+              <div className="space-y-4">
+                {contactTableImages.map((imageUrl, index) => (
+                  <div key={`contact-img-${index}`} className="border rounded-md overflow-hidden">
+                    <div className="text-xs bg-muted/50 p-1 px-2 font-medium">Image {index + 1}</div>
+                    <img 
+                      src={imageUrl} 
+                      alt={`Contact information table ${index + 1}`} 
+                      className="max-w-full h-auto"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                No contact information images available yet
               </div>
             )}
           </CardContent>

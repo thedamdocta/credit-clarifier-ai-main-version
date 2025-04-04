@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
@@ -8,8 +8,7 @@ import ContactInfoHeader from "./ContactInfoHeader";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
 import { CreditReport } from "@/lib/types/creditReport";
-import { extractRegionFromPDFPage } from "@/utils/pdf/pdfToImage";
-import CollapsibleCard from "../common/CollapsibleCard";
+import { extractContactInfoTables, getContactTableImages, AddressInfo, EmploymentInfo } from "@/lib/ai/contactInfoExtraction";
 
 interface ContactInfoComponentProps {
   report: CreditReport;
@@ -18,36 +17,54 @@ interface ContactInfoComponentProps {
 const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [tableImage, setTableImage] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<AddressInfo[]>([]);
+  const [employments, setEmployments] = useState<EmploymentInfo[]>([]);
+  const [tableImages, setTableImages] = useState<string[]>([]);
+  
+  // Extract contact information on component mount
+  useEffect(() => {
+    const extractContactInfo = async () => {
+      const pdfDocument = (window as any).currentPdfDocument;
+      if (pdfDocument) {
+        setIsProcessing(true);
+        try {
+          const { addresses, employments } = await extractContactInfoTables(pdfDocument);
+          setAddresses(addresses);
+          setEmployments(employments);
+          setTableImages(getContactTableImages());
+        } catch (error) {
+          console.error("Error extracting contact information:", error);
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+    };
+    
+    extractContactInfo();
+  }, [report]);
   
   const handleRetryExtraction = async () => {
     setIsProcessing(true);
     toast.info("Retrying contact information extraction...");
     
-    // Attempt to extract an image of the contact info table region
+    // Attempt to extract contact information
     try {
       const pdfDocument = (window as any).currentPdfDocument;
       if (pdfDocument) {
-        // Extract the 1st or 2nd page where contact info usually appears
-        const pageNum = 1;
-        // Approximate region for contact info (these coordinates would need adjustment)
-        const region = { x: 50, y: 200, width: 500, height: 300 };
-        
-        const extractedImage = await extractRegionFromPDFPage(pdfDocument, pageNum, region);
-        if (extractedImage) {
-          setTableImage(extractedImage);
-          toast.success("Contact information table image extracted");
-        }
+        const { addresses, employments } = await extractContactInfoTables(pdfDocument);
+        setAddresses(addresses);
+        setEmployments(employments);
+        setTableImages(getContactTableImages());
+        toast.success("Contact information extraction completed");
+      } else {
+        toast.error("PDF document not available. Please upload a PDF file first.");
       }
     } catch (error) {
-      console.error("Failed to extract contact information table image:", error);
+      console.error("Failed to extract contact information:", error);
+      toast.error("Failed to extract contact information");
     }
     
-    // Simulate processing completion
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast.success("Contact information extraction completed");
-    }, 1500);
+    setIsProcessing(false);
   };
   
   const handleTrainParser = () => {
@@ -64,62 +81,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     }
   };
 
-  // Example addresses data - would be replaced with real data from the report
-  const addresses = [];
-  
-  // Example employment data - would be replaced with real data from the report
-  const employments = [];
-  
-  const headerContent = (
-    <div className="flex flex-row items-center justify-between w-full">
-      <ContactInfoHeader 
-        showDebugInfo={showDebugInfo} 
-        toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
-      />
-      
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRetryExtraction}
-          disabled={isProcessing}
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4 mr-1" />
-              Retry Extraction
-            </>
-          )}
-        </Button>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={triggerPdfUpload}
-          disabled={isProcessing}
-        >
-          <Upload className="h-4 w-4 mr-1" />
-          Upload Better PDF
-        </Button>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleTrainParser}
-          disabled={isProcessing}
-        >
-          <Save className="h-4 w-4 mr-1" />
-          Train Parser
-        </Button>
-      </div>
-    </div>
-  );
-  
   const content = (
     <>
       {isProcessing ? (
@@ -134,7 +95,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         </div>
       ) : (
         <>
-          <div className="space-y-4">
+          <div className="space-y-4 mb-6">
             <h3 className="font-medium">Previous Addresses</h3>
             <AddressesTable addresses={addresses} />
           </div>
@@ -145,18 +106,22 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           </div>
           
           {showDebugInfo && (
-            <div className="mt-4 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
+            <div className="mt-6 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
               <h4 className="text-sm font-medium mb-2">Debug Information</h4>
               
-              {tableImage && (
+              {tableImages.length > 0 && (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-medium">Extracted Table Image:</h5>
-                  <div className="border rounded-md overflow-hidden">
-                    <img 
-                      src={tableImage} 
-                      alt="Extracted contact information table" 
-                      className="max-w-full h-auto"
-                    />
+                  <h5 className="text-xs font-medium">Extracted Table Images:</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {tableImages.map((imageUrl, index) => (
+                      <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
+                        <img 
+                          src={imageUrl} 
+                          alt={`Extracted contact information table ${index + 1}`}
+                          className="max-w-full h-auto"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -165,8 +130,8 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 <h5 className="text-xs font-medium">Parsed Data:</h5>
                 <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md">
                   {JSON.stringify({
-                    addresses: addresses,
-                    employments: employments,
+                    addresses,
+                    employments,
                     personalInfo: report.personalInfo
                   }, null, 2)}
                 </pre>
@@ -179,9 +144,60 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   );
   
   return (
-    <CollapsibleCard header={headerContent}>
+    <div>
+      <div className="flex justify-end mb-4">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetryExtraction}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Retry Extraction
+              </>
+            )}
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={triggerPdfUpload}
+            disabled={isProcessing}
+          >
+            <Upload className="h-4 w-4 mr-1" />
+            Upload Better PDF
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTrainParser}
+            disabled={isProcessing}
+          >
+            <Save className="h-4 w-4 mr-1" />
+            Train Parser
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDebugInfo(!showDebugInfo)}
+          >
+            {showDebugInfo ? "Hide Debug Info" : "Show Debug Info"}
+          </Button>
+        </div>
+      </div>
+      
       {content}
-    </CollapsibleCard>
+    </div>
   );
 };
 
