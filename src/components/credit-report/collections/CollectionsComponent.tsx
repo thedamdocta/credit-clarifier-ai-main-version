@@ -6,10 +6,10 @@ import { AlertCircle, Bug, RefreshCw } from "lucide-react";
 import TableImageDisplay from "../accounts/TableImageDisplay";
 import CollectionsTable from "./CollectionsTable";
 import CollectionsDataDebug from "./CollectionsDataDebug";
-import { Collection } from "@/lib/types/creditReport";
+import { Collection, CreditReport } from "@/lib/types/creditReport";
 
 interface CollectionsComponentProps {
-  report: any;
+  report: CreditReport;
   showDebugInfo?: boolean;
 }
 
@@ -18,7 +18,7 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({
   showDebugInfo = false 
 }) => {
   const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collections, setCollections] = useState<Collection[]>(report?.collections || []);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [extractionFailed, setExtractionFailed] = useState<boolean>(false);
 

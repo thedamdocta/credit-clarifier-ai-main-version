@@ -1,17 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useDebouncedValue } from "@mantine/hooks";
-import { 
-  CreditCard, 
-  FileText, 
-  Settings, 
-  AlertCircle,
-  Search
-} from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Loader2, CreditCard, FileText, Settings, AlertCircle, Search } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { OpenAIConfigForm } from "@/lib/ai/openai/openaiService";
@@ -25,10 +17,10 @@ import CollectionsComponent from "./credit-report/collections/CollectionsCompone
 
 interface EquifaxCreditReportProps {
   report: CreditReport;
-  showDebugInfo: boolean;
+  showDebugInfo?: boolean; // Make this optional with a default value
 }
 
-const EquifaxCreditReport = ({ report, showDebugInfo }: EquifaxCreditReportProps) => {
+const EquifaxCreditReport = ({ report, showDebugInfo = false }: EquifaxCreditReportProps) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractionAttempts, setExtractionAttempts] = useState(0);
@@ -38,11 +30,11 @@ const EquifaxCreditReport = ({ report, showDebugInfo }: EquifaxCreditReportProps
   const [initialAccountDataFound, setInitialAccountDataFound] = useState(false);
   const [accountSummaries, setAccountSummaries] = useState(report?.accountSummaries || []);
   const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
-  const [debouncedApiKey] = useDebouncedValue(apiKey, 500);
+  const [debouncedApiKey] = useState(apiKey); // Simplified from useDebouncedValue
   
   useEffect(() => {
     localStorage.setItem('openai_api_key', apiKey);
-  }, [debouncedApiKey]);
+  }, [apiKey, debouncedApiKey]);
   
   const handleDataExtracted = (
     summaries: any, 
