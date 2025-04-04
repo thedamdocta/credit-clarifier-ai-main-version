@@ -40,8 +40,10 @@ export const prepareAddresses = (report: CreditReport): AddressInfo[] => {
           status = 'Former';
         }
         
-        // Fix the TypeScript error by ensuring address is a string before calling match()
-        const dateMatch = address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i);
+        // Make sure address is a string before calling match() on it
+        const dateMatch = typeof address === 'string' ? 
+          address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : 
+          null;
           
         if (dateMatch) {
           dateReported = dateMatch[0];
