@@ -71,7 +71,10 @@ export const convertTableToCollections = (tableData: ExtractedTableData): Collec
         contact: []
       };
       
-      collections.push(collection);
+      // Only add non-empty collections
+      if (collection.collectionAgency || collection.originalCreditorName || collection.amount) {
+        collections.push(collection);
+      }
     }
     
     return collections;
@@ -206,7 +209,10 @@ function parseKeyValueCollectionFormat(tableData: ExtractedTableData): Collectio
     if (!currentCollection.comments) currentCollection.comments = [];
     if (!currentCollection.contact) currentCollection.contact = [];
     
-    collections.push(currentCollection as Collection);
+    // Only add if we have at least one identifying field
+    if (currentCollection.collectionAgency || currentCollection.originalCreditorName || currentCollection.amount) {
+      collections.push(currentCollection as Collection);
+    }
   }
   
   return collections;
@@ -217,3 +223,4 @@ export const convertToCollections = (text: string): Collection[] => {
   // Use the equifaxCollections parser for text-based extraction
   return convertToCollection(text);
 };
+

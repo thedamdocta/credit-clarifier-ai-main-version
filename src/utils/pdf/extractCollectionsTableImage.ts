@@ -36,7 +36,10 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
       "collections",
       "collection agency",
       "10. collections", // Format in the example image
-      "collections are accounts with outstanding debt"
+      "collections are accounts with outstanding debt",
+      "placed for collection",
+      "placed with collection",
+      "debt collector"
     ];
     
     // Search text for collections section
@@ -89,7 +92,10 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
         /collection agency\s*:\s*([^\n]+)/i,
         /date reported\s*:\s*([^\n]+)/i,
         /original creditor\s*:\s*([^\n]+)/i,
-        /account designator code\s*:/i
+        /account designator code\s*:/i,
+        /placed (?:with|for) collection/i,
+        /debt (?:collector|collection)/i,
+        /account (?:sent|placed|assigned) (?:to|with) collection/i
       ];
       
       for (const pattern of collectionPatterns) {
@@ -154,6 +160,21 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
           imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, pageNum);
           if (imageUrl) {
             console.log(`Found collections image on page ${pageNum}`);
+            break;
+          }
+        }
+      }
+    }
+    
+    // If still no image found, try scanning all pages as a last resort
+    if (!imageUrl && numPages <= 20) { // Only do this for reasonable-sized documents
+      console.log("No collections found on expected pages, scanning all pages");
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        if (pageNum !== collectionsPageNumber && !pagesToCheck.includes(pageNum)) {
+          console.log(`Scanning page ${pageNum} for collections`);
+          imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, pageNum);
+          if (imageUrl) {
+            console.log(`Found potential collections image on page ${pageNum}`);
             break;
           }
         }
