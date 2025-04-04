@@ -1,3 +1,4 @@
+
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -10,12 +11,24 @@ export interface Account {
 }
 
 export interface AccountSummary {
+  // Original properties from the interface
   type: string;
   count: number;
   highCredit: number | null;
   pastDue: number | null;
   balance: number | null;
   payment: number | null;
+  
+  // Additional properties used in the codebase
+  accountType: string;
+  totalAccounts: number | null;
+  open: string | number | null;
+  withBalance: string | number | null;
+  closed: string | number | null;
+  totalBalance: string | number | null;
+  available: string | number | null;
+  creditLimit: string | number | null;
+  debtToCredit: string | number | null;
 }
 
 export interface Inquiry {
@@ -53,6 +66,7 @@ export interface CreditScore {
   score: number;
   type: string;
   range: string;
+  provider?: string; // Added this property
 }
 
 export interface Alert {
@@ -73,19 +87,23 @@ export interface SoftInquiry {
   description: string | null;
 }
 
+// Add PersonalInfo interface that was missing
+export interface PersonalInfo {
+  name: string;
+  addresses: string[];
+  ssn?: string;
+  dob?: string;
+  phoneNumbers?: string[];
+  employmentHistory?: string[];
+  otherInfo?: Record<string, string>;
+}
+
 export interface CreditReport {
   reportId?: string;
   fileName?: string;
   reportDate: string;
   bureau: 'Equifax' | 'Experian' | 'TransUnion' | 'Unknown';
-  personalInfo: {
-    name: string;
-    addresses: string[];
-    dateOfBirth?: string;
-    phoneNumbers?: string[];
-    employmentHistory?: string[];
-    otherInfo?: Record<string, string>;
-  };
+  personalInfo: PersonalInfo;
   accounts: Account[];
   accountSummaries?: AccountSummary[];
   inquiries: Inquiry[];
@@ -96,4 +114,23 @@ export interface CreditReport {
   fileNumber?: string;
   hardInquiries?: HardInquiry[];
   softInquiries?: SoftInquiry[];
+  
+  // Additional fields used in the codebase
+  rawText?: string;
+  consumerName?: string;
+  confirmationNumber?: string;
+  creditFileStatus?: string;
+  alertContacts?: string;
+  averageAccountAge?: string;
+  lengthOfCreditHistory?: string;
+  accountsWithNegativeInfo?: number | string;
+  oldestAccount?: { name: string; date: string };
+  recentAccount?: { name: string; date: string };
+  statementCount?: number;
+  personalInfoItemCount?: number;
+  inquiryCount?: number;
+  recentInquiry?: string;
+  publicRecordCount?: number;
+  collectionCount?: number;
+  parsingError?: string;
 }

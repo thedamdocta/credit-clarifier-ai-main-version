@@ -1,4 +1,3 @@
-
 import { Account } from "../types/creditReport";
 
 export const extractAccounts = (text: string): Account[] => {
@@ -66,7 +65,7 @@ export const extractAccounts = (text: string): Account[] => {
       accountType: accountType || 'Not Specified',
       openDate: openDate || 'Not Found',
       status: status || 'Not Specified',
-      balance,
+      balance: balance ? Number(balance.replace(/[^0-9.-]/g, '')) : null,
       paymentHistory: []
     };
     
