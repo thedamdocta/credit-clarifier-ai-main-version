@@ -15,3 +15,5 @@ export * from './tableExtraction';
 export * from './table';
 // Export contact info extraction
 export * from './contactInfoExtraction';
+// Export OCR utilities
+export * from './ocrExtraction';

@@ -6,7 +6,13 @@ import { toast } from "sonner";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
 import { CreditReport } from "@/lib/types/creditReport";
-import { extractContactInfoTables, getContactTableImages, AddressInfo, EmploymentInfo } from "@/lib/ai/contactInfoExtraction";
+import { 
+  extractContactInfoTables, 
+  getContactTableImages, 
+  getContactExtractionLogs,
+  AddressInfo, 
+  EmploymentInfo 
+} from "@/lib/ai/contactInfoExtraction";
 
 interface ContactInfoComponentProps {
   report: CreditReport;
@@ -18,6 +24,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [addresses, setAddresses] = useState<AddressInfo[]>([]);
   const [employments, setEmployments] = useState<EmploymentInfo[]>([]);
   const [tableImages, setTableImages] = useState<string[]>([]);
+  const [extractionLogs, setExtractionLogs] = useState<string[]>([]);
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
   const [extractionPageNumbers, setExtractionPageNumbers] = useState<number[]>([]);
   
@@ -83,6 +90,10 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           // Get extracted table images for debugging
           const images = getContactTableImages();
           setTableImages(images);
+          
+          // Get extraction logs
+          const logs = getContactExtractionLogs();
+          setExtractionLogs(logs);
           
         } catch (error) {
           console.error("Error extracting contact information:", error);
@@ -158,6 +169,10 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         
         const images = getContactTableImages();
         setTableImages(images);
+        
+        const logs = getContactExtractionLogs();
+        setExtractionLogs(logs);
+        
         toast.success("Contact information extraction completed");
       } else {
         toast.error("PDF document not available. Please upload a PDF file first.");
@@ -279,6 +294,18 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 <div className="text-xs mb-2">
                   <span className="font-medium">Extracted from pages: </span>
                   {extractionPageNumbers.join(", ")}
+                </div>
+              )}
+              
+              {/* Extraction Logs Section */}
+              {extractionLogs.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <h5 className="text-xs font-medium">Extraction Logs:</h5>
+                  <div className="bg-black/80 text-green-400 p-3 rounded text-xs font-mono h-48 overflow-y-auto">
+                    {extractionLogs.map((log, idx) => (
+                      <div key={`log-${idx}`} className="mb-1">{log}</div>
+                    ))}
+                  </div>
                 </div>
               )}
               
