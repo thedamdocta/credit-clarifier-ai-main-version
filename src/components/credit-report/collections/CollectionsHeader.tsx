@@ -27,7 +27,7 @@ const CollectionsHeader: React.FC<CollectionsHeaderProps> = ({
           id="debug-mode"
           checked={showDebugInfo}
           onCheckedChange={toggleDebug}
-          size="sm"
+          className="scale-75"
         />
         <Label htmlFor="debug-mode" className="text-xs">Show Debug</Label>
       </div>
