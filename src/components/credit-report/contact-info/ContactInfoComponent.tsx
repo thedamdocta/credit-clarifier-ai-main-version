@@ -153,7 +153,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                         
                         return (
                           <TableRow key={`address-${index}`}>
-                            <TableCell>{formatAddress(typeof address === 'string' ? address : null)}</TableCell>
+                            <TableCell>{typeof address === 'string' ? formatAddress(address) : ''}</TableCell>
                             <TableCell>{status}</TableCell>
                             <TableCell>{dateReported}</TableCell>
                           </TableRow>
