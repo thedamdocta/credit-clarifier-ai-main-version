@@ -1,4 +1,3 @@
-
 // Global storage for the current PDF being processed
 let currentPdfData: {
   pdfFile?: File;
@@ -30,7 +29,7 @@ export const setCurrentPDFData = (file: File, options?: { targetTable?: string }
   return reportId;
 };
 
-// Add getCurrentPDFData export to fix the error
+// Get the current PDF data
 export const getCurrentPDFData = () => {
   return currentPdfData;
 };
