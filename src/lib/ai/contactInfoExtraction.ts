@@ -1,3 +1,4 @@
+
 import { extractTextFromImageWithOCR, processImageWithEnhancedOCR, extractTextFromImageRegion } from './ocrExtraction';
 import { convertPDFPageToImage } from '@/utils/pdf/pdfToImage';
 
@@ -184,6 +185,27 @@ const scanPagesForContactInfo = async (pdfDocument: any, numPages: number): Prom
       // Calculate a score based on keywords related to contact info
       let score = 0;
       
+      // Look for key section headers - give these high scores
+      if (/personal\s+information/i.test(pageText)) {
+        score += 25;
+        addLog(`Found "personal information" section on page ${i}, +25 points`);
+      }
+      
+      if (/contact\s+information/i.test(pageText)) {
+        score += 25;
+        addLog(`Found "contact information" section on page ${i}, +25 points`);
+      }
+      
+      if (/identification/i.test(pageText)) {
+        score += 15;
+        addLog(`Found "identification" section on page ${i}, +15 points`);
+      }
+      
+      if (/employment\s+history/i.test(pageText)) {
+        score += 20;
+        addLog(`Found "employment history" section on page ${i}, +20 points`);
+      }
+      
       // Address-related keywords
       const addressKeywords = ['address', 'street', 'avenue', 'blvd', 'lane', 'road', 'apt', 'suite', 'current', 'former', 'previous', 'residence'];
       addressKeywords.forEach(keyword => {
@@ -191,16 +213,28 @@ const scanPagesForContactInfo = async (pdfDocument: any, numPages: number): Prom
         if (matches) score += matches.length * 2;
       });
       
-      // Look for address patterns (street numbers, zip codes)
+      // Look for address patterns that match the examples (street numbers, zip codes)
       if (/\d{3,5}\s+[A-Za-z\s]+(?:street|st|avenue|ave|boulevard|blvd|road|rd|drive|dr|lane|ln|circle|cir|court|ct|way)/i.test(pageText)) {
-        score += 10;
-        addLog(`Found address pattern on page ${i}, +10 points`);
+        score += 15;
+        addLog(`Found address pattern on page ${i}, +15 points`);
       }
       
-      // Look for zip code patterns
-      if (/[A-Za-z]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?/i.test(pageText)) {
-        score += 8;
-        addLog(`Found zip code pattern on page ${i}, +8 points`);
+      // Check for state abbreviations followed by zip codes - common in addresses
+      if (/[A-Z]{2}\s+\d{5}(?:-\d{4})?/i.test(pageText)) {
+        score += 15;
+        addLog(`Found state/zip pattern on page ${i}, +15 points`);
+      }
+      
+      // Look for table patterns with Address, Status, Date Reported headers (like in example)
+      if (/Address.*Status.*Date\s+Reported/i.test(pageText)) {
+        score += 35;
+        addLog(`Found address table pattern "Address Status Date Reported" on page ${i}, +35 points`);
+      }
+      
+      // Look for table patterns with Company, Occupation headers (like in example)
+      if (/Company.*Occupation/i.test(pageText)) {
+        score += 25;
+        addLog(`Found employment table pattern "Company Occupation" on page ${i}, +25 points`);
       }
       
       // Employment-related keywords
@@ -210,21 +244,10 @@ const scanPagesForContactInfo = async (pdfDocument: any, numPages: number): Prom
         if (matches) score += matches.length * 2;
       });
       
-      // Sections that often contain contact info
-      if (/personal\s+information/i.test(pageText)) {
-        score += 15;
-        addLog(`Found "personal information" section on page ${i}, +15 points`);
-      }
-      
-      if (/contact\s+information/i.test(pageText)) {
-        score += 15;
-        addLog(`Found "contact information" section on page ${i}, +15 points`);
-      }
-      
       // Store the score for this page
       pageScores[i] = score;
       
-      if (score > 20) {
+      if (score > 40) {
         addLog(`Page ${i} has high score: ${score}`);
       }
     } catch (error) {
@@ -386,11 +409,66 @@ const extractEmploymentsFromPage = async (pdfDocument: any, pageNum: number): Pr
   }
 };
 
-// Extract address information from text
+// Enhanced address extraction function: Detects addresses in different formats
 export const extractAddressesFromText = (text: string): AddressInfo[] => {
   const addresses: AddressInfo[] = [];
   
   try {
+    // NEW: Look for a table structure with headers "Address", "Status", "Date Reported"
+    // This pattern specifically targets the example format shown in the first image
+    const tablePattern = text.match(/Address\s*Status\s*Date\s+Reported([\s\S]*?)(?:Employment|Alert|Other|You currently|$)/i);
+    
+    if (tablePattern && tablePattern[1]) {
+      addLog("Found address table pattern with headers");
+      const tableContent = tablePattern[1];
+      
+      // Extract each row from the table
+      const rows = tableContent.split(/\n(?=\d+|[A-Z]+\s+[A-Z]+)/);
+      
+      for (const row of rows) {
+        // Check if this row contains an address pattern and a status word
+        if ((/\d+\s+[A-Z0-9]+/i.test(row) || /[A-Z]+\s+[A-Z]+/i.test(row)) && 
+            (/current|former/i.test(row))) {
+          
+          // Try to extract address, status, and date
+          const statusMatch = row.match(/(current|former)/i);
+          const dateMatch = row.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}/i);
+          
+          if (statusMatch) {
+            const status = statusMatch[1].charAt(0).toUpperCase() + statusMatch[1].slice(1).toLowerCase();
+            
+            // Extract address by removing status and date parts
+            let addressText = row;
+            if (statusMatch) {
+              addressText = addressText.replace(new RegExp(statusMatch[0], 'i'), '  ');
+            }
+            if (dateMatch) {
+              addressText = addressText.replace(new RegExp(dateMatch[0], 'i'), '  ');
+            }
+            
+            // Clean up the address
+            addressText = addressText.trim().replace(/\s+/g, ' ');
+            
+            // Only add if we have a non-empty address
+            if (addressText && addressText.length > 5) {
+              addresses.push({
+                address: addressText,
+                status: status,
+                dateReported: dateMatch ? dateMatch[0] : ''
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // If we found addresses from the table pattern, return them
+    if (addresses.length > 0) {
+      addLog(`Extracted ${addresses.length} addresses from table pattern`);
+      return addresses;
+    }
+    
+    // Fallback: Look for standalone address patterns
     // Look for address blocks with status indicators
     const statusAddressRegex = /(current|former)\s+(?:address|residence)?:?\s*([^,]*,\s*[^,]*(?:,\s*[^,]*)?)/gi;
     let match;
@@ -448,6 +526,31 @@ export const extractAddressesFromText = (text: string): AddressInfo[] => {
         });
       }
     }
+    
+    // NEW: Pattern for the format shown in the examples with "CITY, FL ZIP"
+    const cityStateZipPattern = /(\d+\s+[A-Z0-9\s]+(?:CT|ST|AVE|RD|BLVD|DR|LN|CIR|WAY|PL)(?:\s+[A-Z0-9\s]+)?)\s+((?:APT|UNIT|#)\s+[A-Z0-9]+)?\s+([A-Z\s]+),\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)/gi;
+    
+    while ((match = cityStateZipPattern.exec(text)) !== null) {
+      const streetAddress = match[1].trim();
+      const unit = match[2] ? match[2].trim() : '';
+      const city = match[3].trim();
+      const state = match[4];
+      const zip = match[5];
+      
+      const fullAddress = unit 
+        ? `${streetAddress} ${unit}, ${city}, ${state} ${zip}`
+        : `${streetAddress}, ${city}, ${state} ${zip}`;
+      
+      if (!addresses.some(a => a.address === fullAddress)) {
+        const status = addresses.length === 0 ? "Current" : "Former";
+        
+        addresses.push({
+          address: fullAddress,
+          status: status,
+          dateReported: ""
+        });
+      }
+    }
   } catch (error) {
     addLog(`Error in address text extraction: ${(error as Error).message}`);
   }
@@ -460,6 +563,63 @@ export const extractEmploymentsFromText = (text: string): EmploymentInfo[] => {
   const employments: EmploymentInfo[] = [];
   
   try {
+    // NEW: Look for a table structure with headers "Company", "Occupation"
+    // This pattern specifically targets the example format shown in the second image
+    const tablePattern = text.match(/Company\s*Occupation([\s\S]*?)(?:Other|Information|Alert|You currently|$)/i);
+    
+    if (tablePattern && tablePattern[1]) {
+      addLog("Found employment table pattern with headers");
+      const tableContent = tablePattern[1];
+      
+      // Process the table content by lines
+      const lines = tableContent.split('\n').filter(line => line.trim().length > 0);
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Skip lines that are likely to be headers or section titles
+        if (/employment\s+history|section contains/i.test(line)) {
+          continue;
+        }
+        
+        // If this line doesn't contain occupation data but the next might, combine them
+        if (i < lines.length - 1 && line.length > 2) {
+          const company = line;
+          const occupation = lines[i+1].trim();
+          
+          // Check if the next line looks like an occupation (not a header or new company)
+          if (occupation && 
+              !occupation.includes(':') && 
+              !/company|employer|employment/i.test(occupation) && 
+              occupation.length < company.length * 2) {
+            
+            employments.push({
+              company,
+              occupation
+            });
+            
+            // Skip the next line as we've already used it
+            i++;
+            continue;
+          }
+        }
+        
+        // Check if this single line contains employment data
+        if (line.length > 2 && !/history|section contains/i.test(line.toLowerCase())) {
+          employments.push({
+            company: line,
+            occupation: ""
+          });
+        }
+      }
+    }
+    
+    // If we found employments from the table pattern, return them
+    if (employments.length > 0) {
+      addLog(`Extracted ${employments.length} employments from table pattern`);
+      return employments;
+    }
+    
     // Pattern for "Employer: Company Name, Title: Job Title"
     const employerTitlePattern = /employer:?\s*([^,]+)(?:,\s*title:?\s*([^,\n]+))?/i;
     const match = text.match(employerTitlePattern);

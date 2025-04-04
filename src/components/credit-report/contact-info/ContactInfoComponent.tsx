@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText, AlertCircle, ZoomIn, ZoomOut } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText, AlertCircle, ZoomIn, ZoomOut, Eye } from "lucide-react";
 import { toast } from "sonner";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
@@ -33,6 +33,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [extractionPageNumbers, setExtractionPageNumbers] = useState<number[]>([]);
   const [analyzedText, setAnalyzedText] = useState<string>("");
   const [enlargeImages, setEnlargeImages] = useState<Record<number, boolean>>({});
+  const [showExtractionTips, setShowExtractionTips] = useState(true);
   
   // Extract contact information on component mount
   useEffect(() => {
@@ -216,6 +217,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const handleRetryExtraction = async () => {
     setIsProcessing(true);
     setImageLoadStatus({});
+    setShowExtractionTips(false);
     toast.info("Retrying contact information extraction...");
     
     // Attempt to extract contact information
@@ -269,6 +271,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     // Add training logic here in the future
     setTimeout(() => {
       toast.success("Parser training complete");
+      setShowExtractionTips(false);
     }, 1500);
   };
   
@@ -297,7 +300,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     console.error(`Image ${index} failed to load`);
   };
   
-  // New function to toggle image size
+  // Toggle image size
   const toggleImageSize = (index: number) => {
     setEnlargeImages(prev => ({
       ...prev,
@@ -358,6 +361,15 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           </Button>
         </div>
       </div>
+      
+      {showExtractionTips && tableImages.length === 0 && !isProcessing && (
+        <Alert className="mb-4 bg-blue-50 border-blue-200">
+          <Eye className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            The system is looking for sections titled "Contact Information" or "Personal Information" with address tables and employment history. Click "Retry Extraction" if information isn't showing correctly.
+          </AlertDescription>
+        </Alert>
+      )}
       
       {isProcessing ? (
         <div className="py-8 flex flex-col items-center justify-center">

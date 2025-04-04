@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import ContactInfoComponent from "./contact-info/ContactInfoComponent";
 import CollapsibleCard from "./common/CollapsibleCard";
@@ -10,7 +10,19 @@ interface ContactInformationProps {
 }
 
 const ContactInformation: React.FC<ContactInformationProps> = ({ report }) => {
-  const header = <ContactInfoHeader personalInfo={report.personalInfo} />;
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  
+  const toggleDebug = () => {
+    setShowDebugInfo(!showDebugInfo);
+  };
+  
+  const header = (
+    <ContactInfoHeader 
+      personalInfo={report.personalInfo} 
+      showDebugInfo={showDebugInfo}
+      toggleDebug={toggleDebug}
+    />
+  );
 
   return (
     <CollapsibleCard header={header}>
