@@ -29,11 +29,6 @@ export const setCurrentPDFData = (file: File, options?: { targetTable?: string }
   return reportId;
 };
 
-// Add getCurrentPDFData export to fix the error
-export const getCurrentPDFData = () => {
-  return currentPdfData;
-};
-
 // Store the parsed report data
 export const setExtractedReportData = (parsedReport: any) => {
   extractedReportData = parsedReport;
