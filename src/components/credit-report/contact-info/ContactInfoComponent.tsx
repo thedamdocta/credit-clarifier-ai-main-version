@@ -3,23 +3,22 @@ import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table, TableHead, TableHeader, TableRow, TableBody, TableCell } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Briefcase, Home, Loader2, ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Upload, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getContactTableImages, extractContactInfoTables } from "@/lib/ai/contactInfoExtraction";
 import { toast } from "sonner";
+import AddressesTable from "./AddressesTable";
+import EmploymentTable from "./EmploymentTable";
 
 interface ContactInfoComponentProps {
   report: CreditReport;
 }
 
 const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) => {
-  const [activeTab, setActiveTab] = useState("addresses");
   const [tableImages, setTableImages] = useState<string[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionAttempted, setExtractionAttempted] = useState(false);
   const [imageLoadStatus, setImageLoadStatus] = useState<Record<number, boolean>>({});
-  const [enlargeImage, setEnlargeImage] = useState(false);
 
   useEffect(() => {
     // Get any existing extracted images on component mount
@@ -91,145 +90,95 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     return address.replace(/^(current|former)\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}\s+/i, '');
   };
 
-  return (
-    <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="addresses" className="flex items-center">
-            <Home className="h-4 w-4 mr-2" />
-            Addresses
-          </TabsTrigger>
-          <TabsTrigger value="employment" className="flex items-center">
-            <Briefcase className="h-4 w-4 mr-2" />
-            Employment
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="addresses" className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              {report.personalInfo && report.personalInfo.addresses && report.personalInfo.addresses.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date Reported</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {report.personalInfo.addresses.map((address, index) => {
-                      // Check if this is actually an address with status info
-                      const isAddressObj = typeof address === 'object' && address !== null && 'address' in address;
-                      
-                      if (isAddressObj) {
-                        const addressObj = address as any;
-                        return (
-                          <TableRow key={`address-${index}`}>
-                            <TableCell>{formatAddress(addressObj.address)}</TableCell>
-                            <TableCell>{addressObj.status || 'Unknown'}</TableCell>
-                            <TableCell>{addressObj.dateReported || 'Unknown'}</TableCell>
-                          </TableRow>
-                        );
-                      } else {
-                        // Simple string address without status info
-                        let status = 'Unknown';
-                        let dateReported = '';
-                        
-                        // Try to extract status from the address string
-                        if (typeof address === 'string') {
-                          if (address.toLowerCase().includes('current')) {
-                            status = 'Current';
-                          } else if (address.toLowerCase().includes('former')) {
-                            status = 'Former';
-                          }
-                          
-                          // Try to extract date from the address string
-                          const dateMatch = address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i);
-                          if (dateMatch) {
-                            dateReported = dateMatch[0];
-                          }
-                        }
-                        
-                        return (
-                          <TableRow key={`address-${index}`}>
-                            <TableCell>{typeof address === 'string' ? formatAddress(address) : ''}</TableCell>
-                            <TableCell>{status}</TableCell>
-                            <TableCell>{dateReported}</TableCell>
-                          </TableRow>
-                        );
-                      }
-                    })}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-muted-foreground">No address information available.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="employment" className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              {report.personalInfo && report.personalInfo.employmentHistory ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Occupation</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>{report.personalInfo.employmentHistory}</TableCell>
-                      <TableCell>Not specified</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-muted-foreground">No employment information available.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+  // Prepare addresses in the format expected by AddressesTable
+  const prepareAddresses = () => {
+    if (!report.personalInfo || !report.personalInfo.addresses) {
+      return [];
+    }
+
+    return report.personalInfo.addresses.map((address, index) => {
+      // Check if this is actually an address with status info
+      const isAddressObj = typeof address === 'object' && address !== null && 'address' in address;
       
-      {/* Table Image Extraction and Display Section */}
+      if (isAddressObj) {
+        const addressObj = address as any;
+        return {
+          address: formatAddress(addressObj.address),
+          status: addressObj.status || 'Unknown',
+          dateReported: addressObj.dateReported || ''
+        };
+      } else {
+        // Simple string address without status info
+        let status = 'Unknown';
+        let dateReported = '';
+        
+        // Try to extract status from the address string
+        if (typeof address === 'string') {
+          if (address.toLowerCase().includes('current')) {
+            status = 'Current';
+          } else if (address.toLowerCase().includes('former')) {
+            status = 'Former';
+          }
+          
+          // Try to extract date from the address string
+          const dateMatch = address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i);
+          if (dateMatch) {
+            dateReported = dateMatch[0];
+          }
+        }
+        
+        return {
+          address: typeof address === 'string' ? formatAddress(address) : '',
+          status,
+          dateReported
+        };
+      }
+    });
+  };
+
+  // Prepare employment data
+  const prepareEmployment = () => {
+    if (!report.personalInfo || !report.personalInfo.employmentHistory) {
+      return [];
+    }
+
+    // For now we're just wrapping the string in an object
+    return [{
+      company: "History",
+      occupation: "Employment history is the information in your credit file that indicates your current and former employment as reported to Equifax"
+    }];
+  };
+
+  const addresses = prepareAddresses();
+  const employment = prepareEmployment();
+
+  return (
+    <div className="space-y-8">
+      {/* Previous Addresses Section */}
+      <div>
+        <h3 className="text-lg font-medium mb-4">Previous Addresses</h3>
+        <AddressesTable addresses={addresses} />
+      </div>
+
+      {/* Employment History Section */}
+      <div>
+        <h3 className="text-lg font-medium mb-4">Employment History</h3>
+        <EmploymentTable employments={employment} />
+      </div>
+      
+      {/* Contact Information Images Section */}
       <div className="mt-6 border rounded-lg p-3 bg-gray-50 shadow-sm">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-sm font-medium">Contact Information Images</h3>
-          <div className="flex gap-2">
-            {tableImages.length > 0 && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setEnlargeImage(!enlargeImage)}
-              >
-                {enlargeImage ? (
-                  <>
-                    <ZoomOut className="h-3.5 w-3.5 mr-1" />
-                    <span className="text-xs">Reduce</span>
-                  </>
-                ) : (
-                  <>
-                    <ZoomIn className="h-3.5 w-3.5 mr-1" />
-                    <span className="text-xs">Enlarge</span>
-                  </>
-                )}
-              </Button>
-            )}
-            
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleExtractTableImages}
-              disabled={isExtracting}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isExtracting ? 'animate-spin' : ''}`} />
-              <span className="text-xs">{isExtracting ? 'Extracting...' : 'Extract Tables'}</span>
-            </Button>
-          </div>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleExtractTableImages}
+            disabled={isExtracting}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isExtracting ? 'animate-spin' : ''}`} />
+            <span className="text-xs">{isExtracting ? 'Extracting...' : 'Extract Tables'}</span>
+          </Button>
         </div>
         
         {tableImages.length > 0 ? (
@@ -250,11 +199,11 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                     )}
                   </span>
                 </div>
-                <div className={`relative overflow-auto ${enlargeImage ? 'h-[500px]' : 'h-[250px]'}`}>
+                <div className="relative overflow-auto h-[250px]">
                   <img 
                     src={imageUrl} 
                     alt={`Contact information table ${index + 1}`} 
-                    className={`max-w-full ${enlargeImage ? 'h-auto' : 'h-full'} object-contain mx-auto`}
+                    className="h-full object-contain mx-auto"
                     onLoad={() => handleImageLoad(index)}
                     onError={() => handleImageError(index)}
                   />
@@ -276,14 +225,11 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 <Loader2 className="h-6 w-6 text-muted-foreground animate-spin mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Extracting contact information tables...</p>
               </div>
-            ) : extractionAttempted ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground">No contact information tables were extracted.</p>
-                <p className="text-xs text-muted-foreground mt-1">Try clicking "Extract Tables" to attempt extraction again.</p>
-              </div>
             ) : (
               <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground">Click "Extract Tables" to extract contact information tables from the PDF.</p>
+                <p className="text-sm text-muted-foreground">
+                  Click "Extract Tables" to extract contact information tables from the PDF.
+                </p>
               </div>
             )}
           </div>
