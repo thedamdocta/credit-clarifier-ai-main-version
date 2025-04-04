@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save, FileSearch } from "lucide-react";
 import { toast } from "sonner";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
@@ -19,6 +19,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [employments, setEmployments] = useState<EmploymentInfo[]>([]);
   const [tableImages, setTableImages] = useState<string[]>([]);
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
+  const [extractionPageNumbers, setExtractionPageNumbers] = useState<number[]>([]);
   
   // Extract contact information on component mount
   useEffect(() => {
@@ -56,8 +57,13 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         setIsProcessing(true);
         try {
           // Attempt to extract from PDF
-          const { addresses: extractedAddresses, employments: extractedEmployments } = 
+          const { addresses: extractedAddresses, employments: extractedEmployments, pageNumbers } = 
             await extractContactInfoTables(pdfDocument);
+          
+          // Store extracted page numbers for debugging
+          if (pageNumbers && pageNumbers.length > 0) {
+            setExtractionPageNumbers(pageNumbers);
+          }
           
           // If extraction was successful, use the extracted data
           if (extractedAddresses.length > 0) {
@@ -75,7 +81,8 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           }
           
           // Get extracted table images for debugging
-          setTableImages(getContactTableImages());
+          const images = getContactTableImages();
+          setTableImages(images);
           
         } catch (error) {
           console.error("Error extracting contact information:", error);
@@ -127,7 +134,12 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     try {
       const pdfDocument = (window as any).currentPdfDocument;
       if (pdfDocument) {
-        const { addresses, employments } = await extractContactInfoTables(pdfDocument);
+        const { addresses, employments, pageNumbers } = await extractContactInfoTables(pdfDocument);
+        
+        // Update extracted page numbers
+        if (pageNumbers && pageNumbers.length > 0) {
+          setExtractionPageNumbers(pageNumbers);
+        }
         
         // Only update if we got actual data
         if (addresses && addresses.length > 0) {
@@ -144,7 +156,8 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           }
         }
         
-        setTableImages(getContactTableImages());
+        const images = getContactTableImages();
+        setTableImages(images);
         toast.success("Contact information extraction completed");
       } else {
         toast.error("PDF document not available. Please upload a PDF file first.");
@@ -257,14 +270,27 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           
           {showDebugInfo && (
             <div className="mt-6 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
-              <h4 className="text-sm font-medium mb-2">Debug Information</h4>
+              <h4 className="text-sm font-medium mb-2 flex items-center">
+                <FileSearch className="h-4 w-4 mr-2" />
+                Debug Information
+              </h4>
               
-              {tableImages.length > 0 && (
+              {extractionPageNumbers.length > 0 && (
+                <div className="text-xs mb-2">
+                  <span className="font-medium">Extracted from pages: </span>
+                  {extractionPageNumbers.join(", ")}
+                </div>
+              )}
+              
+              {tableImages.length > 0 ? (
                 <div className="space-y-2">
                   <h5 className="text-xs font-medium">Extracted Table Images:</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {tableImages.map((imageUrl, index) => (
                       <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
+                        <div className="bg-muted/50 px-2 py-1 text-xs font-medium">
+                          Table Image {index + 1}
+                        </div>
                         <img 
                           src={imageUrl} 
                           alt={`Extracted contact information table ${index + 1}`}
@@ -273,6 +299,10 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                       </div>
                     ))}
                   </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground p-4 border border-dashed rounded-md text-center">
+                  No table images were extracted during processing
                 </div>
               )}
               
