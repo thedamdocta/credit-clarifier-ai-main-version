@@ -142,7 +142,7 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
     
     // If we still don't have a valid image, try a few pages before and after
     if (!imageUrl) {
-      const pagesToCheck = [];
+      const pagesToCheck: number[] = [];
       // Add 2 pages before and after the estimated page, but prioritize pages after
       for (let i = 1; i <= 2; i++) {
         if (collectionsPageNumber + i <= numPages) {
@@ -170,16 +170,16 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
     if (!imageUrl && numPages <= 20) { // Only do this for reasonable-sized documents
       console.log("No collections found on expected pages, scanning all pages");
       // Create array of pages we've already checked to avoid redundant processing
-      const pagesToTry = [collectionsPageNumber];
+      const previouslyCheckedPages = [collectionsPageNumber];
       
       // Add the pages we've already checked from our earlier attempts
-      if (typeof pagesToCheck !== 'undefined') {
-        pagesToTry.push(...pagesToCheck);
+      if (pagesToCheck && pagesToCheck.length > 0) {
+        previouslyCheckedPages.push(...pagesToCheck);
       }
       
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         // Skip pages we've already checked
-        if (!pagesToTry.includes(pageNum)) {
+        if (!previouslyCheckedPages.includes(pageNum)) {
           console.log(`Scanning page ${pageNum} for collections`);
           imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, pageNum);
           if (imageUrl) {
