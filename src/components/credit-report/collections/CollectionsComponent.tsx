@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { CreditReport, Collection } from "@/lib/types/creditReport";
 import CollectionsHeader from "./CollectionsHeader";
 import CollectionsList from "./CollectionsList";
 import CollapsibleCard from "../common/CollapsibleCard";
+import { extractCollectionsFromText, getCurrentPDFData } from "@/utils/pdf/extractText";
 
 interface CollectionsComponentProps {
   report: CreditReport;
@@ -15,15 +16,59 @@ interface CollectionsComponentProps {
 const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>(report.collections || []);
+  const [extractionAttempted, setExtractionAttempted] = useState(false);
+  
+  // Attempt to extract collections when component mounts
+  useEffect(() => {
+    if (!report.collections || report.collections.length === 0) {
+      console.log("No collection data found in report, attempting automatic extraction");
+      handleRetryExtraction();
+    } else {
+      console.log("Using existing collection data from report", report.collections);
+      setCollections(report.collections);
+    }
+  }, [report.reportId]); // Re-run this effect when a new report is loaded
   
   const handleRetryExtraction = () => {
     setIsProcessing(true);
-    toast.info("Retrying collections extraction...");
+    toast.info("Extracting collections data...");
     
-    // Simulate processing
-    setTimeout(() => {
+    // Get current PDF data
+    const currentPdfData = getCurrentPDFData();
+    
+    if (!currentPdfData.extractedText) {
+      toast.error("No PDF text available for extraction");
       setIsProcessing(false);
-      toast.success("Collections extraction completed");
+      return;
+    }
+    
+    setTimeout(() => {
+      try {
+        // Use the collection extraction function
+        const extractedCollections = extractCollectionsFromText(currentPdfData.extractedText!);
+        
+        if (extractedCollections && extractedCollections.length > 0) {
+          console.log("Successfully extracted collections:", extractedCollections);
+          setCollections(extractedCollections);
+          toast.success(`Found ${extractedCollections.length} collection account(s)`);
+          
+          // Update the report object with the collections
+          if (report && typeof report === 'object') {
+            report.collections = extractedCollections;
+          }
+        } else {
+          console.log("No collections found in PDF");
+          toast.info("No collection accounts found in your report");
+          setCollections([]);
+        }
+      } catch (error) {
+        console.error("Error extracting collections:", error);
+        toast.error("Error extracting collection data");
+      } finally {
+        setExtractionAttempted(true);
+        setIsProcessing(false);
+      }
     }, 1500);
   };
   
@@ -41,11 +86,6 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
     }
   };
 
-  // Use collections if they exist, otherwise an empty array
-  const collections = report.collections && report.collections.length > 0 
-    ? report.collections 
-    : [];
-  
   const header = (
     <div className="flex flex-row items-center justify-between w-full">
       <CollectionsHeader 
@@ -116,6 +156,7 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
         <CollectionsList 
           collections={collections} 
           showDebugInfo={showDebugInfo} 
+          extractionAttempted={extractionAttempted}
         />
       )}
     </>
