@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText, AlertCircle, ZoomIn, ZoomOut, Eye } from "lucide-react";
@@ -16,6 +15,7 @@ import {
   extractEmploymentsFromText
 } from "@/lib/ai/contactInfoExtraction";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { convertPDFPageToImage } from "@/utils/pdf/pdfToImage";
 
 interface ContactInfoComponentProps {
   report: CreditReport;
@@ -35,12 +35,10 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [enlargeImages, setEnlargeImages] = useState<Record<number, boolean>>({});
   const [showExtractionTips, setShowExtractionTips] = useState(true);
   
-  // Extract contact information on component mount
   useEffect(() => {
     const extractContactInfo = async () => {
       const pdfDocument = (window as any).currentPdfDocument;
       
-      // Initialize with personal info data right away
       if (report.personalInfo && report.personalInfo.addresses) {
         const formattedAddresses = report.personalInfo.addresses
           .filter(addr => addr !== 'Not Found' && addr.length > 5)
@@ -56,19 +54,15 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       }
       
       if (report.personalInfo && report.personalInfo.employmentHistory) {
-        // Handle the case where employment history is descriptive text, not actual employment
         const employmentText = report.personalInfo.employmentHistory;
         
         if (employmentText) {
-          // First check if this is just descriptive text
           if (!employmentText.toLowerCase().includes("history employment history is")) {
-            // Try to parse structured employment data
             const extractedEmployments = extractEmploymentsFromText(employmentText);
             
             if (extractedEmployments.length > 0) {
               setEmployments(extractedEmployments);
             } else {
-              // Use as raw text if no structured data found
               setEmployments([{
                 company: employmentText,
                 occupation: ""
@@ -76,17 +70,14 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             }
           }
           
-          // Save the text for analysis
           setAnalyzedText(employmentText);
         }
       }
       
-      // Only attempt PDF extraction if a document is available
       if (pdfDocument) {
         setIsProcessing(true);
         try {
           console.log("Starting contact info extraction from PDF document");
-          // Attempt to extract from PDF
           const { addresses: extractedAddresses, employments: extractedEmployments, pageNumbers } = 
             await extractContactInfoTables(pdfDocument);
           
@@ -96,12 +87,15 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             pagesAnalyzed: pageNumbers
           });
           
-          // Store extracted page numbers for debugging
           if (pageNumbers && pageNumbers.length > 0) {
             setExtractionPageNumbers(pageNumbers);
+            
+            const pageImages = await generateContactPageImages(pdfDocument, pageNumbers);
+            if (pageImages.length > 0) {
+              validateAndSetImages(pageImages);
+            }
           }
           
-          // If extraction was successful, use the extracted data
           if (extractedAddresses.length > 0) {
             setAddresses(extractedAddresses);
           }
@@ -109,24 +103,19 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           if (extractedEmployments.length > 0) {
             setEmployments(extractedEmployments);
           } else {
-            // If no employment data was extracted, try to parse from personal info
             const personalInfoEmployment = parseEmploymentFromPersonalInfo(report.personalInfo?.employmentHistory || '');
             if (personalInfoEmployment) {
               setEmployments([personalInfoEmployment]);
             }
           }
           
-          // Get extracted table images for debugging
           const images = getContactTableImages();
           console.log(`Received ${images.length} images from extraction process`);
           
-          // Pre-validate images before setting them
           validateAndSetImages(images);
           
-          // Get extraction logs
           const logs = getContactExtractionLogs();
           setExtractionLogs(logs);
-          
         } catch (error) {
           console.error("Error extracting contact information:", error);
           toast.error("Failed to extract contact information. Please try again.");
@@ -143,14 +132,33 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     extractContactInfo();
   }, [report]);
   
-  // Helper function to parse employment data from personal info text
+  const generateContactPageImages = async (pdfDocument: any, pageNumbers: number[]): Promise<string[]> => {
+    const images: string[] = [];
+    
+    try {
+      console.log("Generating page images for contact info extraction:", pageNumbers);
+      
+      for (const pageNum of pageNumbers) {
+        const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
+        if (pageImage) {
+          console.log(`Successfully generated image for page ${pageNum}`);
+          images.push(pageImage);
+        }
+      }
+      
+      console.log(`Generated ${images.length} page images for contact info`);
+    } catch (error) {
+      console.error("Error generating contact page images:", error);
+    }
+    
+    return images;
+  };
+  
   const parseEmploymentFromPersonalInfo = (employmentText: string): EmploymentInfo | null => {
     if (!employmentText || employmentText.toLowerCase().includes("history employment history is")) {
-      // This is just descriptive text, not actual employment
       return null;
     }
     
-    // Try to extract meaningful employment info
     const lines = employmentText.split(/[\n\r]+/);
     for (const line of lines) {
       if (line.includes(':')) {
@@ -164,16 +172,13 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       }
     }
     
-    // If no structured format found, just use the text as company name
     return {
       company: employmentText,
       occupation: ''
     };
   };
   
-  // New function to validate and set images
   const validateAndSetImages = (images: string[]) => {
-    // Reset image load status
     setImageLoadStatus({});
     
     if (images.length === 0) {
@@ -184,14 +189,11 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     
     console.log(`Validating ${images.length} images before display`);
     
-    // Pre-validate images by creating Image objects
     const validatedImages: string[] = [];
     
     images.forEach((imageUrl, index) => {
-      // Add image to validated list - we'll check loading status later
       validatedImages.push(imageUrl);
       
-      // Create an Image instance to validate loading
       const img = new Image();
       img.onload = () => {
         console.log(`Image ${index} pre-validated: ${img.width}x${img.height}`);
@@ -210,7 +212,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       img.src = imageUrl;
     });
     
-    // Set images even if validation is still in progress
     setTableImages(validatedImages);
   };
   
@@ -220,19 +221,21 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     setShowExtractionTips(false);
     toast.info("Retrying contact information extraction...");
     
-    // Attempt to extract contact information
     try {
       const pdfDocument = (window as any).currentPdfDocument;
       if (pdfDocument) {
         console.log("Retrying contact info extraction with PDF document");
         const { addresses, employments, pageNumbers } = await extractContactInfoTables(pdfDocument);
         
-        // Update extracted page numbers
         if (pageNumbers && pageNumbers.length > 0) {
           setExtractionPageNumbers(pageNumbers);
+          
+          const pageImages = await generateContactPageImages(pdfDocument, pageNumbers);
+          if (pageImages.length > 0) {
+            validateAndSetImages(pageImages);
+          }
         }
         
-        // Only update if we got actual data
         if (addresses && addresses.length > 0) {
           setAddresses(addresses);
         }
@@ -240,7 +243,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         if (employments && employments.length > 0) {
           setEmployments(employments);
         } else {
-          // If no employment data was extracted, make a second attempt with different pages
           const personalInfoEmployment = parseEmploymentFromPersonalInfo(report.personalInfo?.employmentHistory || '');
           if (personalInfoEmployment) {
             setEmployments([personalInfoEmployment]);
@@ -268,7 +270,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   
   const handleTrainParser = () => {
     toast.info("Training parser with current contact information data...");
-    // Add training logic here in the future
     setTimeout(() => {
       toast.success("Parser training complete");
       setShowExtractionTips(false);
@@ -300,7 +301,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     console.error(`Image ${index} failed to load`);
   };
   
-  // Toggle image size
   const toggleImageSize = (index: number) => {
     setEnlargeImages(prev => ({
       ...prev,
@@ -413,7 +413,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
-              {/* Analyzed Text Section */}
               {analyzedText && (
                 <div className="space-y-2 mb-4">
                   <h5 className="text-xs font-medium flex items-center">
@@ -426,7 +425,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
-              {/* Extraction Logs Section */}
               {extractionLogs.length > 0 && (
                 <div className="space-y-2 mb-4">
                   <h5 className="text-xs font-medium">Extraction Logs:</h5>
@@ -438,7 +436,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
-              {/* Enhanced Image Display Section */}
               {tableImages.length > 0 ? (
                 <div className="space-y-2">
                   <h5 className="text-xs font-medium">Extracted Page Images:</h5>
@@ -483,7 +480,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                                 size="sm"
                                 className="mt-2"
                                 onClick={() => {
-                                  // Force image reload with cache busting
                                   const refreshedUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
                                   const updatedImages = [...tableImages];
                                   updatedImages[index] = refreshedUrl;
