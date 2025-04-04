@@ -24,38 +24,54 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   useEffect(() => {
     const extractContactInfo = async () => {
       const pdfDocument = (window as any).currentPdfDocument;
+      
+      // Initialize with personal info data right away
+      if (report.personalInfo && report.personalInfo.addresses) {
+        const formattedAddresses = report.personalInfo.addresses
+          .filter(addr => addr !== 'Not Found' && addr.length > 5)
+          .map((address, index) => ({
+            address: address,
+            status: index === 0 ? "Current" : "Former",
+            dateReported: ""
+          }));
+        
+        if (formattedAddresses.length > 0) {
+          setAddresses(formattedAddresses);
+        }
+      }
+      
+      if (report.personalInfo && report.personalInfo.employmentHistory) {
+        // Handle the case where employment history is descriptive text, not actual employment
+        const employmentText = report.personalInfo.employmentHistory;
+        if (!employmentText.toLowerCase().includes("history employment history is")) {
+          setEmployments([{
+            company: employmentText,
+            occupation: ""
+          }]);
+        }
+      }
+      
+      // Only attempt PDF extraction if a document is available
       if (pdfDocument) {
         setIsProcessing(true);
         try {
           // Attempt to extract from PDF
-          const { addresses, employments } = await extractContactInfoTables(pdfDocument);
+          const { addresses: extractedAddresses, employments: extractedEmployments } = 
+            await extractContactInfoTables(pdfDocument);
           
           // If extraction was successful, use the extracted data
-          if (addresses.length > 0) {
-            setAddresses(addresses);
-          } else if (report.personalInfo && report.personalInfo.addresses) {
-            // Convert personal info addresses to the correct format if PDF extraction failed
-            const formattedAddresses = report.personalInfo.addresses
-              .filter(addr => addr !== 'Not Found' && addr.length > 5)
-              .map((address, index) => ({
-                address: address,
-                status: index === 0 ? "Current" : "Former",
-                dateReported: ""
-              }));
-            
-            if (formattedAddresses.length > 0) {
-              setAddresses(formattedAddresses);
-            }
+          if (extractedAddresses.length > 0) {
+            setAddresses(extractedAddresses);
           }
           
-          if (employments.length > 0) {
-            setEmployments(employments);
-          } else if (report.personalInfo && report.personalInfo.employmentHistory) {
-            // Convert employment history to the correct format if PDF extraction failed
-            setEmployments([{
-              company: report.personalInfo.employmentHistory,
-              occupation: ""
-            }]);
+          if (extractedEmployments.length > 0) {
+            setEmployments(extractedEmployments);
+          } else {
+            // If no employment data was extracted, try to parse from personal info
+            const personalInfoEmployment = parseEmploymentFromPersonalInfo(report.personalInfo?.employmentHistory || '');
+            if (personalInfoEmployment) {
+              setEmployments([personalInfoEmployment]);
+            }
           }
           
           // Get extracted table images for debugging
@@ -68,34 +84,40 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           setAttemptedExtraction(true);
         }
       } else {
-        // If no PDF document is available, try to use data from the report
-        if (report.personalInfo && report.personalInfo.addresses) {
-          const formattedAddresses = report.personalInfo.addresses
-            .filter(addr => addr !== 'Not Found' && addr.length > 5)
-            .map((address, index) => ({
-              address: address,
-              status: index === 0 ? "Current" : "Former",
-              dateReported: ""
-            }));
-          
-          if (formattedAddresses.length > 0) {
-            setAddresses(formattedAddresses);
-          }
-        }
-        
-        if (report.personalInfo && report.personalInfo.employmentHistory) {
-          setEmployments([{
-            company: report.personalInfo.employmentHistory,
-            occupation: ""
-          }]);
-        }
-        
         setAttemptedExtraction(true);
       }
     };
     
     extractContactInfo();
   }, [report]);
+  
+  // Helper function to parse employment data from personal info text
+  const parseEmploymentFromPersonalInfo = (employmentText: string): EmploymentInfo | null => {
+    if (!employmentText || employmentText.toLowerCase().includes("history employment history is")) {
+      // This is just descriptive text, not actual employment
+      return null;
+    }
+    
+    // Try to extract meaningful employment info
+    const lines = employmentText.split(/[\n\r]+/);
+    for (const line of lines) {
+      if (line.includes(':')) {
+        const [company, occupation] = line.split(':').map(part => part.trim());
+        if (company) {
+          return {
+            company,
+            occupation: occupation || ''
+          };
+        }
+      }
+    }
+    
+    // If no structured format found, just use the text as company name
+    return {
+      company: employmentText,
+      occupation: ''
+    };
+  };
   
   const handleRetryExtraction = async () => {
     setIsProcessing(true);
@@ -106,8 +128,22 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       const pdfDocument = (window as any).currentPdfDocument;
       if (pdfDocument) {
         const { addresses, employments } = await extractContactInfoTables(pdfDocument);
-        setAddresses(addresses);
-        setEmployments(employments);
+        
+        // Only update if we got actual data
+        if (addresses && addresses.length > 0) {
+          setAddresses(addresses);
+        }
+        
+        if (employments && employments.length > 0) {
+          setEmployments(employments);
+        } else {
+          // If no employment data was extracted, make a second attempt with different pages
+          const personalInfoEmployment = parseEmploymentFromPersonalInfo(report.personalInfo?.employmentHistory || '');
+          if (personalInfoEmployment) {
+            setEmployments([personalInfoEmployment]);
+          }
+        }
+        
         setTableImages(getContactTableImages());
         toast.success("Contact information extraction completed");
       } else {
@@ -138,96 +174,6 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     }
   };
 
-  const content = (
-    <>
-      {isProcessing ? (
-        <div className="py-8 flex flex-col items-center justify-center">
-          <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
-          <p className="text-sm font-medium">
-            Extracting contact information...
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Please wait while we analyze your address and employment records
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-4 mb-6">
-            <h3 className="font-medium">Previous Addresses</h3>
-            {addresses.length > 0 ? (
-              <AddressesTable addresses={addresses} />
-            ) : attemptedExtraction ? (
-              <div className="py-4 text-center bg-muted/20 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  No address information found in the report
-                </p>
-              </div>
-            ) : (
-              <div className="py-4 text-center bg-muted/20 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  Loading address information...
-                </p>
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-4">
-            <h3 className="font-medium">Employment History</h3>
-            {employments.length > 0 ? (
-              <EmploymentTable employments={employments} />
-            ) : attemptedExtraction ? (
-              <div className="py-4 text-center bg-muted/20 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  No employment information found in the report
-                </p>
-              </div>
-            ) : (
-              <div className="py-4 text-center bg-muted/20 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  Loading employment information...
-                </p>
-              </div>
-            )}
-          </div>
-          
-          {showDebugInfo && (
-            <div className="mt-6 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
-              <h4 className="text-sm font-medium mb-2">Debug Information</h4>
-              
-              {tableImages.length > 0 && (
-                <div className="space-y-2">
-                  <h5 className="text-xs font-medium">Extracted Table Images:</h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {tableImages.map((imageUrl, index) => (
-                      <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
-                        <img 
-                          src={imageUrl} 
-                          alt={`Extracted contact information table ${index + 1}`}
-                          className="max-w-full h-auto"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <h5 className="text-xs font-medium">Parsed Data:</h5>
-                <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md">
-                  {JSON.stringify({
-                    addresses,
-                    employments,
-                    personalInfo: report.personalInfo
-                  }, null, 2)}
-                </pre>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </>
-  );
-  
   return (
     <div>
       <div className="flex justify-end mb-4">
@@ -281,7 +227,69 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         </div>
       </div>
       
-      {content}
+      {isProcessing ? (
+        <div className="py-8 flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
+          <p className="text-sm font-medium">
+            Extracting contact information...
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Please wait while we analyze your address and employment records
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-4 mb-6">
+            <h3 className="font-medium">Previous Addresses</h3>
+            <AddressesTable 
+              addresses={addresses} 
+              isLoading={isProcessing && !attemptedExtraction}
+            />
+          </div>
+          
+          <div className="space-y-4">
+            <h3 className="font-medium">Employment History</h3>
+            <EmploymentTable 
+              employments={employments} 
+              isLoading={isProcessing && !attemptedExtraction}
+            />
+          </div>
+          
+          {showDebugInfo && (
+            <div className="mt-6 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
+              <h4 className="text-sm font-medium mb-2">Debug Information</h4>
+              
+              {tableImages.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-medium">Extracted Table Images:</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {tableImages.map((imageUrl, index) => (
+                      <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
+                        <img 
+                          src={imageUrl} 
+                          alt={`Extracted contact information table ${index + 1}`}
+                          className="max-w-full h-auto"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium">Parsed Data:</h5>
+                <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md">
+                  {JSON.stringify({
+                    addresses,
+                    employments,
+                    personalInfo: report.personalInfo
+                  }, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

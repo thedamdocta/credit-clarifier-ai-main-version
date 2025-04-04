@@ -11,20 +11,29 @@ interface EmploymentTableProps {
 const EmploymentTable: React.FC<EmploymentTableProps> = ({ employments, isLoading = false }) => {
   if (isLoading) {
     return (
-      <div className="text-sm text-muted-foreground text-center py-4">
-        Loading employment information...
+      <div className="border rounded-md">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead>Company</TableHead>
+              <TableHead>Occupation</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell colSpan={2} className="text-center py-8">
+                <div className="text-sm text-muted-foreground">
+                  Loading employment information...
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
     );
   }
 
-  if (!employments || employments.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground text-center py-4">
-        No employment information available
-      </div>
-    );
-  }
-
+  // Always render the table with or without data
   return (
     <div className="border rounded-md overflow-x-auto">
       <Table>
@@ -35,12 +44,22 @@ const EmploymentTable: React.FC<EmploymentTableProps> = ({ employments, isLoadin
           </TableRow>
         </TableHeader>
         <TableBody>
-          {employments.map((employment, index) => (
-            <TableRow key={`employment-${index}`}>
-              <TableCell className="font-medium">{employment.company}</TableCell>
-              <TableCell>{employment.occupation}</TableCell>
+          {employments.length > 0 ? (
+            employments.map((employment, index) => (
+              <TableRow key={`employment-${index}`}>
+                <TableCell className="font-medium">{employment.company}</TableCell>
+                <TableCell>{employment.occupation}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={2} className="text-center py-8">
+                <div className="text-sm text-muted-foreground">
+                  No employment information found in the report
+                </div>
+              </TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </div>

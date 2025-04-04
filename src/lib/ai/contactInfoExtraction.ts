@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { extractRegionFromPDFPage } from "@/utils/pdf/pdfToImage";
 import { canUseOpenAI } from "./openai/openaiService";
@@ -62,8 +61,9 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
     }
     
     const numPages = pdfDocument.numPages;
+    console.log(`PDF has ${numPages} pages, scanning for contact information...`);
     
-    // First try to find the addresses and employment tables (usually on first 10 pages)
+    // First try to find the addresses and employment tables (usually on first 15 pages)
     let addressesImage: string | null = null;
     let employmentImage: string | null = null;
     
@@ -83,9 +83,13 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
       'occupation'
     ];
     
+    // Search more pages for better extraction
+    const pagesToSearch = Math.min(15, numPages);
+    
     // Check pages for contact info tables
-    for (let i = 1; i <= Math.min(10, numPages); i++) {
+    for (let i = 1; i <= pagesToSearch; i++) {
       try {
+        console.log(`Checking page ${i} for contact information...`);
         const page = await pdfDocument.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
@@ -96,8 +100,10 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
           console.log(`Found possible address section on page ${i}`);
           
           // Extract address table
-          if (pageText.includes("address") && pageText.includes("status") && pageText.includes("date reported")) {
-            console.log(`Found address table on page ${i}`);
+          if (pageText.includes("address") && 
+              (pageText.includes("status") || pageText.includes("current") || pageText.includes("former")) && 
+              (pageText.includes("date reported") || pageText.includes("reported"))) {
+            console.log(`Found likely address table on page ${i}`);
             // Try to extract the whole address table
             const addressTableRegion = { x: 50, y: 200, width: 900, height: 400 };
             addressesImage = await extractRegionFromPDFPage(pdfDocument, i, addressTableRegion);
@@ -108,7 +114,7 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
           }
           
           if (addressesImage) {
-            console.log("Successfully extracted address image");
+            console.log(`Successfully extracted address image from page ${i}`);
             addContactTableImage(addressesImage);
           }
         }
@@ -120,19 +126,26 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
           
           // Try to extract employment table
           if (pageText.includes("company") && pageText.includes("occupation")) {
-            console.log(`Found employment table on page ${i}`);
+            console.log(`Found likely employment table on page ${i}`);
             // Try to extract the whole employment table
             const employmentTableRegion = { x: 50, y: 350, width: 900, height: 200 };
             employmentImage = await extractRegionFromPDFPage(pdfDocument, i, employmentTableRegion);
           } else {
-            // Try to extract part of the page where employment usually is
-            const employmentRegion = { x: 50, y: 350, width: 900, height: 150 };
-            employmentImage = await extractRegionFromPDFPage(pdfDocument, i, employmentRegion);
-          }
-          
-          if (employmentImage) {
-            console.log("Successfully extracted employment image");
-            addContactTableImage(employmentImage);
+            // Try multiple regions where employment info might be
+            const employmentRegions = [
+              { x: 50, y: 350, width: 900, height: 150 },
+              { x: 50, y: 250, width: 900, height: 150 },
+              { x: 50, y: 450, width: 900, height: 150 }
+            ];
+            
+            for (const region of employmentRegions) {
+              employmentImage = await extractRegionFromPDFPage(pdfDocument, i, region);
+              if (employmentImage) {
+                console.log(`Successfully extracted employment image from page ${i}, region:`, region);
+                addContactTableImage(employmentImage);
+                break;
+              }
+            }
           }
         }
         
@@ -145,19 +158,62 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
       }
     }
     
+    // If still missing employment after first scan, do a second pass looking specifically for it
+    if (!employmentImage) {
+      console.log("No employment image found in first pass, doing a second pass...");
+      for (let i = 1; i <= pagesToSearch; i++) {
+        try {
+          const page = await pdfDocument.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
+          
+          // Check for additional employment-related text patterns
+          if (pageText.includes("employment") || pageText.includes("employer") || 
+              pageText.includes("work") || pageText.includes("occupation") ||
+              pageText.includes("job")) {
+            
+            console.log(`Found possible employment text on page ${i} in second pass`);
+            
+            const employmentRegions = [
+              { x: 50, y: 200, width: 900, height: 300 },
+              { x: 50, y: 300, width: 900, height: 300 },
+              { x: 50, y: 100, width: 900, height: 300 }
+            ];
+            
+            for (const region of employmentRegions) {
+              employmentImage = await extractRegionFromPDFPage(pdfDocument, i, region);
+              if (employmentImage) {
+                console.log(`Successfully extracted employment image from page ${i} in second pass`);
+                addContactTableImage(employmentImage);
+                break;
+              }
+            }
+            
+            if (employmentImage) break;
+          }
+        } catch (error) {
+          console.error(`Error in second pass on page ${i}:`, error);
+        }
+      }
+    }
+    
     // Process address image if found
     if (addressesImage) {
+      console.log("Processing extracted address image...");
       const addresses = await extractAddressesFromImage(addressesImage);
       if (addresses && addresses.length > 0) {
         result.addresses = addresses;
+        console.log(`Successfully extracted ${addresses.length} addresses`);
       }
     }
     
     // Process employment image if found
     if (employmentImage) {
+      console.log("Processing extracted employment image...");
       const employments = await extractEmploymentFromImage(employmentImage);
       if (employments && employments.length > 0) {
         result.employments = employments;
+        console.log(`Successfully extracted ${employments.length} employment records`);
       }
     }
     
@@ -167,6 +223,7 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
       const addressesFromText = await extractAddressesFromText(pdfDocument);
       if (addressesFromText.length > 0) {
         result.addresses = addressesFromText;
+        console.log(`Extracted ${addressesFromText.length} addresses from text`);
       }
     }
     
@@ -175,6 +232,7 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
       const employmentsFromText = await extractEmploymentsFromText(pdfDocument);
       if (employmentsFromText.length > 0) {
         result.employments = employmentsFromText;
+        console.log(`Extracted ${employmentsFromText.length} employment records from text`);
       }
     }
     
@@ -260,12 +318,6 @@ async function extractAddressesWithOpenAI(imageUrl: string): Promise<AddressInfo
     // Import here to avoid circular dependency
     const { extractTableWithOpenAI } = await import('./openai/openaiService');
     
-    const prompt = `
-      Extract the address information from this credit report image.
-      Focus on the "Contact Information" section with columns: Address, Status, Date Reported.
-      Return the data in a structured format with address, status, and dateReported fields.
-    `;
-    
     // FIX: Pass only the imageUrl parameter (removed the second argument)
     const extractedData = await extractTableWithOpenAI(imageUrl);
     
@@ -301,12 +353,6 @@ async function extractEmploymentWithOpenAI(imageUrl: string): Promise<Employment
     
     // Import here to avoid circular dependency
     const { extractTableWithOpenAI } = await import('./openai/openaiService');
-    
-    const prompt = `
-      Extract the employment information from this credit report image.
-      Focus on the "Employment History" section with columns: Company and Occupation.
-      Return the data in a structured format with company and occupation fields.
-    `;
     
     // FIX: Pass only the imageUrl parameter (removed the second argument)
     const extractedData = await extractTableWithOpenAI(imageUrl);
@@ -363,7 +409,7 @@ function parseAddressesFromText(text: string): AddressInfo[] {
       const lines = text.split('\n');
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (line && (/\d+\s+[A-Za-z]/.test(line) || /street|avenue|road|drive|lane|way|court|circle/i.test(line))) {
+        if (line && (/\d+\s+[A-Za-z]/.test(line) || /street|avenue|road|drive|lane|way|court|circle|blvd|st|ave/i.test(line))) {
           // This looks like an address
           const status = 
             /current/i.test(line) ? "Current" : 
@@ -422,23 +468,43 @@ function parseEmploymentFromText(text: string): EmploymentInfo[] {
       }
     }
     
-    // If regex didn't find anything, try to extract from text
+    // If regex didn't find anything, try more patterns
     if (employments.length === 0) {
-      const lines = text.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (/employ|occupation|company/i.test(line)) {
-          // This looks like employment info
-          const parts = line.split(/[-:]/);
-          if (parts.length >= 1) {
-            const company = parts[0].replace(/employer|employment|company/i, '').trim();
-            const occupation = parts.length > 1 ? parts[1].trim() : "";
-            
-            if (company) {
+      // Check for "Employment history is the information..." pattern
+      if (text.toLowerCase().includes("employment history is the information")) {
+        // This is just the explanatory text, not actual employment data
+        return [];
+      }
+      
+      // Try to find any company names followed by job titles
+      const companyJobPattern = /([A-Z][A-Za-z\s&\.]+)(?:\s*[-:]\s*|\s{2,})([A-Za-z\s]+)/g;
+      let companyMatch;
+      while ((companyMatch = companyJobPattern.exec(text)) !== null) {
+        const company = companyMatch[1]?.trim();
+        const occupation = companyMatch[2]?.trim();
+        
+        if (company && !company.toLowerCase().includes("employment") && company.length > 3) {
+          employments.push({
+            company,
+            occupation: occupation || ""
+          });
+        }
+      }
+      
+      // If still nothing, look for any lines that might contain company names
+      if (employments.length === 0) {
+        const lines = text.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line && line.length > 5 && !/contact|address|history is/i.test(line)) {
+            // Skip headers and informational text
+            if (!/company|occupation|employment|information|header|credit|report|equifax/i.test(line)) {
+              // This might be a company name
               employments.push({
-                company,
-                occupation
+                company: line,
+                occupation: ""
               });
+              break; // Just take the first good candidate
             }
           }
         }
@@ -600,15 +666,23 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
   try {
     const employments: EmploymentInfo[] = [];
     
-    // Look through first 10 pages for employment tables
-    for (let i = 1; i <= Math.min(10, pdfDocument.numPages); i++) {
+    // Look through pages for employment information
+    for (let i = 1; i <= Math.min(15, pdfDocument.numPages); i++) {
       const page = await pdfDocument.getPage(i);
       const textContent = await page.getTextContent();
       const pageText = textContent.items.map((item: any) => item.str).join(" ");
       
+      // Skip pages with explanatory text but no actual employment data
+      if (pageText.toLowerCase().includes("employment history is the information")) {
+        if (!pageText.match(/[A-Z][a-z]+\s+(Inc|LLC|Corp|Company|Co\.|Ltd\.)/)) {
+          console.log(`Page ${i} only has employment definition, no actual data`);
+          continue;
+        }
+      }
+      
       // Look for employment section indicators
-      if ((pageText.includes("Employment") || pageText.includes("Employer")) && 
-          (pageText.includes("Company") || pageText.includes("Occupation"))) {
+      if ((pageText.includes("Employment") || pageText.includes("Employer") || pageText.includes("Company")) &&
+          !pageText.toLowerCase().includes("history is the information in your credit file")) {
         
         console.log(`Found employment section text on page ${i}`);
         
@@ -638,7 +712,7 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
           rows.push(currentRow);
         }
         
-        // Process rows into employments
+        // Process rows into employment records
         let foundEmploymentHeader = false;
         let companyCol = -1, occupationCol = -1;
         
@@ -647,18 +721,18 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
           
           // Find header row to identify columns
           if (!foundEmploymentHeader && 
-              (rowText.includes("Company") || rowText.includes("Employer")) && 
-              rowText.includes("Occupation")) {
+              (rowText.toLowerCase().includes("company") || rowText.toLowerCase().includes("employer")) && 
+              (rowText.toLowerCase().includes("occupation") || rowText.toLowerCase().includes("position") || rowText.toLowerCase().includes("title"))) {
             
             foundEmploymentHeader = true;
             
             // Find column positions
-            rows[r].forEach((item: any, idx: number) => {
+            rows[r].forEach((item: any) => {
               const text = item.str.toLowerCase();
               if (text.includes("company") || text.includes("employer")) {
                 companyCol = item.transform[4]; // X position
               }
-              else if (text.includes("occupation")) {
+              else if (text.includes("occupation") || text.includes("position") || text.includes("title")) {
                 occupationCol = item.transform[4]; // X position
               }
             });
@@ -666,7 +740,7 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
             continue; // Skip header row
           }
           
-          // Process data rows
+          // If we found a header, process data rows
           if (foundEmploymentHeader) {
             // Sort row items by X position
             const sortedItems = [...rows[r]].sort((a, b) => a.transform[4] - b.transform[4]);
@@ -685,7 +759,7 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
                 occupation += item.str + " ";
               }
               // If columns aren't identified well, use position to guess
-              else if (x < 350) {
+              else if (x < 300) {
                 company += item.str + " ";
               }
               else {
@@ -698,7 +772,9 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
             occupation = occupation.trim();
             
             // Add to employments if there's actual content
-            if (company && company !== "Company" && company !== "Employer") {
+            if (company && company.length > 2 && 
+                !company.toLowerCase().includes("company") && 
+                !company.toLowerCase().includes("employer")) {
               employments.push({
                 company,
                 occupation
@@ -707,8 +783,33 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
           }
         }
         
-        // If we found employments, we can stop looking through pages
+        // If we found employment data, we can stop looking through pages
         if (employments.length > 0) {
+          break;
+        }
+        
+        // If we found a header but no data, look for any company-like text in this page
+        if (foundEmploymentHeader && employments.length === 0) {
+          // Look for company name patterns in the page
+          const potentialCompany = findPotentialCompanyInText(pageText);
+          if (potentialCompany) {
+            employments.push({
+              company: potentialCompany,
+              occupation: ""
+            });
+            break;
+          }
+        }
+      }
+      
+      // If we didn't find structured employment data, look for company names in this page
+      if (employments.length === 0 && i > 5) { // Look in later pages, first few usually have other info
+        const potentialCompany = findPotentialCompanyInText(pageText);
+        if (potentialCompany) {
+          employments.push({
+            company: potentialCompany,
+            occupation: ""
+          });
           break;
         }
       }
@@ -719,4 +820,34 @@ async function extractEmploymentsFromText(pdfDocument: any): Promise<EmploymentI
     console.error("Error extracting employments from PDF text:", error);
     return [];
   }
+}
+
+/**
+ * Find potential company name in text
+ */
+function findPotentialCompanyInText(text: string): string | null {
+  // Company name patterns
+  const companyPatterns = [
+    // Corporation patterns
+    /([A-Z][A-Za-z\s&\.]+(?:Inc\.?|LLC|Corp\.?|Corporation|Company|Co\.|Ltd\.?))/,
+    // Company name followed by industry
+    /([A-Z][A-Za-z\s]+)(?:\s+(?:Bank|Insurance|Financial|Services|Healthcare|Hospital|Medical|Group))/,
+    // Name followed by location
+    /([A-Z][A-Za-z\s]+)(?:\s+of\s+[A-Z][A-Za-z\s]+)/,
+    // Any capitalized name that's not a common header
+    /(?:Employer|Company):\s*([A-Z][A-Za-z\s&\.]+)/i,
+  ];
+  
+  for (const pattern of companyPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1] && match[1].length > 3) {
+      const company = match[1].trim();
+      // Filter out false positives
+      if (!company.toLowerCase().match(/history|address|report|credit|equifax|date/)) {
+        return company;
+      }
+    }
+  }
+  
+  return null;
 }
