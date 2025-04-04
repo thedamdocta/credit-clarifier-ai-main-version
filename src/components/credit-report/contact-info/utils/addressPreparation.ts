@@ -40,8 +40,11 @@ export const prepareAddresses = (report: CreditReport): AddressInfo[] => {
           status = 'Former';
         }
         
-        // Ensure we only call match() when address is definitely a string (not null)
-        const dateMatch = typeof address === 'string' ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : null;
+        // The error is here - address might be null when we try to call match()
+        // Use optional chaining to safely call match only if address is a string
+        const dateMatch = (typeof address === 'string') ? 
+          address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : 
+          null;
           
         if (dateMatch) {
           dateReported = dateMatch[0];
