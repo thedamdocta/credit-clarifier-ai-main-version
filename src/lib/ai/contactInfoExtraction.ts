@@ -48,6 +48,16 @@ const addLog = (message: string) => {
 const storePageImage = (image: string, pageNum: number) => {
   addLog(`Storing debug image for page ${pageNum}`);
   extractedTableImages.push(image);
+  
+  // Verify image is valid by creating an Image instance
+  const img = new Image();
+  img.onload = () => {
+    addLog(`Page ${pageNum} image verified: ${img.width}x${img.height}`);
+  };
+  img.onerror = () => {
+    addLog(`WARNING: Page ${pageNum} image verification failed - invalid image data`);
+  };
+  img.src = image;
 };
 
 // Main extraction function
@@ -80,11 +90,19 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
         addLog(`Analyzing page ${pageNum} in detail`);
         relevantPageNumbers.push(pageNum);
         
-        // Convert the page to an image for visualization
-        const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
-        if (pageImage) {
-          storePageImage(pageImage, pageNum);
-          addLog(`Successfully created debug image for page ${pageNum}`);
+        // Explicitly generate and store page images for visualization
+        try {
+          addLog(`Converting page ${pageNum} to image for visualization`);
+          const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
+          
+          if (pageImage) {
+            addLog(`Successfully created image for page ${pageNum}, size: ${Math.round(pageImage.length / 1024)}KB`);
+            storePageImage(pageImage, pageNum);
+          } else {
+            addLog(`Failed to create image for page ${pageNum} - null result`);
+          }
+        } catch (imgError) {
+          addLog(`Error generating image for page ${pageNum}: ${(imgError as Error).message}`);
         }
         
         // Extract addresses from this page
@@ -92,6 +110,8 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
         if (pageAddresses && pageAddresses.length > 0) {
           addLog(`Found ${pageAddresses.length} addresses on page ${pageNum}`);
           addresses.push(...pageAddresses);
+        } else {
+          addLog(`No addresses found on page ${pageNum}`);
         }
         
         // Extract employments from this page
@@ -99,6 +119,8 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
         if (pageEmployments && pageEmployments.length > 0) {
           addLog(`Found ${pageEmployments.length} employment entries on page ${pageNum}`);
           employments.push(...pageEmployments);
+        } else {
+          addLog(`No employment entries found on page ${pageNum}`);
         }
       }
     } else {
@@ -112,8 +134,25 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
       relevantPageNumbers.push(...pagesWithInfo);
     }
     
+    // If we still have no images, try to generate at least one from the first page
+    if (extractedTableImages.length === 0 && numPages > 0) {
+      addLog("No debug images were generated, adding fallback from page 1");
+      try {
+        const firstPageImage = await convertPDFPageToImage(pdfDocument, 1);
+        if (firstPageImage) {
+          storePageImage(firstPageImage, 1);
+          if (!relevantPageNumbers.includes(1)) {
+            relevantPageNumbers.push(1);
+          }
+        }
+      } catch (fallbackError) {
+        addLog(`Fallback image generation failed: ${(fallbackError as Error).message}`);
+      }
+    }
+    
     // Log the final results
     addLog(`Extraction complete. Found ${addresses.length} addresses and ${employments.length} employment records`);
+    addLog(`Generated ${extractedTableImages.length} page images for debugging`);
     
     return {
       addresses,
@@ -280,15 +319,21 @@ const extractAddressesFromPage = async (pdfDocument: any, pageNum: number): Prom
     addLog(`Attempting image-based address extraction for page ${pageNum}`);
     const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
     if (pageImage) {
+      addLog(`Generated image for page ${pageNum} OCR processing, size: ${Math.round(pageImage.length / 1024)}KB`);
       // Use extractTextFromImageWithOCR instead of extractTextFromImage
       const imageText = await extractTextFromImageWithOCR(pageImage);
       if (imageText) {
+        addLog(`OCR text extracted from page ${pageNum} image: ${imageText.length} characters`);
         const imageExtractedAddresses = extractAddressesFromText(imageText);
         if (imageExtractedAddresses.length > 0) {
           addLog(`Extracted ${imageExtractedAddresses.length} addresses from page ${pageNum} image`);
           return imageExtractedAddresses;
         }
+      } else {
+        addLog(`No text extracted from page ${pageNum} image`);
       }
+    } else {
+      addLog(`Failed to generate image for page ${pageNum} for OCR processing`);
     }
     
     return [];
@@ -317,15 +362,21 @@ const extractEmploymentsFromPage = async (pdfDocument: any, pageNum: number): Pr
     addLog(`Attempting image-based employment extraction for page ${pageNum}`);
     const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
     if (pageImage) {
+      addLog(`Generated image for page ${pageNum} OCR processing, size: ${Math.round(pageImage.length / 1024)}KB`);
       // Use extractTextFromImageWithOCR instead of extractTextFromImage
       const imageText = await extractTextFromImageWithOCR(pageImage);
       if (imageText) {
+        addLog(`OCR text extracted from page ${pageNum} image: ${imageText.length} characters`);
         const imageExtractedEmployments = extractEmploymentsFromText(imageText);
         if (imageExtractedEmployments.length > 0) {
           addLog(`Extracted ${imageExtractedEmployments.length} employment records from page ${pageNum} image`);
           return imageExtractedEmployments;
         }
+      } else {
+        addLog(`No text extracted from page ${pageNum} image`);
       }
+    } else {
+      addLog(`Failed to generate image for page ${pageNum} for OCR processing`);
     }
     
     return [];

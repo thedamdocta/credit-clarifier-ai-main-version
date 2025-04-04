@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
@@ -15,6 +15,7 @@ import {
   extractAddressesFromText,
   extractEmploymentsFromText
 } from "@/lib/ai/contactInfoExtraction";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ContactInfoComponentProps {
   report: CreditReport;
@@ -26,6 +27,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [addresses, setAddresses] = useState<AddressInfo[]>([]);
   const [employments, setEmployments] = useState<EmploymentInfo[]>([]);
   const [tableImages, setTableImages] = useState<string[]>([]);
+  const [imageLoadStatus, setImageLoadStatus] = useState<Record<number, boolean>>({});
   const [extractionLogs, setExtractionLogs] = useState<string[]>([]);
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
   const [extractionPageNumbers, setExtractionPageNumbers] = useState<number[]>([]);
@@ -81,9 +83,16 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       if (pdfDocument) {
         setIsProcessing(true);
         try {
+          console.log("Starting contact info extraction from PDF document");
           // Attempt to extract from PDF
           const { addresses: extractedAddresses, employments: extractedEmployments, pageNumbers } = 
             await extractContactInfoTables(pdfDocument);
+          
+          console.log("Contact info extraction complete", { 
+            addressesFound: extractedAddresses.length,
+            employmentsFound: extractedEmployments.length,
+            pagesAnalyzed: pageNumbers
+          });
           
           // Store extracted page numbers for debugging
           if (pageNumbers && pageNumbers.length > 0) {
@@ -107,6 +116,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           
           // Get extracted table images for debugging
           const images = getContactTableImages();
+          console.log(`Received ${images.length} images from extraction process`);
           setTableImages(images);
           
           // Get extraction logs
@@ -120,6 +130,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           setAttemptedExtraction(true);
         }
       } else {
+        console.log("No PDF document available for extraction");
         setAttemptedExtraction(true);
       }
     };
@@ -157,12 +168,14 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   
   const handleRetryExtraction = async () => {
     setIsProcessing(true);
+    setImageLoadStatus({});
     toast.info("Retrying contact information extraction...");
     
     // Attempt to extract contact information
     try {
       const pdfDocument = (window as any).currentPdfDocument;
       if (pdfDocument) {
+        console.log("Retrying contact info extraction with PDF document");
         const { addresses, employments, pageNumbers } = await extractContactInfoTables(pdfDocument);
         
         // Update extracted page numbers
@@ -186,6 +199,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         }
         
         const images = getContactTableImages();
+        console.log(`Retry extracted ${images.length} page images`);
         setTableImages(images);
         
         const logs = getContactExtractionLogs();
@@ -218,6 +232,22 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     } else {
       toast.warning("PDF upload button not found. Please use the upload button in the navigation bar.");
     }
+  };
+  
+  const handleImageLoad = (index: number) => {
+    setImageLoadStatus(prev => ({
+      ...prev,
+      [index]: true
+    }));
+    console.log(`Image ${index} loaded successfully`);
+  };
+  
+  const handleImageError = (index: number) => {
+    setImageLoadStatus(prev => ({
+      ...prev,
+      [index]: false
+    }));
+    console.error(`Image ${index} failed to load`);
   };
 
   return (
@@ -341,28 +371,55 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
+              {/* Image Display Section */}
               {tableImages.length > 0 ? (
                 <div className="space-y-2">
                   <h5 className="text-xs font-medium">Extracted Page Images:</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {tableImages.map((imageUrl, index) => (
                       <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
-                        <div className="bg-muted/50 px-2 py-1 text-xs font-medium">
-                          Page Image {extractionPageNumbers[index] || index + 1}
+                        <div className="bg-muted/50 px-2 py-1 text-xs font-medium flex justify-between">
+                          <span>Page Image {extractionPageNumbers[index] || index + 1}</span>
+                          <span className={imageLoadStatus[index] === false ? "text-red-500" : 
+                                         imageLoadStatus[index] === true ? "text-green-500" : ""}>
+                            {imageLoadStatus[index] === false ? "Failed to load" : 
+                             imageLoadStatus[index] === true ? "Loaded" : "Loading..."}
+                          </span>
                         </div>
-                        <img 
-                          src={imageUrl} 
-                          alt={`Extracted page ${extractionPageNumbers[index] || index + 1}`}
-                          className="max-w-full h-auto"
-                        />
+                        <div className="relative min-h-[200px] bg-muted/20 flex justify-center items-center">
+                          {!imageLoadStatus[index] && imageLoadStatus[index] !== false && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
+                            </div>
+                          )}
+                          
+                          {imageLoadStatus[index] === false && (
+                            <div className="text-center p-4 text-red-600 flex flex-col items-center">
+                              <AlertCircle className="h-8 w-8 mb-2" />
+                              <p className="text-xs">Image failed to load</p>
+                              <p className="text-xs mt-1">Try retry extraction</p>
+                            </div>
+                          )}
+                          
+                          <img 
+                            src={imageUrl} 
+                            alt={`Extracted page ${extractionPageNumbers[index] || index + 1}`}
+                            className={`max-w-full h-auto ${imageLoadStatus[index] === false ? 'hidden' : ''}`}
+                            onLoad={() => handleImageLoad(index)}
+                            onError={() => handleImageError(index)}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground p-4 border border-dashed rounded-md text-center">
-                  No page images were extracted during processing
-                </div>
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    No page images were extracted during processing. Try clicking "Retry Extraction".
+                  </AlertDescription>
+                </Alert>
               )}
               
               <div className="space-y-2">
