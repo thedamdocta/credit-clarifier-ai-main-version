@@ -6,14 +6,14 @@ import { Upload, Loader2, Bug, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { CreditReport, Account } from "@/lib/types/creditReport";
 import AccountHeader from "./AccountHeader";
-import AccountsList from "../../AccountsList";
+import AccountsList from "./AccountsList";
 
 interface AccountsComponentProps {
   report: CreditReport;
-  showDebugInfo?: boolean;
 }
 
-const AccountsComponent: React.FC<AccountsComponentProps> = ({ report, showDebugInfo = false }) => {
+const AccountsComponent: React.FC<AccountsComponentProps> = ({ report }) => {
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const handleRetryExtraction = () => {
@@ -60,7 +60,7 @@ const AccountsComponent: React.FC<AccountsComponentProps> = ({ report, showDebug
       <CardHeader className="flex flex-row items-center justify-between">
         <AccountHeader 
           showDebugInfo={showDebugInfo} 
-          toggleDebug={() => {}} 
+          toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
         />
         
         <div className="flex flex-wrap gap-2">
@@ -122,6 +122,7 @@ const AccountsComponent: React.FC<AccountsComponentProps> = ({ report, showDebug
         ) : (
           <AccountsList 
             accounts={accounts} 
+            showDebugInfo={showDebugInfo} 
           />
         )}
       </CardContent>

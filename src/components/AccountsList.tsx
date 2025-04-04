@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   Card, 
@@ -36,14 +35,13 @@ import {
   X,
   Check
 } from "lucide-react";
-import { Account } from "@/lib/types/creditReport";
+import { Account } from "@/lib/creditReportParser";
 
 interface AccountsListProps {
   accounts: Account[];
-  showDebugInfo?: boolean;
 }
 
-const AccountsList: React.FC<AccountsListProps> = ({ accounts, showDebugInfo = false }) => {
+const AccountsList: React.FC<AccountsListProps> = ({ accounts }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
 

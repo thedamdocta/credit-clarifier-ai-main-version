@@ -228,7 +228,7 @@ const Index = () => {
               <CreditReportHeader report={creditReport} />
               
               {creditReport.bureau === 'Equifax' ? (
-                <EquifaxCreditReport report={creditReport} showDebugInfo={showDebugger} />
+                <EquifaxCreditReport report={creditReport} />
               ) : (
                 <>
                   <div className="grid gap-6 md:grid-cols-1">
