@@ -1,3 +1,4 @@
+
 export interface CreditReport {
   reportId: string;
   userId: string;
@@ -29,7 +30,6 @@ export interface AccountSummary {
   payment: string | null;
 }
 
-// Add Collection interface to the types
 export interface Collection {
   dateReported: string | null;
   collectionAgency: string | null;
@@ -47,22 +47,4 @@ export interface Collection {
   status: string | null;
   comments: string | null;
   contact: string | null;
-}
-
-// Update CreditReport interface to include collections
-export interface CreditReport {
-  reportId: string;
-  userId: string;
-  datePulled: string;
-  creditScore: number | null;
-  creditScoreFactors: string[];
-  totalAccounts: number | null;
-  openAccounts: number | null;
-  closedAccounts: number | null;
-  creditUtilization: number | null;
-  totalCreditLines: number | null;
-  totalDebt: number | null;
-  rawText: string;
-  accountSummaries?: AccountSummary[];
-  collections?: Collection[];
 }

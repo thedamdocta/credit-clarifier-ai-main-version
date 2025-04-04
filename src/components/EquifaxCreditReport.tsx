@@ -1,28 +1,24 @@
+
 import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { useDebouncedValue } from "@mantine/hooks";
 import { 
   CreditCard, 
   FileText, 
   Settings, 
-  AlertCircle, 
-  Loader2,
-  Bug,
-  ImagePlus,
-  RefreshCw
+  AlertCircle,
+  Search
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { OpenAIConfigForm } from "@/lib/ai/openai/openaiService";
 import AccountDataDebug from "@/components/credit-report/accounts/AccountDataDebug";
 import EnhancedCreditAccounts from "@/components/credit-report/accounts/EnhancedCreditAccounts";
 import AccountsComponent from "@/components/AccountsList";
-import DisputeInformation from "@/components/DisputeInformation";
+import DisputeInformation from "@/components/credit-report/DisputeInformation";
 
 // Import the new CollectionsComponent
 import CollectionsComponent from "./credit-report/collections/CollectionsComponent";
@@ -135,13 +131,13 @@ const EquifaxCreditReport = ({ report, showDebugInfo }: EquifaxCreditReportProps
         <TabsContent value="accounts">
           {/* Account tabs section */}
           <div className="space-y-6">
-            <EnhancedCreditAccounts report={report} showDebugInfo={showDebugInfo} />
-            <AccountsComponent report={report} showDebugInfo={showDebugInfo} />
+            <EnhancedCreditAccounts report={report} />
+            <AccountsComponent report={report} />
             
             {/* Add Collections component here - between Accounts and Dispute Information */}
             <CollectionsComponent report={report} showDebugInfo={showDebugInfo} />
             
-            <DisputeInformation report={report} showDebugInfo={showDebugInfo} />
+            <DisputeInformation />
           </div>
         </TabsContent>
         
