@@ -1,21 +1,14 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collection } from "@/lib/types/creditReport";
-import { Code, ZoomIn, ZoomOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Code } from "lucide-react";
 
 interface CollectionsDataDebugProps {
   collections: Collection[];
-  tableImageUrl?: string | null;
 }
 
-const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({ 
-  collections,
-  tableImageUrl
-}) => {
-  const [enlargeImage, setEnlargeImage] = useState(false);
-
+const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({ collections }) => {
   return (
     <Card className="bg-slate-50 border-slate-200 mb-4">
       <CardHeader className="py-2 px-4 bg-slate-100">
@@ -29,38 +22,12 @@ const CollectionsDataDebug: React.FC<CollectionsDataDebugProps> = ({
           <pre>{JSON.stringify(collections, null, 2)}</pre>
         </div>
         
-        {tableImageUrl && (
-          <div className="mt-3 p-3 border rounded bg-white">
-            <div className="flex items-center justify-between mb-2">
-              <h5 className="text-xs font-medium">Extracted Table Image</h5>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setEnlargeImage(!enlargeImage)}
-                className="h-6 px-2 text-xs"
-              >
-                {enlargeImage ? (
-                  <>
-                    <ZoomOut className="h-3 w-3 mr-1" />
-                    Reduce
-                  </>
-                ) : (
-                  <>
-                    <ZoomIn className="h-3 w-3 mr-1" />
-                    Enlarge
-                  </>
-                )}
-              </Button>
-            </div>
-            <div className={`relative overflow-hidden border ${enlargeImage ? 'h-[400px]' : 'h-[200px]'}`}>
-              <img 
-                src={tableImageUrl} 
-                alt="Collections table" 
-                className="w-full h-auto object-contain"
-              />
-            </div>
+        <div className="mt-3 p-3 border rounded bg-white">
+          <h5 className="text-xs font-medium mb-2">Extracted Table Image</h5>
+          <div className="bg-slate-100 p-4 rounded text-center text-xs text-slate-500">
+            [Collection table extraction image would appear here]
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

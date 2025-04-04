@@ -1,70 +1,64 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Inquiry } from "@/lib/types/creditReport";
 import HardInquiriesTable from "./HardInquiriesTable";
 import SoftInquiriesTable from "./SoftInquiriesTable";
-import InquiriesDataDebug from "./InquiriesDataDebug";
+import InquiriesTableImageDisplay from "./InquiriesTableImageDisplay";
 
 interface InquiriesListProps {
   hardInquiries: Inquiry[];
   softInquiries: Inquiry[];
   showDebugInfo: boolean;
-  tableImageUrl?: string | null;
 }
 
-const InquiriesList: React.FC<InquiriesListProps> = ({ 
-  hardInquiries, 
-  softInquiries, 
-  showDebugInfo,
-  tableImageUrl
-}) => {
+const InquiriesList: React.FC<InquiriesListProps> = ({ hardInquiries, softInquiries, showDebugInfo }) => {
+  const [activeTab, setActiveTab] = useState<string>("hard");
+  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
+  
   return (
     <div className="space-y-4">
       {showDebugInfo && (
-        <InquiriesDataDebug 
-          hardInquiries={hardInquiries} 
-          softInquiries={softInquiries}
-          tableImageUrl={tableImageUrl}
-        />
+        <InquiriesTableImageDisplay imageUrl={tableImageUrl} />
       )}
       
-      <Tabs defaultValue="hard" className="space-y-4">
-        <TabsList className="w-full grid grid-cols-2">
-          <TabsTrigger value="hard">Hard Inquiries</TabsTrigger>
-          <TabsTrigger value="soft">Soft Inquiries</TabsTrigger>
+      <Tabs defaultValue="hard" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="hard" className="relative">
+            Hard Inquiries
+            <Badge className="ml-2 bg-red-100 text-red-600 hover:bg-red-100 absolute -top-2 -right-2 text-xs">
+              {hardInquiries.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="soft">
+            Soft Inquiries
+            <Badge className="ml-2 bg-blue-100 text-blue-600 hover:bg-blue-100 absolute -top-2 -right-2 text-xs">
+              {softInquiries.length}
+            </Badge>
+          </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="hard" className="space-y-4">
-          <div className="p-4 bg-yellow-50 border border-yellow-100 rounded-md">
-            <p className="text-sm text-yellow-700">
-              Hard inquiries occur when a lender checks your credit as part of the loan application process.
-              These inquiries may impact your credit score and typically remain on your report for 2 years.
+        <TabsContent value="hard" className="pt-2">
+          <div className="mb-4">
+            <h3 className="text-sm font-medium mb-1">Hard Inquiries</h3>
+            <p className="text-xs text-muted-foreground">
+              These inquiries occur when a lender checks your credit report as part of their decision-making process. 
+              Hard inquiries may impact your credit score for up to 12 months.
             </p>
           </div>
-          
-          {hardInquiries.length === 0 ? (
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-md text-center">
-              <p className="text-sm text-slate-700">No hard inquiries found in your report. We're showing sample data for testing.</p>
-            </div>
-          ) : null}
           
           <HardInquiriesTable inquiries={hardInquiries} />
         </TabsContent>
         
-        <TabsContent value="soft" className="space-y-4">
-          <div className="p-4 bg-blue-50 border border-blue-100 rounded-md">
-            <p className="text-sm text-blue-700">
-              Soft inquiries occur when your credit is checked for reasons other than lending decisions, such as background checks or pre-approved offers.
-              These inquiries don't affect your credit score and are only visible to you.
+        <TabsContent value="soft" className="pt-2">
+          <div className="mb-4">
+            <h3 className="text-sm font-medium mb-1">Soft Inquiries</h3>
+            <p className="text-xs text-muted-foreground">
+              These inquiries occur when your credit is checked for reasons other than lending decisions, 
+              such as background checks or pre-approved credit offers. Soft inquiries do not affect your credit score.
             </p>
           </div>
-          
-          {softInquiries.length === 0 ? (
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-md text-center">
-              <p className="text-sm text-slate-700">No soft inquiries found in your report. We're showing sample data for testing.</p>
-            </div>
-          ) : null}
           
           <SoftInquiriesTable inquiries={softInquiries} />
         </TabsContent>

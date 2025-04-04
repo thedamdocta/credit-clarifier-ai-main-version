@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -7,9 +7,6 @@ import { CreditReport, Collection } from "@/lib/types/creditReport";
 import CollectionsHeader from "./CollectionsHeader";
 import CollectionsList from "./CollectionsList";
 import CollapsibleCard from "../common/CollapsibleCard";
-import { extractCollectionsTableImage, resetCollectionsTableImage } from "@/utils/pdf/extractCollectionsTableImage";
-import { extractCollectionsFromImage } from "@/lib/ai/collectionExtraction";
-import { convertToCollection } from "@/lib/parsers/equifax/equifaxCollections";
 
 interface CollectionsComponentProps {
   report: CreditReport;
@@ -18,145 +15,21 @@ interface CollectionsComponentProps {
 const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [extractionAttempts, setExtractionAttempts] = useState(0);
   
-  useEffect(() => {
-    // Reset state when report changes
-    if (report && report.reportId) {
-      resetCollectionsTableImage();
-      setTableImageUrl(null);
-      setExtractionAttempts(0);
-      
-      // Initialize collections from the report data
-      if (report.collections && report.collections.length > 0) {
-        setCollections(report.collections);
-      } else {
-        setCollections([]);
-      }
-      
-      // Auto-extract table image on component mount
-      const extractImage = async () => {
-        try {
-          const imageUrl = await extractCollectionsTableImage(report);
-          if (imageUrl) {
-            console.log("Successfully extracted collections table image");
-            setTableImageUrl(imageUrl);
-            
-            // Try to extract collections data automatically
-            handleExtractFromImage(imageUrl);
-          }
-        } catch (error) {
-          console.error("Error extracting collections table image:", error);
-        }
-      };
-      
-      extractImage();
-    }
-  }, [report?.reportId]);
-  
-  const handleExtractFromImage = async (imageUrl: string) => {
-    if (isProcessing) return;
-    
-    setIsProcessing(true);
-    setExtractionAttempts(prev => prev + 1);
-    
-    try {
-      // Extract collections from the image
-      const extractedCollections = await extractCollectionsFromImage(imageUrl);
-      
-      if (extractedCollections && extractedCollections.length > 0) {
-        console.log("Successfully extracted collections from image:", extractedCollections);
-        setCollections(extractedCollections);
-        toast.success(`Successfully extracted ${extractedCollections.length} collection accounts`);
-      } else {
-        console.log("No collections extracted from image, trying text extraction");
-        
-        // Try text-based extraction as fallback
-        if (report && report.rawText) {
-          const textExtractedCollections = convertToCollection(report.rawText);
-          
-          if (textExtractedCollections && textExtractedCollections.length > 0) {
-            console.log("Successfully extracted collections from text:", textExtractedCollections);
-            setCollections(textExtractedCollections);
-            toast.success(`Successfully extracted ${textExtractedCollections.length} collection accounts from text`);
-          } else {
-            // If no collections found, check if report already has any
-            if (report.collections && report.collections.length > 0) {
-              setCollections(report.collections);
-              toast.success("Using collections from report data");
-            } else {
-              setCollections([]);
-              toast.info("No collection accounts found in your report");
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error during collections extraction:", error);
-      toast.error("Error extracting collection accounts");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
-  const handleRetryExtraction = async () => {
+  const handleRetryExtraction = () => {
     setIsProcessing(true);
     toast.info("Retrying collections extraction...");
     
-    try {
-      // Reset the image cache to force a fresh extraction
-      if (extractionAttempts > 1) {
-        resetCollectionsTableImage();
-        setTableImageUrl(null);
-      }
-      
-      // Get a fresh table image
-      const imageUrl = await extractCollectionsTableImage(report);
-      
-      if (imageUrl) {
-        setTableImageUrl(imageUrl);
-        await handleExtractFromImage(imageUrl);
-      } else {
-        toast.error("Could not extract the collections table image");
-        
-        // Try text-based extraction as fallback
-        if (report && report.rawText) {
-          const textExtractedCollections = convertToCollection(report.rawText);
-          
-          if (textExtractedCollections && textExtractedCollections.length > 0) {
-            setCollections(textExtractedCollections);
-            toast.success(`Extracted ${textExtractedCollections.length} collection accounts from text`);
-          } else {
-            toast.info("No collection accounts found in your report text");
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error during collections extraction retry:", error);
-      toast.error("Error during collections extraction");
-    } finally {
+    // Simulate processing
+    setTimeout(() => {
       setIsProcessing(false);
-    }
+      toast.success("Collections extraction completed");
+    }, 1500);
   };
   
   const handleTrainParser = () => {
-    if (collections.length === 0) {
-      toast.warning("No collection data available for training");
-      return;
-    }
-    
     toast.info("Training parser with current collections data...");
-    
-    // Store the current collection data as a training example
-    try {
-      localStorage.setItem('collections_training_data', JSON.stringify(collections));
-      toast.success("Successfully saved collections data for training");
-    } catch (error) {
-      console.error("Error saving collections training data:", error);
-      toast.error("Failed to save training data");
-    }
+    // Add training logic here
   };
   
   const triggerPdfUpload = () => {
@@ -169,7 +42,9 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
   };
 
   // Use collections if they exist, otherwise an empty array
-  const pdfAvailable = report && report.rawText && report.rawText.length > 0;
+  const collections = report.collections && report.collections.length > 0 
+    ? report.collections 
+    : [];
   
   const header = (
     <div className="flex flex-row items-center justify-between w-full">
@@ -227,14 +102,6 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
         This section shows all collection accounts found in your credit report, including agency information and collection details.
       </p>
       
-      {!pdfAvailable && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-yellow-700">
-            No PDF data available. Please upload a credit report PDF to view collection accounts.
-          </p>
-        </div>
-      )}
-      
       {isProcessing ? (
         <div className="py-8 flex flex-col items-center justify-center">
           <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
@@ -248,8 +115,7 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
       ) : (
         <CollectionsList 
           collections={collections} 
-          showDebugInfo={showDebugInfo}
-          tableImageUrl={tableImageUrl}
+          showDebugInfo={showDebugInfo} 
         />
       )}
     </>
