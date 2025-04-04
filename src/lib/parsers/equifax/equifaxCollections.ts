@@ -11,28 +11,66 @@ export const convertToCollection = (text: string): Collection[] => {
     console.log("Converting text to collections data");
     const collections: Collection[] = [];
     
-    // Find collections section in the text
-    const collectionsRegex = /COLLECTIONS?(?:\s+ACCOUNTS?)?(?:\s+INFORMATION)?[^\n]*\n([\s\S]*?)(?:(?:PUBLIC\s+RECORDS)|(?:CREDIT\s+INQUIRIES)|(?:PERSONAL\s+STATEMENT)|$)/i;
-    const collectionsMatch = text.match(collectionsRegex);
+    // Find collections section in the text using expanded patterns
+    // This pattern looks for both numbered headers (like "10. Collections") and regular headers
+    const collectionsRegexPatterns = [
+      // Numbered section header pattern (e.g., "10. Collections")
+      /\d+\.\s*Collections[\s\S]*?(?:(?=\d+\.\s*[A-Z][a-z]+)|$)/i,
+      
+      // Regular collections section pattern
+      /COLLECTIONS?(?:\s+ACCOUNTS?)?(?:\s+INFORMATION)?[^\n]*\n([\s\S]*?)(?:(?:PUBLIC\s+RECORDS)|(?:CREDIT\s+INQUIRIES)|(?:PERSONAL\s+STATEMENT)|$)/i,
+      
+      // Alternative format with description paragraph
+      /Collections[\s\S]*?Collections are accounts with[\s\S]*?(?:(?=\d+\.\s*[A-Z][a-z]+)|$)/i
+    ];
     
-    if (!collectionsMatch || !collectionsMatch[1]) {
+    let collectionsText = "";
+    
+    // Try each pattern until we find a match
+    for (const pattern of collectionsRegexPatterns) {
+      const match = text.match(pattern);
+      if (match && match[0]) {
+        collectionsText = match[0];
+        console.log("Found collections section using pattern:", pattern);
+        break;
+      }
+    }
+    
+    if (!collectionsText) {
       console.log("No collections section found in text");
       return [];
     }
     
-    const collectionsText = collectionsMatch[1];
     console.log("Found collections section:", collectionsText.substring(0, 200) + "...");
     
-    // Look for collection accounts in the text
-    const accountsRegex = /(?:Collection\s+Agency|Collection\s+Account)[^\n]*(?:\n(?!Collection\s+Agency|Collection\s+Account)[^\n]*)*(?=\n|$)/gi;
-    const accountMatches = collectionsText.match(accountsRegex);
+    // Look for collection accounts in the text - multiple formats
+    // This covers both table-based and key-value pair formats
+    const accountPatternsToTry = [
+      // Format with "Date Reported" header followed by indented collection data
+      /Date\s+Reported\s*:\s*([^\n]+)(?:\n(?!Date\s+Reported)[^\n]*)*(?=\n\s*(?:Date\s+Reported|$))/gi,
+      
+      // Format with "Collection Agency" header
+      /Collection\s+Agency\s*:\s*([^\n]+)(?:\n(?!Collection\s+Agency)[^\n]*)*(?=\n\s*(?:Collection\s+Agency|$))/gi,
+      
+      // Format with field-value pairs
+      /((?:Collection Agency|Date Reported|Original Creditor|Date Assigned|Amount|Status)[^\n]*(?:\n(?!Collection Agency|Date Reported)[^\n]*)*)+/gi
+    ];
+    
+    let accountMatches = null;
+    
+    // Try each pattern until we find matches
+    for (const pattern of accountPatternsToTry) {
+      accountMatches = collectionsText.match(pattern);
+      if (accountMatches && accountMatches.length > 0) {
+        console.log(`Found ${accountMatches.length} collection accounts using pattern:`, pattern);
+        break;
+      }
+    }
     
     if (!accountMatches) {
       console.log("No collection accounts found in text");
       return [];
     }
-    
-    console.log(`Found ${accountMatches.length} potential collection accounts`);
     
     // Process each collection account
     for (const accountText of accountMatches) {
@@ -55,7 +93,15 @@ export const convertToCollection = (text: string): Collection[] => {
         contact: extractContact(accountText)
       };
       
-      collections.push(collection);
+      // Filter out empty collections
+      const hasRequiredFields = 
+        collection.collectionAgency || 
+        collection.originalCreditorName || 
+        collection.amount;
+      
+      if (hasRequiredFields) {
+        collections.push(collection);
+      }
     }
     
     console.log(`Successfully extracted ${collections.length} collection accounts`);
@@ -78,6 +124,7 @@ const extractValue = (text: string, pattern: RegExp): string | null => {
  * Extract comments from collection account text
  */
 const extractComments = (text: string): string[] => {
+  // Look for dedicated Comments section or text after status
   const commentsRegex = /Comments?:\s*([^\n]+)/gi;
   const comments: string[] = [];
   
@@ -88,6 +135,14 @@ const extractComments = (text: string): string[] => {
     }
   }
   
+  // If no dedicated Comments section, try to find any text after status that might be comments
+  if (comments.length === 0) {
+    const statusMatch = text.match(/Status:\s*([^\n]+)(?:\n(.+))?/i);
+    if (statusMatch && statusMatch[2] && !statusMatch[2].includes(':')) {
+      comments.push(statusMatch[2].trim());
+    }
+  }
+  
   return comments;
 };
 
@@ -95,13 +150,46 @@ const extractComments = (text: string): string[] => {
  * Extract contact information from collection account text
  */
 const extractContact = (text: string): string[] => {
-  const contactRegex = /(?:Contact|Phone|Address):\s*([^\n]+)/gi;
+  // First try to find a dedicated Contact section
+  const contactSectionMatch = text.match(/Contact\s*(?:\n|:)([\s\S]*?)(?=\n\s*(?:Comments|$))/i);
+  
+  if (contactSectionMatch && contactSectionMatch[1]) {
+    // Split the contact section by lines and filter out empty lines
+    return contactSectionMatch[1]
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.includes('Contact:'));
+  }
+  
+  // If no dedicated section, look for contact information patterns
+  const contactRegex = /(?:Contact|Phone|Address|Phone Number):\s*([^\n]+)/gi;
   const contacts: string[] = [];
   
   let match;
   while ((match = contactRegex.exec(text)) !== null) {
     if (match[1] && match[1].trim()) {
       contacts.push(match[1].trim());
+    }
+  }
+  
+  // Try to extract address patterns if no other contact info found
+  if (contacts.length === 0) {
+    // Look for address patterns (like PO Box, street names, city+state+zip)
+    const addressRegex = /(\d+\s+[A-Za-z]+\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Pkwy|Parkway)\.?|P\.?O\.?\s+Box\s+\d+|[A-Za-z]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)/g;
+    
+    while ((match = addressRegex.exec(text)) !== null) {
+      if (match[1] && match[1].trim()) {
+        contacts.push(match[1].trim());
+      }
+    }
+    
+    // Look for phone number patterns
+    const phoneRegex = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+    
+    while ((match = phoneRegex.exec(text)) !== null) {
+      if (match[0] && match[0].trim()) {
+        contacts.push(match[0].trim());
+      }
     }
   }
   

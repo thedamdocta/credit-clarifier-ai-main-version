@@ -9,6 +9,7 @@ import CollectionsList from "./CollectionsList";
 import CollapsibleCard from "../common/CollapsibleCard";
 import { extractCollectionsTableImage, resetCollectionsTableImage } from "@/utils/pdf/extractCollectionsTableImage";
 import { extractCollectionsFromImage } from "@/lib/ai/collectionExtraction";
+import { convertToCollection } from "@/lib/parsers/equifax/equifaxCollections";
 
 interface CollectionsComponentProps {
   report: CreditReport;
@@ -19,12 +20,14 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
   const [isProcessing, setIsProcessing] = useState(false);
   const [tableImageUrl, setTableImageUrl] = useState<string | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [extractionAttempts, setExtractionAttempts] = useState(0);
   
   useEffect(() => {
     // Reset state when report changes
     if (report && report.reportId) {
       resetCollectionsTableImage();
       setTableImageUrl(null);
+      setExtractionAttempts(0);
       
       // Initialize collections from the report data
       if (report.collections && report.collections.length > 0) {
@@ -40,6 +43,9 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
           if (imageUrl) {
             console.log("Successfully extracted collections table image");
             setTableImageUrl(imageUrl);
+            
+            // Try to extract collections data automatically
+            handleExtractFromImage(imageUrl);
           }
         } catch (error) {
           console.error("Error extracting collections table image:", error);
@@ -50,37 +56,41 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
     }
   }, [report?.reportId]);
   
-  const handleRetryExtraction = async () => {
+  const handleExtractFromImage = async (imageUrl: string) => {
+    if (isProcessing) return;
+    
     setIsProcessing(true);
-    toast.info("Retrying collections extraction...");
+    setExtractionAttempts(prev => prev + 1);
     
     try {
-      // First, ensure we have a table image
-      if (!tableImageUrl) {
-        const imageUrl = await extractCollectionsTableImage(report);
-        if (imageUrl) {
-          setTableImageUrl(imageUrl);
-        } else {
-          toast.error("Could not extract the collections table image");
-          setIsProcessing(false);
-          return;
-        }
-      }
-      
       // Extract collections from the image
-      const extractedCollections = await extractCollectionsFromImage(tableImageUrl);
+      const extractedCollections = await extractCollectionsFromImage(imageUrl);
       
       if (extractedCollections && extractedCollections.length > 0) {
+        console.log("Successfully extracted collections from image:", extractedCollections);
         setCollections(extractedCollections);
-        toast.success("Successfully extracted collection accounts");
+        toast.success(`Successfully extracted ${extractedCollections.length} collection accounts`);
       } else {
-        // If no collections found, check if report already has any
-        if (report.collections && report.collections.length > 0) {
-          setCollections(report.collections);
-          toast.success("Using collections from report data");
-        } else {
-          setCollections([]);
-          toast.info("No collection accounts found in your report");
+        console.log("No collections extracted from image, trying text extraction");
+        
+        // Try text-based extraction as fallback
+        if (report && report.rawText) {
+          const textExtractedCollections = convertToCollection(report.rawText);
+          
+          if (textExtractedCollections && textExtractedCollections.length > 0) {
+            console.log("Successfully extracted collections from text:", textExtractedCollections);
+            setCollections(textExtractedCollections);
+            toast.success(`Successfully extracted ${textExtractedCollections.length} collection accounts from text`);
+          } else {
+            // If no collections found, check if report already has any
+            if (report.collections && report.collections.length > 0) {
+              setCollections(report.collections);
+              toast.success("Using collections from report data");
+            } else {
+              setCollections([]);
+              toast.info("No collection accounts found in your report");
+            }
+          }
         }
       }
     } catch (error) {
@@ -91,9 +101,62 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
     }
   };
   
+  const handleRetryExtraction = async () => {
+    setIsProcessing(true);
+    toast.info("Retrying collections extraction...");
+    
+    try {
+      // Reset the image cache to force a fresh extraction
+      if (extractionAttempts > 1) {
+        resetCollectionsTableImage();
+        setTableImageUrl(null);
+      }
+      
+      // Get a fresh table image
+      const imageUrl = await extractCollectionsTableImage(report);
+      
+      if (imageUrl) {
+        setTableImageUrl(imageUrl);
+        await handleExtractFromImage(imageUrl);
+      } else {
+        toast.error("Could not extract the collections table image");
+        
+        // Try text-based extraction as fallback
+        if (report && report.rawText) {
+          const textExtractedCollections = convertToCollection(report.rawText);
+          
+          if (textExtractedCollections && textExtractedCollections.length > 0) {
+            setCollections(textExtractedCollections);
+            toast.success(`Extracted ${textExtractedCollections.length} collection accounts from text`);
+          } else {
+            toast.info("No collection accounts found in your report text");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error during collections extraction retry:", error);
+      toast.error("Error during collections extraction");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
   const handleTrainParser = () => {
+    if (collections.length === 0) {
+      toast.warning("No collection data available for training");
+      return;
+    }
+    
     toast.info("Training parser with current collections data...");
-    // Add training logic here
+    
+    // Store the current collection data as a training example
+    try {
+      localStorage.setItem('collections_training_data', JSON.stringify(collections));
+      toast.success("Successfully saved collections data for training");
+    } catch (error) {
+      console.error("Error saving collections training data:", error);
+      toast.error("Failed to save training data");
+    }
   };
   
   const triggerPdfUpload = () => {
