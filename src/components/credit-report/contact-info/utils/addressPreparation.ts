@@ -41,7 +41,8 @@ export const prepareAddresses = (report: CreditReport): AddressInfo[] => {
         }
         
         // Safe check for string type before calling match()
-        const dateMatch = typeof address === 'string' ? 
+        // This ensures address is not null before calling match()
+        const dateMatch = address !== null ? 
           address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : 
           null;
           
