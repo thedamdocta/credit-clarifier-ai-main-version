@@ -173,9 +173,9 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
       const pagesToTry = [collectionsPageNumber];
       
       // Add the pages we've already checked from our earlier attempts
-      // We need to reference the pagesToCheck that was defined above
-      const previouslyCheckedPages = pagesToCheck || [];
-      pagesToTry.push(...previouslyCheckedPages);
+      if (typeof pagesToCheck !== 'undefined') {
+        pagesToTry.push(...pagesToCheck);
+      }
       
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         // Skip pages we've already checked
