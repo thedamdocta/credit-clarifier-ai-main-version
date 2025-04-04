@@ -4,6 +4,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { CreditReport } from "@/lib/creditReportParser";
 import ReportConfirmationHeader from "./confirmation/ReportConfirmationHeader";
 import ReportConfirmationDetails from "./confirmation/ReportConfirmationDetails";
+import ContactInfoComponent from "./contact-info/ContactInfoComponent";
 
 interface ReportConfirmationProps {
   report: CreditReport;
