@@ -40,7 +40,7 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ collections, showDebu
       {collections.length === 0 && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
           <p className="text-yellow-700 text-sm">
-            No real collection accounts found in your report. Displaying null values for testing.
+            No collection accounts found in your report. Displaying null values for testing.
           </p>
         </div>
       )}

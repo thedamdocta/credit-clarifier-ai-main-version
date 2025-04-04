@@ -46,6 +46,8 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
     ? report.collections 
     : [];
   
+  const pdfAvailable = report && report.rawText && report.rawText.length > 0;
+  
   const header = (
     <div className="flex flex-row items-center justify-between w-full">
       <CollectionsHeader 
@@ -101,6 +103,14 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
       <p className="mb-4">
         This section shows all collection accounts found in your credit report, including agency information and collection details.
       </p>
+      
+      {!pdfAvailable && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-yellow-700">
+            No PDF data available. Please upload a credit report PDF to view collection accounts.
+          </p>
+        </div>
+      )}
       
       {isProcessing ? (
         <div className="py-8 flex flex-col items-center justify-center">
