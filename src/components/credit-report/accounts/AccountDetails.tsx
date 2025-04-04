@@ -1,16 +1,17 @@
 
 import React from "react";
 import { Account } from "@/lib/types/creditReport";
-import { formatCurrency } from "@/utils/formatters/accountValueFormatters";
+import { formatDollarAmount } from "@/utils/formatters/accountValueFormatters";
 
 interface AccountDetailsProps {
   account: Account;
+  showDebugInfo?: boolean;
 }
 
-const AccountDetails: React.FC<AccountDetailsProps> = ({ account }) => {
+const AccountDetails: React.FC<AccountDetailsProps> = ({ account, showDebugInfo }) => {
   // Format balance for display
   const formattedBalance = account.balance !== null 
-    ? formatCurrency(account.balance) 
+    ? formatDollarAmount(account.balance) 
     : "Not reported";
   
   // Format the account number with masking if present
@@ -27,8 +28,8 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ account }) => {
     return accountNumber;
   };
 
-  // Fix the type comparison by converting both to strings or numbers first
-  const isZeroBalance = account.balance === 0 || account.balance === "0" || account.balance === null;
+  // Fix the type comparison by converting both to strings for comparison
+  const isZeroBalance = account.balance === 0 || (account.balance !== null && account.balance.toString() === "0") || account.balance === null;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">

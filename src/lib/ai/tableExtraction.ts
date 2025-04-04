@@ -1,3 +1,4 @@
+
 import { ExtractedTableData, FormattedTableData } from "./table/types";
 import { extractTableWithOpenAI, canUseOpenAI } from "./openai/openaiService";
 import { AccountSummary } from "../types/creditReport";
@@ -21,7 +22,7 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
           console.log("Extracted table data:", {
             headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
             rows: openAIResults.map(account => [
-              account.accountType,
+              account.accountType || "",
               account.open || "",
               account.withBalance || "",
               account.totalBalance || "",
@@ -45,14 +46,14 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
             return {
               headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
               rows: openAIResults.map(account => [
-                account.accountType,
-                account.open || "",
-                account.withBalance || "",
-                account.totalBalance || "",
-                account.available || "",
-                account.creditLimit || "",
-                account.debtToCredit || "",
-                account.payment || ""
+                String(account.accountType || ""),
+                String(account.open || ""),
+                String(account.withBalance || ""),
+                String(account.totalBalance || ""),
+                String(account.available || ""),
+                String(account.creditLimit || ""),
+                String(account.debtToCredit || ""),
+                String(account.payment || "")
               ]),
               confidence: 0.95,
               matchScore: 0.9,
@@ -120,7 +121,7 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
     tableData.rows.forEach(row => {
       if (!row || row.length === 0) return;
       
-      const accountType = accountTypeIndex >= 0 ? row[accountTypeIndex]?.trim() : '';
+      const accountType = accountTypeIndex >= 0 ? String(row[accountTypeIndex]?.trim() || "") : '';
       const lowerAccountType = accountType.toLowerCase();
       
       // Process all rows, even if they don't match the expected account types
@@ -138,17 +139,24 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
       }
       
       accountSummaries.push({
+        // Required properties from the interface
+        type: formattedAccountType,
+        count: 0,
+        highCredit: null,
+        pastDue: null,
+        balance: null,
+        payment: null,
+
+        // Additional properties used in the code
         accountType: formattedAccountType,
         totalAccounts: null,
-        open: openIndex >= 0 ? row[openIndex]?.trim() || null : null,
-        withBalance: withBalanceIndex >= 0 ? row[withBalanceIndex]?.trim() || null : null,
+        open: openIndex >= 0 ? String(row[openIndex]?.trim() || null) : null,
+        withBalance: withBalanceIndex >= 0 ? String(row[withBalanceIndex]?.trim() || null) : null,
         closed: null,
-        balance: null,
-        totalBalance: totalBalanceIndex >= 0 ? row[totalBalanceIndex]?.trim() || null : null,
-        available: availableIndex >= 0 ? row[availableIndex]?.trim() || null : null,
-        creditLimit: creditLimitIndex >= 0 ? row[creditLimitIndex]?.trim() || null : null,
-        debtToCredit: debtToCreditIndex >= 0 ? row[debtToCreditIndex]?.trim() || null : null,
-        payment: paymentIndex >= 0 ? row[paymentIndex]?.trim() || null : null
+        totalBalance: totalBalanceIndex >= 0 ? String(row[totalBalanceIndex]?.trim() || null) : null,
+        available: availableIndex >= 0 ? String(row[availableIndex]?.trim() || null) : null,
+        creditLimit: creditLimitIndex >= 0 ? String(row[creditLimitIndex]?.trim() || null) : null,
+        debtToCredit: debtToCreditIndex >= 0 ? String(row[debtToCreditIndex]?.trim() || null) : null
       });
     });
     
@@ -180,17 +188,24 @@ function createEmptyAccountSummaries(): AccountSummary[] {
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
   
   return requiredAccountTypes.map(accountType => ({
+    // Required properties from the interface
+    type: accountType,
+    count: 0,
+    highCredit: null,
+    pastDue: null,
+    balance: null,
+    payment: null,
+    
+    // Additional properties used in the code
     accountType,
     totalAccounts: null,
     open: null,
     withBalance: null,
     closed: null,
-    balance: null,
     totalBalance: null,
     available: null,
     creditLimit: null,
-    debtToCredit: null,
-    payment: null
+    debtToCredit: null
   }));
 }
 
@@ -203,17 +218,24 @@ function ensureAllRequiredAccountTypes(summaries: AccountSummary[]): AccountSumm
     const lowerAccountType = accountType.toLowerCase();
     if (!summaries.some(summary => summary.accountType.toLowerCase() === lowerAccountType)) {
       result.push({
+        // Required properties from the interface
+        type: accountType,
+        count: 0,
+        highCredit: null,
+        pastDue: null,
+        balance: null,
+        payment: null,
+        
+        // Additional properties used in the code
         accountType,
         totalAccounts: null,
         open: null,
         withBalance: null,
         closed: null,
-        balance: null,
         totalBalance: null,
         available: null,
         creditLimit: null,
-        debtToCredit: null,
-        payment: null
+        debtToCredit: null
       });
     }
   });

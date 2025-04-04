@@ -1,4 +1,3 @@
-
 /**
  * Safely formats cell values for the account summary tables
  */
@@ -57,6 +56,11 @@ export const formatDollarAmount = (value: any): string => {
   
   return stringValue;
 };
+
+/**
+ * Alias for formatDollarAmount to maintain backward compatibility
+ */
+export const formatCurrency = formatDollarAmount;
 
 /**
  * Format percentage values consistently

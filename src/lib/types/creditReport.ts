@@ -1,4 +1,5 @@
 
+
 export interface Account {
   accountName: string;
   accountNumber: string;
@@ -11,7 +12,7 @@ export interface Account {
 }
 
 export interface AccountSummary {
-  // Original properties from the interface
+  // Required properties from the original interface
   type: string;
   count: number;
   highCredit: number | null;
@@ -66,7 +67,7 @@ export interface CreditScore {
   score: number;
   type: string;
   range: string;
-  provider?: string; // Added this property
+  provider?: string;
 }
 
 export interface Alert {
@@ -87,7 +88,6 @@ export interface SoftInquiry {
   description: string | null;
 }
 
-// Add PersonalInfo interface that was missing
 export interface PersonalInfo {
   name: string;
   addresses: string[];
@@ -134,3 +134,4 @@ export interface CreditReport {
   collectionCount?: number;
   parsingError?: string;
 }
+
