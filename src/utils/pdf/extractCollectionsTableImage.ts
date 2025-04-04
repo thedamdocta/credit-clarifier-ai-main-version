@@ -140,11 +140,9 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
     // Try the primary page first
     imageUrl = await convertPDFPageToImage(pdfData.pdfDocument, collectionsPageNumber);
     
-    // Declare pagesToCheck at a higher scope so it's available throughout the function
-    let pagesToCheck: number[] = [];
-    
     // If we still don't have a valid image, try a few pages before and after
     if (!imageUrl) {
+      const pagesToCheck: number[] = [];
       // Add 2 pages before and after the estimated page, but prioritize pages after
       for (let i = 1; i <= 2; i++) {
         if (collectionsPageNumber + i <= numPages) {
