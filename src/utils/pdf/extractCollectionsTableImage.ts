@@ -171,9 +171,9 @@ export const extractCollectionsTableImage = async (report: CreditReport): Promis
       console.log("No collections found on expected pages, scanning all pages");
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         // Skip pages we've already checked
-        // Fix: Define pagesToTry using the already checked pages
+        // Define pagesToTry based on the pages we've already checked
         const pagesToTry = [collectionsPageNumber];
-        // Also add the pages we tried from pagesToCheck array if it exists
+        // Also add the pages we tried from our pagesToCheck array
         if (typeof pagesToCheck !== 'undefined') {
           pagesToTry.push(...pagesToCheck);
         }
