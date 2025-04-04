@@ -9,7 +9,7 @@ import PublicRecordComments from "./PublicRecordComments";
 
 interface PublicRecord {
   recordType: string;
-  caseNumber: string;
+  caseNumber: string | null;
   filingDate: string;
   status: string;
   courtName?: string;
@@ -66,7 +66,7 @@ const PublicRecordsItem: React.FC<PublicRecordsItemProps> = ({ record, recordTyp
             <AlertTriangle className="h-5 w-5 mr-2" />
             {recordType}
             <Badge variant="outline" className="ml-2">
-              {record.caseNumber || "Unknown #"}
+              {record.caseNumber || "Not reported"}
             </Badge>
           </CardTitle>
           
@@ -74,7 +74,7 @@ const PublicRecordsItem: React.FC<PublicRecordsItemProps> = ({ record, recordTyp
             variant={hasNegativeInfo ? "destructive" : "outline"}
             className={`${hasNegativeInfo ? 'bg-red-100 text-red-800 hover:bg-red-200' : ''}`}
           >
-            {record.status || "Unknown Status"}
+            {record.status || "Not reported"}
           </Badge>
         </div>
       </CardHeader>

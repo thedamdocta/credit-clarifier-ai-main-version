@@ -41,11 +41,11 @@ const PublicRecordsComponent: React.FC<PublicRecordsComponentProps> = ({ report 
     }
   };
 
-  // Create default public records data if none exist
+  // Create empty public records data
   const publicRecords = {
     bankruptcies: [{
       recordType: "Bankruptcy",
-      caseNumber: "BK-2023-12345",
+      caseNumber: null,
       filingDate: "Not reported",
       status: "Not reported",
       courtName: "Not reported",
@@ -54,7 +54,7 @@ const PublicRecordsComponent: React.FC<PublicRecordsComponentProps> = ({ report 
     }],
     judgements: [{
       recordType: "Judgement",
-      caseNumber: "JD-2023-67890",
+      caseNumber: null,
       filingDate: "Not reported",
       status: "Not reported",
       courtName: "Not reported",
@@ -63,7 +63,7 @@ const PublicRecordsComponent: React.FC<PublicRecordsComponentProps> = ({ report 
     }],
     liens: [{
       recordType: "Lien",
-      caseNumber: "LN-2023-54321",
+      caseNumber: null,
       filingDate: "Not reported",
       status: "Not reported",
       agency: "Not reported",

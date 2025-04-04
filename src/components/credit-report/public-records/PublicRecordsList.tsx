@@ -6,7 +6,7 @@ import PublicRecordsItem from "./PublicRecordsItem";
 
 interface PublicRecord {
   recordType: string;
-  caseNumber: string;
+  caseNumber: string | null;
   filingDate: string;
   status: string;
   courtName?: string;

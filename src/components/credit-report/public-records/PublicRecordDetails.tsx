@@ -5,7 +5,7 @@ import { Calendar, DollarSign, Building, FileText } from "lucide-react";
 
 interface PublicRecord {
   recordType: string;
-  caseNumber: string;
+  caseNumber: string | null;
   filingDate: string;
   status: string;
   courtName?: string;
@@ -30,7 +30,9 @@ const PublicRecordDetails: React.FC<PublicRecordDetailsProps> = ({ record, recor
               <div className="text-xs text-muted-foreground">Case/Reference Number</div>
               <div className="flex items-center">
                 <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="font-medium">{record.caseNumber || "Not reported"}</span>
+                <span className="font-medium">
+                  {record.caseNumber || "Not reported"}
+                </span>
               </div>
             </div>
             
