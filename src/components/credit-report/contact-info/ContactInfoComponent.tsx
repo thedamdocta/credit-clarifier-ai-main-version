@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
 import { CreditReport } from "@/lib/types/creditReport";
 import { extractRegionFromPDFPage } from "@/utils/pdf/pdfToImage";
+import CollapsibleCard from "../common/CollapsibleCard";
 
 interface ContactInfoComponentProps {
   report: CreditReport;
@@ -69,112 +70,118 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   // Example employment data - would be replaced with real data from the report
   const employments = [];
   
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <ContactInfoHeader 
-          showDebugInfo={showDebugInfo} 
-          toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
-        />
-        
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRetryExtraction}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry Extraction
-              </>
-            )}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={triggerPdfUpload}
-            disabled={isProcessing}
-          >
-            <Upload className="h-4 w-4 mr-1" />
-            Upload Better PDF
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTrainParser}
-            disabled={isProcessing}
-          >
-            <Save className="h-4 w-4 mr-1" />
-            Train Parser
-          </Button>
-        </div>
-      </CardHeader>
+  const headerContent = (
+    <div className="flex flex-row items-center justify-between w-full">
+      <ContactInfoHeader 
+        showDebugInfo={showDebugInfo} 
+        toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
+      />
       
-      <CardContent className="space-y-6">
-        {isProcessing ? (
-          <div className="py-8 flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
-            <p className="text-sm font-medium">
-              Extracting contact information...
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Please wait while we analyze your address and employment records
-            </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRetryExtraction}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Retry Extraction
+            </>
+          )}
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={triggerPdfUpload}
+          disabled={isProcessing}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          Upload Better PDF
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTrainParser}
+          disabled={isProcessing}
+        >
+          <Save className="h-4 w-4 mr-1" />
+          Train Parser
+        </Button>
+      </div>
+    </div>
+  );
+  
+  const content = (
+    <>
+      {isProcessing ? (
+        <div className="py-8 flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
+          <p className="text-sm font-medium">
+            Extracting contact information...
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Please wait while we analyze your address and employment records
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-4">
+            <h3 className="font-medium">Previous Addresses</h3>
+            <AddressesTable addresses={addresses} />
           </div>
-        ) : (
-          <>
-            <div className="space-y-4">
-              <h3 className="font-medium">Previous Addresses</h3>
-              <AddressesTable addresses={addresses} />
-            </div>
-            
-            <div className="space-y-4">
-              <h3 className="font-medium">Employment History</h3>
-              <EmploymentTable employments={employments} />
-            </div>
-            
-            {showDebugInfo && (
-              <div className="mt-4 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
-                <h4 className="text-sm font-medium mb-2">Debug Information</h4>
-                
-                {tableImage && (
-                  <div className="space-y-2">
-                    <h5 className="text-xs font-medium">Extracted Table Image:</h5>
-                    <div className="border rounded-md overflow-hidden">
-                      <img 
-                        src={tableImage} 
-                        alt="Extracted contact information table" 
-                        className="max-w-full h-auto"
-                      />
-                    </div>
-                  </div>
-                )}
-                
+          
+          <div className="space-y-4">
+            <h3 className="font-medium">Employment History</h3>
+            <EmploymentTable employments={employments} />
+          </div>
+          
+          {showDebugInfo && (
+            <div className="mt-4 p-4 bg-muted/50 rounded-md border border-dashed space-y-4">
+              <h4 className="text-sm font-medium mb-2">Debug Information</h4>
+              
+              {tableImage && (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-medium">Parsed Data:</h5>
-                  <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md">
-                    {JSON.stringify({
-                      addresses: addresses,
-                      employments: employments,
-                      personalInfo: report.personalInfo
-                    }, null, 2)}
-                  </pre>
+                  <h5 className="text-xs font-medium">Extracted Table Image:</h5>
+                  <div className="border rounded-md overflow-hidden">
+                    <img 
+                      src={tableImage} 
+                      alt="Extracted contact information table" 
+                      className="max-w-full h-auto"
+                    />
+                  </div>
                 </div>
+              )}
+              
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium">Parsed Data:</h5>
+                <pre className="text-xs overflow-x-auto p-2 bg-muted/30 rounded-md">
+                  {JSON.stringify({
+                    addresses: addresses,
+                    employments: employments,
+                    personalInfo: report.personalInfo
+                  }, null, 2)}
+                </pre>
               </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+  
+  return (
+    <CollapsibleCard header={headerContent}>
+      {content}
+    </CollapsibleCard>
   );
 };
 

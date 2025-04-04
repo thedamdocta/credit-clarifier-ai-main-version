@@ -1,12 +1,12 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, Bug, Save, RefreshCw } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { CreditReport } from "@/lib/types/creditReport";
 import PublicRecordsHeader from "./PublicRecordsHeader";
 import PublicRecordsList from "./PublicRecordsList";
+import CollapsibleCard from "../common/CollapsibleCard";
 
 interface PublicRecordsComponentProps {
   report: CreditReport;
@@ -72,78 +72,85 @@ const PublicRecordsComponent: React.FC<PublicRecordsComponentProps> = ({ report 
     }]
   };
   
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <PublicRecordsHeader 
-          showDebugInfo={showDebugInfo} 
-          toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
-        />
+  const header = (
+    <div className="flex flex-row items-center justify-between w-full">
+      <PublicRecordsHeader 
+        showDebugInfo={showDebugInfo} 
+        toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
+      />
+      
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRetryExtraction}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Retry Extraction
+            </>
+          )}
+        </Button>
         
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRetryExtraction}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry Extraction
-              </>
-            )}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={triggerPdfUpload}
-            disabled={isProcessing}
-          >
-            <Upload className="h-4 w-4 mr-1" />
-            Upload Better PDF
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTrainParser}
-            disabled={isProcessing}
-          >
-            <Save className="h-4 w-4 mr-1" />
-            Train Parser
-          </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={triggerPdfUpload}
+          disabled={isProcessing}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          Upload Better PDF
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTrainParser}
+          disabled={isProcessing}
+        >
+          <Save className="h-4 w-4 mr-1" />
+          Train Parser
+        </Button>
+      </div>
+    </div>
+  );
+
+  const content = (
+    <>
+      <p className="mb-4">
+        This section shows all public records found in your credit report, including bankruptcies, judgements, and liens.
+      </p>
+      
+      {isProcessing ? (
+        <div className="py-8 flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
+          <p className="text-sm font-medium">
+            Extracting public records data...
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Please wait while we analyze your public records
+          </p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <p className="mb-4">
-          This section shows all public records found in your credit report, including bankruptcies, judgements, and liens.
-        </p>
-        
-        {isProcessing ? (
-          <div className="py-8 flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
-            <p className="text-sm font-medium">
-              Extracting public records data...
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Please wait while we analyze your public records
-            </p>
-          </div>
-        ) : (
-          <PublicRecordsList 
-            publicRecords={publicRecords} 
-            showDebugInfo={showDebugInfo} 
-          />
-        )}
-      </CardContent>
-    </Card>
+      ) : (
+        <PublicRecordsList 
+          publicRecords={publicRecords} 
+          showDebugInfo={showDebugInfo} 
+        />
+      )}
+    </>
+  );
+  
+  return (
+    <CollapsibleCard header={header}>
+      {content}
+    </CollapsibleCard>
   );
 };
 

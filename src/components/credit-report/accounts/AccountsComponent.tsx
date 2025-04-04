@@ -1,12 +1,12 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, Bug, Save, RefreshCw } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { CreditReport, Account } from "@/lib/types/creditReport";
 import AccountHeader from "./AccountHeader";
 import AccountsList from "./AccountsList";
+import CollapsibleCard from "../common/CollapsibleCard";
 
 interface AccountsComponentProps {
   report: CreditReport;
@@ -55,78 +55,85 @@ const AccountsComponent: React.FC<AccountsComponentProps> = ({ report }) => {
         comments: ["This is a placeholder account. No actual accounts were detected in your report."]
       }];
   
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <AccountHeader 
-          showDebugInfo={showDebugInfo} 
-          toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
-        />
+  const header = (
+    <div className="flex flex-row items-center justify-between w-full">
+      <AccountHeader 
+        showDebugInfo={showDebugInfo} 
+        toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
+      />
+      
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRetryExtraction}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Retry Extraction
+            </>
+          )}
+        </Button>
         
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRetryExtraction}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry Extraction
-              </>
-            )}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={triggerPdfUpload}
-            disabled={isProcessing}
-          >
-            <Upload className="h-4 w-4 mr-1" />
-            Upload Better PDF
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTrainParser}
-            disabled={isProcessing}
-          >
-            <Save className="h-4 w-4 mr-1" />
-            Train Parser
-          </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={triggerPdfUpload}
+          disabled={isProcessing}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          Upload Better PDF
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTrainParser}
+          disabled={isProcessing}
+        >
+          <Save className="h-4 w-4 mr-1" />
+          Train Parser
+        </Button>
+      </div>
+    </div>
+  );
+
+  const content = (
+    <>
+      <p className="mb-4">
+        This section shows all accounts found in your credit report, including payment history and account details.
+      </p>
+      
+      {isProcessing ? (
+        <div className="py-8 flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
+          <p className="text-sm font-medium">
+            Extracting account data...
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Please wait while we analyze your accounts
+          </p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <p className="mb-4">
-          This section shows all accounts found in your credit report, including payment history and account details.
-        </p>
-        
-        {isProcessing ? (
-          <div className="py-8 flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
-            <p className="text-sm font-medium">
-              Extracting account data...
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Please wait while we analyze your accounts
-            </p>
-          </div>
-        ) : (
-          <AccountsList 
-            accounts={accounts} 
-            showDebugInfo={showDebugInfo} 
-          />
-        )}
-      </CardContent>
-    </Card>
+      ) : (
+        <AccountsList 
+          accounts={accounts} 
+          showDebugInfo={showDebugInfo} 
+        />
+      )}
+    </>
+  );
+  
+  return (
+    <CollapsibleCard header={header}>
+      {content}
+    </CollapsibleCard>
   );
 };
 

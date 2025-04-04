@@ -1,12 +1,12 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { CreditReport, Collection } from "@/lib/types/creditReport";
 import CollectionsHeader from "./CollectionsHeader";
 import CollectionsList from "./CollectionsList";
+import CollapsibleCard from "../common/CollapsibleCard";
 
 interface CollectionsComponentProps {
   report: CreditReport;
@@ -63,78 +63,85 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({ report }) =
         contact: ["No contact information available"]
       }];
   
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CollectionsHeader 
-          showDebugInfo={showDebugInfo} 
-          toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
-        />
+  const header = (
+    <div className="flex flex-row items-center justify-between w-full">
+      <CollectionsHeader 
+        showDebugInfo={showDebugInfo} 
+        toggleDebug={() => setShowDebugInfo(!showDebugInfo)} 
+      />
+      
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRetryExtraction}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Retry Extraction
+            </>
+          )}
+        </Button>
         
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRetryExtraction}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry Extraction
-              </>
-            )}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={triggerPdfUpload}
-            disabled={isProcessing}
-          >
-            <Upload className="h-4 w-4 mr-1" />
-            Upload Better PDF
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTrainParser}
-            disabled={isProcessing}
-          >
-            <Save className="h-4 w-4 mr-1" />
-            Train Parser
-          </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={triggerPdfUpload}
+          disabled={isProcessing}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          Upload Better PDF
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTrainParser}
+          disabled={isProcessing}
+        >
+          <Save className="h-4 w-4 mr-1" />
+          Train Parser
+        </Button>
+      </div>
+    </div>
+  );
+
+  const content = (
+    <>
+      <p className="mb-4">
+        This section shows all collection accounts found in your credit report, including agency information and collection details.
+      </p>
+      
+      {isProcessing ? (
+        <div className="py-8 flex flex-col items-center justify-center">
+          <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
+          <p className="text-sm font-medium">
+            Extracting collection data...
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Please wait while we analyze your collection accounts
+          </p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <p className="mb-4">
-          This section shows all collection accounts found in your credit report, including agency information and collection details.
-        </p>
-        
-        {isProcessing ? (
-          <div className="py-8 flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-credit-blue animate-spin mb-4" />
-            <p className="text-sm font-medium">
-              Extracting collection data...
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Please wait while we analyze your collection accounts
-            </p>
-          </div>
-        ) : (
-          <CollectionsList 
-            collections={collections} 
-            showDebugInfo={showDebugInfo} 
-          />
-        )}
-      </CardContent>
-    </Card>
+      ) : (
+        <CollectionsList 
+          collections={collections} 
+          showDebugInfo={showDebugInfo} 
+        />
+      )}
+    </>
+  );
+  
+  return (
+    <CollapsibleCard header={header}>
+      {content}
+    </CollapsibleCard>
   );
 };
 
