@@ -120,8 +120,8 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             status = 'Former';
           }
           
-          // Fixed: Properly check if address is a string and not null before calling match
-          const dateMatch = (typeof address === 'string' && address) 
+          // Properly check if address is a string and not null/empty before calling match
+          const dateMatch = typeof address === 'string' && address 
             ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) 
             : null;
             
