@@ -120,8 +120,11 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             status = 'Former';
           }
           
-          // Try to extract date from the address string - Fix for line 101
-          const dateMatch = address !== null ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : null;
+          // Fixed: Properly check if address is a string and not null before calling match
+          const dateMatch = (typeof address === 'string' && address) 
+            ? address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) 
+            : null;
+            
           if (dateMatch) {
             dateReported = dateMatch[0];
           }
