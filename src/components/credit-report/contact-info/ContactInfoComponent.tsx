@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, RefreshCw, Save, FileSearch } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText } from "lucide-react";
 import { toast } from "sonner";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
@@ -11,7 +11,9 @@ import {
   getContactTableImages, 
   getContactExtractionLogs,
   AddressInfo, 
-  EmploymentInfo 
+  EmploymentInfo,
+  extractAddressesFromText,
+  extractEmploymentsFromText
 } from "@/lib/ai/contactInfoExtraction";
 
 interface ContactInfoComponentProps {
@@ -27,6 +29,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [extractionLogs, setExtractionLogs] = useState<string[]>([]);
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
   const [extractionPageNumbers, setExtractionPageNumbers] = useState<number[]>([]);
+  const [analyzedText, setAnalyzedText] = useState<string>("");
   
   // Extract contact information on component mount
   useEffect(() => {
@@ -51,11 +54,26 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       if (report.personalInfo && report.personalInfo.employmentHistory) {
         // Handle the case where employment history is descriptive text, not actual employment
         const employmentText = report.personalInfo.employmentHistory;
-        if (!employmentText.toLowerCase().includes("history employment history is")) {
-          setEmployments([{
-            company: employmentText,
-            occupation: ""
-          }]);
+        
+        if (employmentText) {
+          // First check if this is just descriptive text
+          if (!employmentText.toLowerCase().includes("history employment history is")) {
+            // Try to parse structured employment data
+            const extractedEmployments = extractEmploymentsFromText(employmentText);
+            
+            if (extractedEmployments.length > 0) {
+              setEmployments(extractedEmployments);
+            } else {
+              // Use as raw text if no structured data found
+              setEmployments([{
+                company: employmentText,
+                occupation: ""
+              }]);
+            }
+          }
+          
+          // Save the text for analysis
+          setAnalyzedText(employmentText);
         }
       }
       
@@ -250,6 +268,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
             size="sm"
             onClick={() => setShowDebugInfo(!showDebugInfo)}
           >
+            <FileSearch className="h-4 w-4 mr-1" />
             {showDebugInfo ? "Hide Debug Info" : "Show Debug Info"}
           </Button>
         </div>
@@ -297,6 +316,19 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
+              {/* Analyzed Text Section */}
+              {analyzedText && (
+                <div className="space-y-2 mb-4">
+                  <h5 className="text-xs font-medium flex items-center">
+                    <FileText className="h-3 w-3 mr-1" />
+                    Analyzed Text:
+                  </h5>
+                  <div className="bg-muted/30 p-3 rounded text-xs font-mono h-24 overflow-y-auto">
+                    {analyzedText}
+                  </div>
+                </div>
+              )}
+              
               {/* Extraction Logs Section */}
               {extractionLogs.length > 0 && (
                 <div className="space-y-2 mb-4">
@@ -311,16 +343,16 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
               
               {tableImages.length > 0 ? (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-medium">Extracted Table Images:</h5>
+                  <h5 className="text-xs font-medium">Extracted Page Images:</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {tableImages.map((imageUrl, index) => (
                       <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
                         <div className="bg-muted/50 px-2 py-1 text-xs font-medium">
-                          Table Image {index + 1}
+                          Page Image {extractionPageNumbers[index] || index + 1}
                         </div>
                         <img 
                           src={imageUrl} 
-                          alt={`Extracted contact information table ${index + 1}`}
+                          alt={`Extracted page ${extractionPageNumbers[index] || index + 1}`}
                           className="max-w-full h-auto"
                         />
                       </div>
@@ -329,7 +361,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground p-4 border border-dashed rounded-md text-center">
-                  No table images were extracted during processing
+                  No page images were extracted during processing
                 </div>
               )}
               

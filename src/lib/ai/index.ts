@@ -11,9 +11,9 @@ export * from './personalInfoExtraction';
 export * from './creditReportParsing';
 export * from './summaryExtraction';
 export * from './tableExtraction';
+// Export contact info extraction utilities
+export * from './contactInfoExtraction';
 // Export table extraction utilities
 export * from './table';
-// Export contact info extraction
-export * from './contactInfoExtraction';
 // Export OCR utilities
 export * from './ocrExtraction';
