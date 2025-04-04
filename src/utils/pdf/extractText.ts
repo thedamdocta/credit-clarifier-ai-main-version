@@ -29,6 +29,11 @@ export const setCurrentPDFData = (file: File, options?: { targetTable?: string }
   return reportId;
 };
 
+// Get the current PDF data - needed for image extraction
+export const getCurrentPDFData = () => {
+  return currentPdfData;
+};
+
 // Store the parsed report data
 export const setExtractedReportData = (parsedReport: any) => {
   extractedReportData = parsedReport;
