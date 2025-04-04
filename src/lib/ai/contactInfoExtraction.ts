@@ -1,7 +1,7 @@
 
 import { toast } from "sonner";
 import { extractRegionFromPDFPage } from "@/utils/pdf/pdfToImage";
-import { canUseOpenAI, extractTableWithOpenAI } from "./openai/openaiService";
+import { canUseOpenAI } from "./openai/openaiService";
 import { processImageWithEnhancedOCR } from "./ocrExtraction";
 
 // Interface for address information
@@ -239,6 +239,9 @@ async function extractAddressesWithOpenAI(imageUrl: string): Promise<AddressInfo
   try {
     console.log("Using OpenAI to extract addresses");
     
+    // Import here to avoid circular dependency
+    const { extractTableWithOpenAI } = await import('./openai/openaiService');
+    
     // The prompt formatting is similar to the Account Summaries extraction
     const extractedData = await extractTableWithOpenAI(imageUrl);
     
@@ -246,11 +249,15 @@ async function extractAddressesWithOpenAI(imageUrl: string): Promise<AddressInfo
     if (extractedData && Array.isArray(extractedData)) {
       return extractedData
         .filter(item => item && typeof item === 'object')
-        .map(item => ({
-          address: item.address || item.value || item.text || 'Unknown',
-          status: item.status || item.type || 'Unknown',
-          dateReported: item.dateReported || item.date || ''
-        }));
+        .map(item => {
+          // Use type assertion to access dynamic properties safely
+          const dataItem = item as Record<string, any>;
+          return {
+            address: String(dataItem.address || dataItem.value || dataItem.text || 'Unknown'),
+            status: String(dataItem.status || dataItem.type || 'Unknown'),
+            dateReported: String(dataItem.dateReported || dataItem.date || '')
+          };
+        });
     }
     
     return [];
@@ -267,6 +274,9 @@ async function extractEmploymentWithOpenAI(imageUrl: string): Promise<Employment
   try {
     console.log("Using OpenAI to extract employment");
     
+    // Import here to avoid circular dependency
+    const { extractTableWithOpenAI } = await import('./openai/openaiService');
+    
     // The prompt formatting is similar to the Account Summaries extraction
     const extractedData = await extractTableWithOpenAI(imageUrl);
     
@@ -274,10 +284,14 @@ async function extractEmploymentWithOpenAI(imageUrl: string): Promise<Employment
     if (extractedData && Array.isArray(extractedData)) {
       return extractedData
         .filter(item => item && typeof item === 'object')
-        .map(item => ({
-          company: item.company || item.employer || item.name || item.value || 'Unknown',
-          occupation: item.occupation || item.position || item.title || item.job || ''
-        }));
+        .map(item => {
+          // Use type assertion to access dynamic properties safely
+          const dataItem = item as Record<string, any>;
+          return {
+            company: String(dataItem.company || dataItem.employer || dataItem.name || dataItem.value || 'Unknown'),
+            occupation: String(dataItem.occupation || dataItem.position || dataItem.title || dataItem.job || '')
+          };
+        });
     }
     
     return [];
@@ -436,3 +450,4 @@ function createSampleEmployment(): EmploymentInfo[] {
     }
   ];
 }
+
