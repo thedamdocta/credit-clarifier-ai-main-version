@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Loader2, Maximize2 } from "lucide-react";
 import { Collection } from "@/lib/types/creditReport";

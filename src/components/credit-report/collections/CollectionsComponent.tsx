@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,27 +21,22 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [extractionFailed, setExtractionFailed] = useState<boolean>(false);
 
-  // Function to handle data extraction from the image
   const handleDataExtracted = (extractedCollections: Collection[]) => {
     console.log("Collections data extracted:", extractedCollections);
     setCollections(extractedCollections);
     setExtractionFailed(extractedCollections.length === 0);
   };
 
-  // Placeholder for extraction retry functionality
   const handleRetryExtraction = () => {
     setIsProcessing(true);
-    // Future implementation will extract collections data
     setTimeout(() => {
       setIsProcessing(false);
       console.log("Collection extraction retry attempted");
     }, 1000);
   };
 
-  // Sample function to simulate table image URL extraction
   useEffect(() => {
     if (report && report.rawText) {
-      // In the future, this will be replaced with actual extraction logic
       const sampleImageUrl = "/lovable-uploads/458643ea-a052-40a4-a3fd-e8a38ddec467.png";
       setTableImageUrl(sampleImageUrl);
     }
@@ -89,7 +83,6 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Display extracted table image in debug mode */}
         {showDebugInfo && (
           <TableImageDisplay
             imageUrl={tableImageUrl}
@@ -112,7 +105,6 @@ const CollectionsComponent: React.FC<CollectionsComponentProps> = ({
           </div>
         )}
 
-        {/* Debug information display */}
         {showDebugInfo && (
           <CollectionsDataDebug
             showDebugInfo={showDebugInfo}
