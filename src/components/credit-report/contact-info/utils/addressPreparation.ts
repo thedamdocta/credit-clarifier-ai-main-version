@@ -40,9 +40,9 @@ export const prepareAddresses = (report: CreditReport): AddressInfo[] => {
           status = 'Former';
         }
         
-        // Safe check for string type before calling match()
-        // This ensures address is not null before calling match()
-        const dateMatch = address !== null ? 
+        // The issue is here - we need to ensure address is a string before calling match()
+        // TypeScript is correctly warning that address could be null
+        const dateMatch = (typeof address === 'string') ? 
           address.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},\s+\d{4}/i) : 
           null;
           
