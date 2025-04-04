@@ -1,4 +1,5 @@
-import { extractTextFromImageWithOCR, processImageWithEnhancedOCR, extractTextFromImageRegion } from './ocrExtraction';
+
+import { extractTextFromImageWithOCR, processImageWithEnhancedOCR, extractTextFromImageRegion, validateImageUrl } from './ocrExtraction';
 import { convertPDFPageToImage } from '@/utils/pdf/pdfToImage';
 
 export interface AddressInfo {
@@ -45,9 +46,25 @@ const addLog = (message: string) => {
 };
 
 // Store a page image for debugging
-const storePageImage = (image: string, pageNum: number) => {
-  addLog(`Storing debug image for page ${pageNum}`);
-  extractedTableImages.push(image);
+const storePageImage = async (image: string, pageNum: number) => {
+  try {
+    if (!image) {
+      addLog(`Error: Attempted to store empty image for page ${pageNum}`);
+      return;
+    }
+    
+    // Validate image before storing
+    const isValid = await validateImageUrl(image);
+    
+    if (isValid) {
+      addLog(`Successfully stored debug image for page ${pageNum}`);
+      extractedTableImages.push(image);
+    } else {
+      addLog(`Failed validation for image from page ${pageNum}`);
+    }
+  } catch (error) {
+    addLog(`Error storing image for page ${pageNum}: ${(error as Error).message}`);
+  }
 };
 
 // Main extraction function
@@ -83,8 +100,10 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
         // Convert the page to an image for visualization
         const pageImage = await convertPDFPageToImage(pdfDocument, pageNum);
         if (pageImage) {
-          storePageImage(pageImage, pageNum);
-          addLog(`Successfully created debug image for page ${pageNum}`);
+          await storePageImage(pageImage, pageNum);
+          addLog(`Page ${pageNum} image data length: ${pageImage.length} chars`);
+        } else {
+          addLog(`Failed to create image for page ${pageNum}`);
         }
         
         // Extract addresses from this page
@@ -114,6 +133,7 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<Contac
     
     // Log the final results
     addLog(`Extraction complete. Found ${addresses.length} addresses and ${employments.length} employment records`);
+    addLog(`Stored ${extractedTableImages.length} page images for debugging`);
     
     return {
       addresses,

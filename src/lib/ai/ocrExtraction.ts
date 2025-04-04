@@ -1,4 +1,3 @@
-
 import { pipeline } from '@huggingface/transformers';
 import { preprocessImageForOCR } from './imagePreprocessing';
 
@@ -15,15 +14,17 @@ const USE_SIMULATION = true; // For development purposes only
  * 2. Apply template-based structure recognition
  */
 export async function extractTextFromImageWithOCR(imageUrl: string): Promise<string | null> {
+  console.log('OCR processing started for image:', imageUrl?.substring(0, 100) + '...');
+  
   if (USE_SIMULATION) {
     // Simulate OCR processing for development
-    console.log('Simulating OCR processing for', imageUrl);
+    console.log('Simulating OCR processing for', imageUrl?.substring(0, 50) + '...');
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
     return "Simulated OCR output for development purposes.";
   }
   
   try {
-    console.log('Starting OCR on image:', imageUrl);
+    console.log('Starting OCR on image:', imageUrl?.substring(0, 50) + '...');
     
     // Add a cache-busting parameter to ensure we're using the latest image
     const cacheBustUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
@@ -148,4 +149,34 @@ export async function extractTextFromImageRegion(
     console.error('Error extracting text from image region:', error);
     return null;
   }
+}
+
+/**
+ * Debug function to validate that an image URL is valid and accessible
+ * Returns true if the image can be loaded, false otherwise
+ */
+export async function validateImageUrl(imageUrl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!imageUrl) {
+      console.error('Empty image URL provided for validation');
+      resolve(false);
+      return;
+    }
+    
+    console.log('Validating image URL:', imageUrl.substring(0, 50) + '...');
+    
+    const img = new Image();
+    img.onload = () => {
+      console.log('Image validated successfully');
+      resolve(true);
+    };
+    img.onerror = () => {
+      console.error('Image validation failed');
+      resolve(false);
+    };
+    
+    // Add cache-busting to ensure fresh load
+    const cacheBustUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}v=${Date.now()}`;
+    img.src = cacheBustUrl;
+  });
 }
