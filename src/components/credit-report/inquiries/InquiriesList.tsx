@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Inquiry } from "@/lib/types/creditReport";
 import HardInquiriesTable from "./HardInquiriesTable";
 import SoftInquiriesTable from "./SoftInquiriesTable";
