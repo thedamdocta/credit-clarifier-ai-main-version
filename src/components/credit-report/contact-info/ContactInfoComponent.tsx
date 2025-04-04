@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText, AlertCircle } from "lucide-react";
+import { Upload, Loader2, RefreshCw, Save, FileSearch, FileText, AlertCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import AddressesTable from "./AddressesTable";
 import EmploymentTable from "./EmploymentTable";
@@ -32,6 +32,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
   const [attemptedExtraction, setAttemptedExtraction] = useState(false);
   const [extractionPageNumbers, setExtractionPageNumbers] = useState<number[]>([]);
   const [analyzedText, setAnalyzedText] = useState<string>("");
+  const [enlargeImages, setEnlargeImages] = useState<Record<number, boolean>>({});
   
   // Extract contact information on component mount
   useEffect(() => {
@@ -117,7 +118,9 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           // Get extracted table images for debugging
           const images = getContactTableImages();
           console.log(`Received ${images.length} images from extraction process`);
-          setTableImages(images);
+          
+          // Pre-validate images before setting them
+          validateAndSetImages(images);
           
           // Get extraction logs
           const logs = getContactExtractionLogs();
@@ -125,6 +128,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
           
         } catch (error) {
           console.error("Error extracting contact information:", error);
+          toast.error("Failed to extract contact information. Please try again.");
         } finally {
           setIsProcessing(false);
           setAttemptedExtraction(true);
@@ -166,6 +170,49 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
     };
   };
   
+  // New function to validate and set images
+  const validateAndSetImages = (images: string[]) => {
+    // Reset image load status
+    setImageLoadStatus({});
+    
+    if (images.length === 0) {
+      console.log("No images received from extraction process");
+      setTableImages([]);
+      return;
+    }
+    
+    console.log(`Validating ${images.length} images before display`);
+    
+    // Pre-validate images by creating Image objects
+    const validatedImages: string[] = [];
+    
+    images.forEach((imageUrl, index) => {
+      // Add image to validated list - we'll check loading status later
+      validatedImages.push(imageUrl);
+      
+      // Create an Image instance to validate loading
+      const img = new Image();
+      img.onload = () => {
+        console.log(`Image ${index} pre-validated: ${img.width}x${img.height}`);
+        setImageLoadStatus(prev => ({
+          ...prev,
+          [index]: true
+        }));
+      };
+      img.onerror = () => {
+        console.error(`Image ${index} pre-validation failed - invalid image data`);
+        setImageLoadStatus(prev => ({
+          ...prev,
+          [index]: false
+        }));
+      };
+      img.src = imageUrl;
+    });
+    
+    // Set images even if validation is still in progress
+    setTableImages(validatedImages);
+  };
+  
   const handleRetryExtraction = async () => {
     setIsProcessing(true);
     setImageLoadStatus({});
@@ -200,7 +247,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
         
         const images = getContactTableImages();
         console.log(`Retry extracted ${images.length} page images`);
-        setTableImages(images);
+        validateAndSetImages(images);
         
         const logs = getContactExtractionLogs();
         setExtractionLogs(logs);
@@ -248,6 +295,14 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
       [index]: false
     }));
     console.error(`Image ${index} failed to load`);
+  };
+  
+  // New function to toggle image size
+  const toggleImageSize = (index: number) => {
+    setEnlargeImages(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
   };
 
   return (
@@ -371,22 +426,36 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                 </div>
               )}
               
-              {/* Image Display Section */}
+              {/* Enhanced Image Display Section */}
               {tableImages.length > 0 ? (
                 <div className="space-y-2">
                   <h5 className="text-xs font-medium">Extracted Page Images:</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {tableImages.map((imageUrl, index) => (
                       <div key={`table-image-${index}`} className="border rounded-md overflow-hidden">
-                        <div className="bg-muted/50 px-2 py-1 text-xs font-medium flex justify-between">
+                        <div className="bg-muted/50 px-2 py-1 text-xs font-medium flex justify-between items-center">
                           <span>Page Image {extractionPageNumbers[index] || index + 1}</span>
-                          <span className={imageLoadStatus[index] === false ? "text-red-500" : 
-                                         imageLoadStatus[index] === true ? "text-green-500" : ""}>
-                            {imageLoadStatus[index] === false ? "Failed to load" : 
-                             imageLoadStatus[index] === true ? "Loaded" : "Loading..."}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={imageLoadStatus[index] === false ? "text-red-500" : 
+                                          imageLoadStatus[index] === true ? "text-green-500" : ""}>
+                              {imageLoadStatus[index] === false ? "Failed to load" : 
+                              imageLoadStatus[index] === true ? "Loaded" : "Loading..."}
+                            </span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5" 
+                              onClick={() => toggleImageSize(index)}
+                            >
+                              {enlargeImages[index] ? (
+                                <ZoomOut className="h-3 w-3" />
+                              ) : (
+                                <ZoomIn className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                        <div className="relative min-h-[200px] bg-muted/20 flex justify-center items-center">
+                        <div className={`relative ${enlargeImages[index] ? "h-[500px]" : "h-[250px]"} bg-muted/20 flex justify-center items-center overflow-auto`}>
                           {!imageLoadStatus[index] && imageLoadStatus[index] !== false && (
                             <div className="absolute inset-0 flex items-center justify-center">
                               <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
@@ -397,18 +466,47 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                             <div className="text-center p-4 text-red-600 flex flex-col items-center">
                               <AlertCircle className="h-8 w-8 mb-2" />
                               <p className="text-xs">Image failed to load</p>
-                              <p className="text-xs mt-1">Try retry extraction</p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2"
+                                onClick={() => {
+                                  // Force image reload with cache busting
+                                  const refreshedUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+                                  const updatedImages = [...tableImages];
+                                  updatedImages[index] = refreshedUrl;
+                                  validateAndSetImages(updatedImages);
+                                }}
+                              >
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                <span className="text-xs">Reload Image</span>
+                              </Button>
                             </div>
                           )}
                           
                           <img 
                             src={imageUrl} 
                             alt={`Extracted page ${extractionPageNumbers[index] || index + 1}`}
-                            className={`max-w-full h-auto ${imageLoadStatus[index] === false ? 'hidden' : ''}`}
+                            className={`max-w-full ${enlargeImages[index] ? 'h-auto' : 'h-full'} object-contain ${imageLoadStatus[index] === false ? 'hidden' : ''}`}
                             onLoad={() => handleImageLoad(index)}
                             onError={() => handleImageError(index)}
                           />
                         </div>
+                        {imageLoadStatus[index] === true && (
+                          <div className="p-2 bg-muted/30 text-xs flex justify-between">
+                            <span className="text-muted-foreground">Page {extractionPageNumbers[index] || index + 1}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 p-0 text-xs"
+                              asChild
+                            >
+                              <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+                                View Full Image
+                              </a>
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
