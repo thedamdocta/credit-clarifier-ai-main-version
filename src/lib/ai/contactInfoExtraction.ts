@@ -266,7 +266,8 @@ async function extractAddressesWithOpenAI(imageUrl: string): Promise<AddressInfo
       Return the data in a structured format with address, status, and dateReported fields.
     `;
     
-    const extractedData = await extractTableWithOpenAI(imageUrl, prompt);
+    // FIX: Pass only the imageUrl parameter (removed the second argument)
+    const extractedData = await extractTableWithOpenAI(imageUrl);
     
     // Type assertion to handle dynamic data from OpenAI
     if (extractedData && Array.isArray(extractedData)) {
@@ -307,7 +308,8 @@ async function extractEmploymentWithOpenAI(imageUrl: string): Promise<Employment
       Return the data in a structured format with company and occupation fields.
     `;
     
-    const extractedData = await extractTableWithOpenAI(imageUrl, prompt);
+    // FIX: Pass only the imageUrl parameter (removed the second argument)
+    const extractedData = await extractTableWithOpenAI(imageUrl);
     
     // Type assertion to handle dynamic data from OpenAI
     if (extractedData && Array.isArray(extractedData)) {
