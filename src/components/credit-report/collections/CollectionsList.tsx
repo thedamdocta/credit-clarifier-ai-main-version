@@ -30,8 +30,8 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ collections, showDebu
     contact: []
   };
 
-  // Use nullCollection if no real collections are found
-  const displayCollections = collections.length > 0 ? collections : [nullCollection, nullCollection];
+  // Use nullCollection if no real collections are found - now just one sample instead of two
+  const displayCollections = collections.length > 0 ? collections : [nullCollection];
 
   return (
     <div className="space-y-6">
