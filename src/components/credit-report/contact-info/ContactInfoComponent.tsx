@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Table, TableHead, TableHeader, TableRow, TableBody, TableCell } from "@/components/ui/table";
@@ -152,7 +153,7 @@ const ContactInfoComponent: React.FC<ContactInfoComponentProps> = ({ report }) =
                         
                         return (
                           <TableRow key={`address-${index}`}>
-                            <TableCell>{formatAddress(String(address))}</TableCell>
+                            <TableCell>{formatAddress(typeof address === 'string' ? address : null)}</TableCell>
                             <TableCell>{status}</TableCell>
                             <TableCell>{dateReported}</TableCell>
                           </TableRow>
