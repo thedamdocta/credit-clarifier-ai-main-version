@@ -13,3 +13,5 @@ export * from './summaryExtraction';
 export * from './tableExtraction';
 // Export table extraction utilities
 export * from './table';
+// Export contact info extraction
+export * from './contactInfoExtraction';

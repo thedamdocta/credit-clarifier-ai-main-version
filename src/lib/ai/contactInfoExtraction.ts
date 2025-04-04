@@ -1,3 +1,4 @@
+
 // Array to store contact table images for debugging
 let contactTableImages: string[] = [];
 let extractedPageNumbers: number[] = [];
@@ -94,7 +95,10 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
           
           try {
             // Attempt to extract address information from this page
-            const pageAddresses = await extractAddressesFromPage(pdfDocument, pageNum);
+            const pageAddresses = await extractAddressesFromPage(
+              pdfDocument, 
+              pageNum
+            );
             if (pageAddresses.length > 0) {
               addresses.push(...pageAddresses);
               if (!extractedPageNumbers.includes(pageNum)) {
@@ -112,7 +116,10 @@ export const extractContactInfoTables = async (pdfDocument: any): Promise<{
           
           try {
             // Attempt to extract employment information from this page
-            const pageEmployments = await extractEmploymentsFromPage(pdfDocument, pageNum);
+            const pageEmployments = await extractEmploymentsFromPage(
+              pdfDocument, 
+              pageNum
+            );
             if (pageEmployments.length > 0) {
               employments.push(...pageEmployments);
               if (!extractedPageNumbers.includes(pageNum)) {
@@ -322,5 +329,135 @@ const extractTableWithOpenAI = async (imageUrl: string): Promise<any> => {
   } catch (error) {
     console.error("Error extracting table with OpenAI:", error);
     return null;
+  }
+};
+
+/**
+ * Extract addresses from multiple PDF pages
+ */
+const extractAddressesFromPages = async (pdfDocument: any, pageNumbers: number[]): Promise<AddressInfo[]> => {
+  const addresses: AddressInfo[] = [];
+  
+  for (const pageNum of pageNumbers) {
+    try {
+      const pageAddresses = await extractAddressesFromPage(pdfDocument, pageNum);
+      addresses.push(...pageAddresses);
+    } catch (error) {
+      console.error(`Error extracting addresses from page ${pageNum}:`, error);
+    }
+  }
+  
+  return addresses;
+};
+
+/**
+ * Extract employments from multiple PDF pages
+ */
+const extractEmploymentsFromPages = async (pdfDocument: any, pageNumbers: number[]): Promise<EmploymentInfo[]> => {
+  const employments: EmploymentInfo[] = [];
+  
+  for (const pageNum of pageNumbers) {
+    try {
+      const pageEmployments = await extractEmploymentsFromPage(pdfDocument, pageNum);
+      employments.push(...pageEmployments);
+    } catch (error) {
+      console.error(`Error extracting employments from page ${pageNum}:`, error);
+    }
+  }
+  
+  return employments;
+};
+
+/**
+ * Extract addresses from a single PDF page
+ */
+const extractAddressesFromPage = async (pdfDocument: any, pageNum: number): Promise<AddressInfo[]> => {
+  console.log(`Attempting to extract addresses from page ${pageNum}`);
+  
+  try {
+    // First, try to extract text directly from the page
+    const page = await pdfDocument.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    
+    // Try to extract addresses from text first
+    const textAddresses = extractAddressesFromText(pageText);
+    if (textAddresses.length > 0) {
+      console.log(`Found ${textAddresses.length} addresses in text of page ${pageNum}`);
+      return textAddresses;
+    }
+    
+    // If no addresses found in text, try image-based extraction
+    console.log(`No addresses found in text, attempting image extraction for page ${pageNum}`);
+    const imageUrl = await convertPDFPageToImage(pdfDocument, pageNum);
+    
+    if (imageUrl) {
+      // Store the image for debugging
+      contactTableImages.push(imageUrl);
+      
+      // Try to extract table data from the image
+      const tableData = await extractTableWithOpenAI(imageUrl);
+      
+      if (tableData && tableData.rows && tableData.rows.length > 0) {
+        console.log(`Successfully extracted table data from page ${pageNum}`);
+        return processAddressRows(tableData.rows);
+      }
+    }
+    
+    // If both methods failed, return empty array
+    console.log(`No addresses found on page ${pageNum}`);
+    return [];
+    
+  } catch (error) {
+    console.error(`Error in extractAddressesFromPage for page ${pageNum}:`, error);
+    return [];
+  }
+};
+
+/**
+ * Extract employments from a single PDF page
+ */
+const extractEmploymentsFromPage = async (pdfDocument: any, pageNum: number): Promise<EmploymentInfo[]> => {
+  console.log(`Attempting to extract employments from page ${pageNum}`);
+  
+  try {
+    // First, try to extract text directly from the page
+    const page = await pdfDocument.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    
+    // Try to extract employments from text first
+    const textEmployments = extractEmploymentsFromText(pageText);
+    if (textEmployments.length > 0) {
+      console.log(`Found ${textEmployments.length} employments in text of page ${pageNum}`);
+      return textEmployments;
+    }
+    
+    // If no employments found in text, try image-based extraction
+    console.log(`No employments found in text, attempting image extraction for page ${pageNum}`);
+    const imageUrl = await convertPDFPageToImage(pdfDocument, pageNum);
+    
+    if (imageUrl) {
+      // Store the image for debugging if not already added
+      if (!contactTableImages.includes(imageUrl)) {
+        contactTableImages.push(imageUrl);
+      }
+      
+      // Try to extract table data from the image
+      const tableData = await extractTableWithOpenAI(imageUrl);
+      
+      if (tableData && tableData.rows && tableData.rows.length > 0) {
+        console.log(`Successfully extracted table data from page ${pageNum}`);
+        return processEmploymentRows(tableData.rows);
+      }
+    }
+    
+    // If both methods failed, return empty array
+    console.log(`No employments found on page ${pageNum}`);
+    return [];
+    
+  } catch (error) {
+    console.error(`Error in extractEmploymentsFromPage for page ${pageNum}:`, error);
+    return [];
   }
 };
