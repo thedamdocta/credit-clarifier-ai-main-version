@@ -1,27 +1,23 @@
+
 import React, { useState, useEffect } from "react";
 import { CreditReport } from "@/lib/types/creditReport";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, FileText, Settings, AlertCircle, Search } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { OpenAIConfigForm } from "@/lib/ai/openai/openaiService";
+import { Settings } from "lucide-react";
 import AccountDataDebug from "@/components/credit-report/accounts/AccountDataDebug";
 import EnhancedCreditAccounts from "@/components/credit-report/EnhancedCreditAccounts";
+import ReportSummary from "@/components/credit-report/ReportSummary";
 import AccountsComponent from "@/components/credit-report/accounts/AccountsComponent";
 import DisputeInformation from "@/components/credit-report/DisputeInformation";
 
-// Import the new CollectionsComponent
+// Import the Collections component
 import CollectionsComponent from "./credit-report/collections/CollectionsComponent";
 
 interface EquifaxCreditReportProps {
   report: CreditReport;
-  showDebugInfo?: boolean; // Make this optional with a default value
+  showDebugInfo?: boolean;
 }
 
 const EquifaxCreditReport = ({ report, showDebugInfo = false }: EquifaxCreditReportProps) => {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractionAttempts, setExtractionAttempts] = useState(0);
   const [usingSampleData, setUsingSampleData] = useState(false);
@@ -29,12 +25,6 @@ const EquifaxCreditReport = ({ report, showDebugInfo = false }: EquifaxCreditRep
   const [extractionFailed, setExtractionFailed] = useState(false);
   const [initialAccountDataFound, setInitialAccountDataFound] = useState(false);
   const [accountSummaries, setAccountSummaries] = useState(report?.accountSummaries || []);
-  const [apiKey, setApiKey] = useState(localStorage.getItem('openai_api_key') || '');
-  const [debouncedApiKey] = useState(apiKey); // Simplified from useDebouncedValue
-  
-  useEffect(() => {
-    localStorage.setItem('openai_api_key', apiKey);
-  }, [apiKey, debouncedApiKey]);
   
   const handleDataExtracted = (
     summaries: any, 
@@ -56,96 +46,19 @@ const EquifaxCreditReport = ({ report, showDebugInfo = false }: EquifaxCreditRep
             Review and manage your credit information.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </Button>
       </div>
       
-      <Accordion type="single" collapsible value={isSettingsOpen ? "settings" : ""} className="mb-4">
-        <AccordionItem value="settings">
-          <AccordionTrigger>Credit Report Settings</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid gap-4">
-              <div className="grid grid-cols-3 items-center gap-4">
-                <Label htmlFor="openai_api_key" className="text-right">
-                  OpenAI API Key
-                </Label>
-                <div className="col-span-2">
-                  <OpenAIConfigForm />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 items-center gap-4">
-                <Label htmlFor="debug_mode" className="text-right">
-                  Enable Debug Mode
-                </Label>
-                <div className="col-span-2 flex items-center">
-                  <Switch id="debug_mode" checked={showDebugInfo} />
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    Show debug information for development purposes.
-                  </span>
-                </div>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-      
-      {/* Render the components in order */}
-      <Tabs defaultValue="summary" className="w-full">
-        <TabsList>
-          <TabsTrigger value="summary">
-            <FileText className="mr-2 h-4 w-4" />
-            Summary
-          </TabsTrigger>
-          <TabsTrigger value="accounts">
-            <CreditCard className="mr-2 h-4 w-4" />
-            Accounts
-          </TabsTrigger>
-          <TabsTrigger value="inquiries">
-            <Search className="mr-2 h-4 w-4" />
-            Inquiries
-          </TabsTrigger>
-          <TabsTrigger value="alerts">
-            <AlertCircle className="mr-2 h-4 w-4" />
-            Alerts
-          </TabsTrigger>
-        </TabsList>
+      {/* Report Content */}
+      <div className="space-y-6">
+        <ReportSummary report={report} />
+        <EnhancedCreditAccounts report={report} />
+        <AccountsComponent report={report} showDebugInfo={showDebugInfo} />
         
-        <TabsContent value="summary">
-          <div className="space-y-4">
-            <p>This is a summary of your credit report.</p>
-            {/* Add summary content here */}
-          </div>
-        </TabsContent>
+        {/* Add Collections component here */}
+        <CollectionsComponent report={report} showDebugInfo={showDebugInfo} />
         
-        <TabsContent value="accounts">
-          {/* Account tabs section */}
-          <div className="space-y-6">
-            <EnhancedCreditAccounts report={report} />
-            <AccountsComponent report={report} />
-            
-            {/* Add Collections component here - between Accounts and Dispute Information */}
-            <CollectionsComponent report={report} showDebugInfo={showDebugInfo} />
-            
-            <DisputeInformation />
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="inquiries">
-          <div className="space-y-4">
-            <p>This section displays recent inquiries on your credit report.</p>
-            {/* Add inquiries content here */}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="alerts">
-          <div className="space-y-4">
-            <p>This section displays any alerts or notifications related to your credit report.</p>
-            {/* Add alerts content here */}
-          </div>
-        </TabsContent>
-      </Tabs>
+        <DisputeInformation />
+      </div>
       
       {showDebugInfo && (
         <AccountDataDebug

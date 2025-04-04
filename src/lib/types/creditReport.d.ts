@@ -15,6 +15,7 @@ export interface CreditReport {
   accountSummaries?: AccountSummary[];
   collections?: Collection[];
   accounts?: Account[];
+  bureau?: string;
 }
 
 export interface AccountSummary {
