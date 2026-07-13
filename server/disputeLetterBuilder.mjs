@@ -267,14 +267,24 @@ const createSection = ({ id, key, label, title, html, enabled = true, order = 0,
   reasonIds,
 });
 
-const groupReasonsByEntity = (reasons, entityType) => {
+const groupReasonsByEntity = (reasons, entityTypes) => {
+  const wanted = new Set(Array.isArray(entityTypes) ? entityTypes : [entityTypes]);
   const groups = new Map();
-  for (const reason of reasons.filter((entry) => entry.selected && entry.entityType === entityType)) {
+  for (const reason of reasons.filter((entry) => entry.selected && wanted.has(entry.entityType))) {
     const existing = groups.get(reason.entityKey) ?? [];
     existing.push(reason);
     groups.set(reason.entityKey, existing);
   }
   return groups;
+};
+
+const formatConsumerIndicatorHeading = (entityKey) => {
+  // entityKey shape: consumer_information_indicator::::<descriptor>::<n> —
+  // mirror dispute_memorandum_generator.format_entity so letter and
+  // memorandum print the same human heading (never raw '::' tokens).
+  const parts = String(entityKey || "").split("::").filter(Boolean);
+  const descriptor = parts[1] ?? "";
+  return descriptor ? `Consumer Information Indicator — ${descriptor}` : "Consumer Information Indicator";
 };
 
 const buildAccountDisputeSections = (report, reasons, seed) => {
@@ -303,16 +313,22 @@ const buildAccountDisputeSections = (report, reasons, seed) => {
 };
 
 const buildPersonalInformationSections = (reasons, seed) => {
-  const groups = groupReasonsByEntity(reasons, "personal_information");
+  // consumer_information_indicator disputes (e.g. bankruptcy-flag conflicts,
+  // category legal_public_record) previously had NO letter section at all —
+  // they reached the memorandum and report chips but the mailed letter never
+  // stated them (Session-23 Exhibit-28 finding; operator ruled: include them).
+  const groups = groupReasonsByEntity(reasons, ["personal_information", "consumer_information_indicator"]);
   let order = 0;
   return [...groups.entries()].map(([entityKey, groupedReasons]) => {
     order += 1;
+    const isIndicator = groupedReasons[0].entityType === "consumer_information_indicator";
+    const heading = isIndicator ? formatConsumerIndicatorHeading(entityKey) : "";
     return createSection({
       id: `personal-dispute-${order}`,
       key: "personalInformationDispute",
       label: groupedReasons[0].issueLabel,
       title: groupedReasons[0].issueLabel,
-      html: groupedReasons.map((reason) => buildReasonBody(reason, seed)).join(""),
+      html: groupedReasons.map((reason, index) => buildReasonBody(reason, seed, index === 0 ? heading : "")).join(""),
       enabled: true,
       order,
       entityKey,
