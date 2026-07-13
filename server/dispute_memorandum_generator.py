@@ -62,6 +62,11 @@ def format_entity(entity_key: str) -> str:
     kind = parts[0].strip().lower()
     if kind == "consumer_information_indicator":
         descriptor = parts[1] if len(parts) > 1 else ""
+        if descriptor.strip().isdigit():
+            # digit-only token = the entityKey's enumeration index, not a
+            # descriptor — never print it in a mailed heading (panel F3;
+            # matches disputeLetterBuilder.formatConsumerIndicatorHeading)
+            descriptor = ""
         return f"Consumer Information Indicator — {descriptor}".rstrip(" —") if descriptor else "Consumer Information Indicator"
     if kind == "public_record":
         descriptor = " — ".join(part for part in parts[1:3] if part and not part.isdigit())

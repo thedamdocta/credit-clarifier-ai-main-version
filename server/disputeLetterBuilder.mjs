@@ -282,8 +282,12 @@ const formatConsumerIndicatorHeading = (entityKey) => {
   // entityKey shape: consumer_information_indicator::::<descriptor>::<n> —
   // mirror dispute_memorandum_generator.format_entity so letter and
   // memorandum print the same human heading (never raw '::' tokens).
+  // Trailing whitespace/em-dashes are stripped to stay in lockstep with the
+  // memo's rstrip (panel F2); a digit-only token is the enumeration index,
+  // not a descriptor, and must not print in a mailed heading (panel F3).
   const parts = String(entityKey || "").split("::").filter(Boolean);
-  const descriptor = parts[1] ?? "";
+  const raw = (parts[1] ?? "").replace(/[\s—]+$/u, "").trim();
+  const descriptor = /^\d+$/.test(raw) ? "" : raw;
   return descriptor ? `Consumer Information Indicator — ${descriptor}` : "Consumer Information Indicator";
 };
 

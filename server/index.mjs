@@ -1837,6 +1837,7 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
     const outputDir = path.join(appConfig.disputeOutputRoot, workingDraft.id);
     const exhibitsDir = path.join(outputDir, "exhibits");
     const exportWarnings = [];
+    let exportEvidenceRan = false;
 
     // Letter modes need fresh exhibits (manifest has no freshness fields — the
     // only sound policy is regenerate-immediately-before-render, same draft).
@@ -1869,11 +1870,21 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
           );
         }
         // The manifest is validator-annotated (same path as POST /evidence),
-        // so persisting it keeps the draft's validation state consistent.
+        // so persisting it keeps the draft's validation state consistent —
+        // and, matching every other path that persists a new manifest, the
+        // previously certified highlighted report is revoked (rulings-panel
+        // F1: a new evidence run makes the old PDF's provenance stale; the
+        // pairing of manifest N+1 with a PDF from run N must never mail).
         if (evidenceResult?.manifest) {
+          exportEvidenceRan = true;
           workingDraft.evidenceManifest = evidenceResult.manifest;
+          if (workingDraft.renderState?.highlightedReportPdfPath) {
+            await fs.rm(workingDraft.renderState.highlightedReportPdfPath, { force: true });
+          }
           workingDraft.renderState = {
             ...workingDraft.renderState,
+            highlightedReportPdfPath: null,
+            highlightedReportPdfUrl: null,
             evidenceGeneratedAt: evidenceResult.manifest?.generatedAt ?? new Date().toISOString(),
           };
         }
@@ -1948,13 +1959,23 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
       letterMode: savedDraft.letterMode ?? null,
       exhibitNumbering: savedDraft.exhibitNumbering ?? null,
       exhibitsManifest: savedDraft.exhibitsManifest ?? null,
-      evidenceManifest: savedDraft.evidenceManifest ?? latestDraft.evidenceManifest ?? null,
+      // evidenceManifest/evidenceGeneratedAt are export-owned ONLY when this
+      // export actually ran an evidence job — otherwise a POST /evidence
+      // landing mid-export must win (rulings-panel F5).
+      evidenceManifest: exportEvidenceRan
+        ? savedDraft.evidenceManifest ?? null
+        : latestDraft.evidenceManifest ?? null,
       fullDocumentHtml: savedDraft.fullDocumentHtml,
       renderState: {
         ...latestDraft.renderState,
         previewHtml: savedDraft.renderState.previewHtml,
         lastGeneratedFromSectionsAt: savedDraft.renderState.lastGeneratedFromSectionsAt,
-        evidenceGeneratedAt: savedDraft.renderState.evidenceGeneratedAt ?? latestDraft.renderState?.evidenceGeneratedAt ?? null,
+        evidenceGeneratedAt: exportEvidenceRan
+          ? savedDraft.renderState.evidenceGeneratedAt ?? null
+          : latestDraft.renderState?.evidenceGeneratedAt ?? null,
+        // the F1 revocation must survive this merge — never resurrect the
+        // superseded certified PDF from a concurrent snapshot
+        ...(exportEvidenceRan ? { highlightedReportPdfPath: null, highlightedReportPdfUrl: null } : {}),
         docxPath: exportResult.docxPath ?? null,
         pdfPath: exportResult.pdfPath ?? null,
         draftDirty: sectionsChangedMidExport ? true : latestDraft.renderState?.draftDirty ?? false,

@@ -1395,6 +1395,11 @@ def select_pages_for_component(
             [PUBLIC_RECORDS_SECTION_PATTERN],
         )
         if inquiry_pages:
+            # Deliberately returned WITHOUT extend_component_page_window: the
+            # extension's rows[0]-only section-break check could over-extend a
+            # window past a mid-page boundary into later sections. The section
+            # range is already the authoritative bound (panel note F6 — do not
+            # "restore" the extension wrapper here).
             return inquiry_pages
 
     keywords = component_keywords.get(component_name, [])
