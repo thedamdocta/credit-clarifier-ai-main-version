@@ -307,6 +307,14 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
         memorandum: Boolean(draft.evidenceOptions.memorandum),
         highlightedReport: Boolean(draft.evidenceOptions.highlightedReport),
       });
+    } else if (draft.letterMode === "inline" || draft.letterMode === "memorandum") {
+      // pre-Phase-5 drafts persisted only letterMode — rehydrate the checkboxes
+      // from it so the previous choice is not silently dropped (panel LOW-7)
+      setEvidenceSelection({
+        inlineExhibits: draft.letterMode === "inline",
+        memorandum: draft.letterMode === "memorandum",
+        highlightedReport: false,
+      });
     }
     if (draft.exhibitNumbering === "numeric" || draft.exhibitNumbering === "alpha") {
       setExhibitNumbering(draft.exhibitNumbering);
@@ -721,15 +729,18 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
         exhibitNumbering,
       });
       setDraft(nextDraft);
-      toast({
-        title: "Artifacts generated",
-        description: "The dispute letter and selected evidence documents were generated.",
-      });
-      for (const warning of warnings.slice(0, 3)) {
-        toast({ title: "Export note", description: warning });
-      }
-      if (warnings.length > 3) {
-        toast({ title: "Export notes", description: `${warnings.length - 3} additional notes — see the draft output folder.` });
+      // one aggregated toast — TOAST_LIMIT is 1, so sequential toasts would
+      // silently replace each other and hide earlier warnings (panel LOW-5)
+      if (warnings.length) {
+        toast({
+          title: `Documents generated — ${warnings.length} note${warnings.length > 1 ? "s" : ""}`,
+          description: warnings.slice(0, 4).join(" • ") + (warnings.length > 4 ? ` • +${warnings.length - 4} more` : ""),
+        });
+      } else {
+        toast({
+          title: "Artifacts generated",
+          description: "The dispute letter and selected evidence documents were generated.",
+        });
       }
     } catch (error) {
       toast({
@@ -769,7 +780,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
     if (!draft) return;
     setIsSaving(true);
     try {
-      const nextDraft = await generateHighlightedReportPdf(draft.id);
+      const nextDraft = await generateHighlightedReportPdf(draft.id, exhibitNumbering);
       setDraft(nextDraft);
       toast({
         title: "Highlighted report generated",
@@ -2105,9 +2116,9 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                     ))}
                   </div>
                   <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-                    <Label className="text-sm font-medium text-slate-900">Exhibit numbering</Label>
+                    <Label htmlFor="exhibit-numbering" className="text-sm font-medium text-slate-900">Exhibit numbering</Label>
                     <Select value={exhibitNumbering} onValueChange={(value) => setExhibitNumbering(value as "numeric" | "alpha")}>
-                      <SelectTrigger className="w-44">
+                      <SelectTrigger id="exhibit-numbering" className="w-44">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

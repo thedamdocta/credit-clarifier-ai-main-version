@@ -119,10 +119,11 @@ export const generateDisputeEvidence = async (draftId: string) => {
   return json.draft as DisputeLetterDraft;
 };
 
-export const generateHighlightedReportPdf = async (draftId: string) => {
+export const generateHighlightedReportPdf = async (draftId: string, exhibitNumbering?: "numeric" | "alpha") => {
   const response = await fetch(`/api/dispute-drafts/${draftId}/highlighted-report`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: exhibitNumbering ? JSON.stringify({ exhibitNumbering }) : undefined,
   });
 
   if (response.ok) {

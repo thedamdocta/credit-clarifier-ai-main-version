@@ -29,6 +29,20 @@ const execFileAsync = promisify(execFile);
 const draftIdsByRequestKey = new Map();
 const inFlightDraftCreations = new Map();
 const inFlightEvidenceJobs = new Map();
+// Serializes exports per draft: two concurrent exports with DIFFERENT option
+// sets must not share one evidence run or interleave writes in the draft dir
+// (Phase-5 panel MED-3 — runSharedJob dedupes identical work; this queues
+// differing work instead).
+const exportLocks = new Map();
+const runExclusive = (map, key, task) => {
+  const previous = map.get(key) ?? Promise.resolve();
+  const next = previous.catch(() => {}).then(task);
+  map.set(
+    key,
+    next.catch(() => {})
+  );
+  return next;
+};
 const pendingDraftByRequestKey = new Map();
 
 const killOrphanedAcquisitionBrowsers = async () => {
@@ -620,6 +634,24 @@ const readPngDimensions = async (filePath) => {
 // dimensions — the preview paginator measures synchronously and would treat a
 // dimension-less image as zero-height. Enrichment lives here, NOT in the
 // certified evidence generator.
+// A new evidence manifest supersedes every companion generated under the old
+// one (Phase-5 panel HIGH): stale memorandum files are deleted and their
+// renderState fields nulled wherever a fresh manifest is persisted — same
+// invariant the highlighted report already follows.
+const supersedeMemorandumArtifacts = async (renderState) => {
+  for (const stale of [renderState?.memorandumDocxPath, renderState?.memorandumPdfPath]) {
+    if (stale) {
+      await fs.rm(stale, { force: true }).catch(() => {});
+    }
+  }
+  return {
+    memorandumDocxPath: null,
+    memorandumDocxUrl: null,
+    memorandumPdfPath: null,
+    memorandumPdfUrl: null,
+  };
+};
+
 const loadEnrichedExhibitsManifest = async (exhibitsDir) => {
   try {
     const raw = await fs.readFile(path.join(exhibitsDir, "exhibits-manifest.json"), "utf8");
@@ -1545,6 +1577,7 @@ app.post("/api/dispute-drafts", async (req, res) => {
                 ...draft.renderState,
                 highlightedReportPdfPath: null,
                 highlightedReportPdfUrl: null,
+                ...(await supersedeMemorandumArtifacts(draft.renderState)),
                 evidenceGeneratedAt: evidenceResult.manifest?.generatedAt ?? new Date().toISOString(),
               },
             });
@@ -1705,6 +1738,7 @@ app.post("/api/dispute-drafts/:draftId/evidence", async (req, res) => {
   try {
     const persisted = await runSharedJob(inFlightEvidenceJobs, `${draft.id}:evidence`, async () => {
       const evidenceResult = await runEvidenceGeneration(draft, { generateHighlightedReport: false });
+      const memoRevocation = await supersedeMemorandumArtifacts(draft.renderState);
       const nextDraft = {
         ...draft,
         evidenceManifest: evidenceResult.manifest ?? null,
@@ -1716,6 +1750,7 @@ app.post("/api/dispute-drafts/:draftId/evidence", async (req, res) => {
           ...draft.renderState,
           highlightedReportPdfPath: null,
           highlightedReportPdfUrl: null,
+          ...memoRevocation,
           evidenceGeneratedAt: evidenceResult.manifest?.generatedAt ?? new Date().toISOString(),
         },
       };
@@ -1738,23 +1773,33 @@ app.post("/api/dispute-drafts/:draftId/highlighted-report", async (req, res) => 
   if (!draft) return;
 
   try {
+    if (req.body?.exhibitNumbering !== undefined && !["numeric", "alpha"].includes(req.body.exhibitNumbering)) {
+      return sendError(res, 400, "exhibitNumbering must be numeric | alpha.");
+    }
+    // The UI passes its CURRENT numbering selection so a numeric→alpha flip
+    // in the evidence panel is honored here too (Phase-5 panel LOW-6); the
+    // draft's persisted style remains the fallback (panel F9).
+    const requestedChipNumbering =
+      typeof req.body?.exhibitNumbering === "string" ? req.body.exhibitNumbering : null;
+    const chipNumbering = requestedChipNumbering ?? draft.exhibitNumbering ?? null;
     const result = await runSharedJob(inFlightEvidenceJobs, `${draft.id}:highlighted-report`, async () => {
-      // Chip numbering must follow the draft's persisted style so an alpha
-      // letter never mails next to numeric chips (panel F9).
       const evidenceResult = await runEvidenceGeneration(draft, {
         generateHighlightedReport: true,
-        exhibitNumbering: draft.exhibitNumbering ?? null,
+        exhibitNumbering: chipNumbering,
       });
+      const memoRevocation = await supersedeMemorandumArtifacts(draft.renderState);
       const blockingUnresolvedReasonIds = evidenceResult.manifest?.blockingUnresolvedReasonIds ?? [];
       if (!evidenceResult.canGenerateHighlightedReport || blockingUnresolvedReasonIds.length > 0) {
         const nextDraft = await disputeLetterStore.saveDraft({
           ...draft,
           evidenceManifest: evidenceResult.manifest ?? null,
           exhibitsManifest: null,
+          ...(requestedChipNumbering ? { exhibitNumbering: requestedChipNumbering } : {}),
           renderState: {
             ...draft.renderState,
             highlightedReportPdfPath: null,
             highlightedReportPdfUrl: null,
+            ...memoRevocation,
             evidenceGeneratedAt: evidenceResult.manifest?.generatedAt ?? new Date().toISOString(),
           },
         });
@@ -1770,10 +1815,12 @@ app.post("/api/dispute-drafts/:draftId/highlighted-report", async (req, res) => 
         ...draft,
         evidenceManifest: evidenceResult.manifest ?? null,
         exhibitsManifest: null,
+        ...(requestedChipNumbering ? { exhibitNumbering: requestedChipNumbering } : {}),
         renderState: {
           ...draft.renderState,
           highlightedReportPdfPath: evidenceResult.highlightedReportPdfPath ?? null,
           highlightedReportPdfUrl: null,
+          ...memoRevocation,
           evidenceGeneratedAt: evidenceResult.manifest?.generatedAt ?? new Date().toISOString(),
         },
       };
@@ -1831,6 +1878,7 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
       return sendError(res, 400, `Unknown exhibitNumbering '${requestedNumbering}' — expected numeric | alpha.`);
     }
 
+    await runExclusive(exportLocks, draft.id, async () => {
     const workingDraft = structuredClone(draft);
     // Evidence-package model (operator, Session 23): the letter always ships;
     // the user picks any combination of three evidence outputs — screenshots
@@ -1965,11 +2013,14 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
           }
         } else {
           workingDraft.exhibitsManifest = null;
-          if (evidenceResult && evidenceResult.canGenerateHighlightedReport === false) {
+          // Exhibit-flavored warnings only apply when exhibits were requested
+          // (Phase-5 panel LOW-4: a successful highlighted-only export must
+          // not claim exhibit generation failed).
+          if (wantsExhibits && evidenceResult && evidenceResult.canGenerateHighlightedReport === false) {
             exportWarnings.push(
               "evidence generation is blocked for this draft — exhibits were not regenerated; letter rendered without exhibit figures/references"
             );
-          } else if (evidenceResult) {
+          } else if (wantsExhibits && evidenceResult) {
             exportWarnings.push(
               "exhibit generation produced no manifest — letter rendered without exhibit figures/references"
             );
@@ -2022,6 +2073,9 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
           if (Array.isArray(memoResult.warnings) && memoResult.warnings.length) {
             exportWarnings.push(...memoResult.warnings);
           }
+          if (memorandumDocxPath && !memorandumPdfPath) {
+            exportWarnings.push("memorandum PDF unavailable (PDF renderer not installed) — DOCX was generated");
+          }
         } catch (error) {
           exportWarnings.push(`memorandum generation failed: ${String(error)}`);
         }
@@ -2042,12 +2096,42 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
         "draft sections changed while the export was running — the exported letter reflects the pre-change sections; re-export to pick them up"
       );
     }
+    // Letter-only re-export: the letter was regenerated with no fresh evidence
+    // run, so companions generated under the PREVIOUS letter can no longer be
+    // trusted to mirror it — supersede them (Phase-5 panel MED-2).
+    let letterOnlySupersede = {};
+    if (!exportEvidenceRan) {
+      const staleState = latestDraft.renderState ?? {};
+      const hadCompanions =
+        staleState.memorandumDocxPath ||
+        staleState.memorandumPdfPath ||
+        staleState.highlightedReportPdfPath ||
+        latestDraft.exhibitsManifest;
+      if (hadCompanions) {
+        for (const stale of [staleState.memorandumDocxPath, staleState.memorandumPdfPath, staleState.highlightedReportPdfPath]) {
+          if (stale) {
+            await fs.rm(stale, { force: true }).catch(() => {});
+          }
+        }
+        letterOnlySupersede = {
+          highlightedReportPdfPath: null,
+          highlightedReportPdfUrl: null,
+          memorandumDocxPath: null,
+          memorandumDocxUrl: null,
+          memorandumPdfPath: null,
+          memorandumPdfUrl: null,
+        };
+        exportWarnings.push(
+          "previously generated evidence documents were superseded by this letter re-export — re-select evidence outputs to regenerate them"
+        );
+      }
+    }
     const nextDraft = {
       ...latestDraft,
       letterMode: savedDraft.letterMode ?? null,
       exhibitNumbering: savedDraft.exhibitNumbering ?? null,
       evidenceOptions: savedDraft.evidenceOptions ?? null,
-      exhibitsManifest: savedDraft.exhibitsManifest ?? null,
+      exhibitsManifest: exportEvidenceRan ? savedDraft.exhibitsManifest ?? null : null,
       // evidenceManifest/evidenceGeneratedAt are export-owned ONLY when this
       // export actually ran an evidence job — otherwise a POST /evidence
       // landing mid-export must win (rulings-panel F5).
@@ -2074,9 +2158,7 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
               memorandumDocxUrl: null,
               memorandumPdfUrl: null,
             }
-          : evidenceOptions.memorandum && (memorandumDocxPath || memorandumPdfPath)
-            ? { memorandumDocxPath, memorandumPdfPath, memorandumDocxUrl: null, memorandumPdfUrl: null }
-            : {}),
+          : letterOnlySupersede),
         docxPath: exportResult.docxPath ?? null,
         pdfPath: exportResult.pdfPath ?? null,
         draftDirty: sectionsChangedMidExport ? true : latestDraft.renderState?.draftDirty ?? false,
@@ -2088,6 +2170,7 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
       draft: attachArtifactUrls(persisted),
       exportResult,
       warnings: exportWarnings,
+    });
     });
   } catch (error) {
     sendError(res, 500, "Failed to export dispute letter artifacts", String(error));
