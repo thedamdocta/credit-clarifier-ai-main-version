@@ -1012,7 +1012,10 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
             </span>
             {draft && <span>Draft {draft.id.slice(0, 8)}</span>}
           </div>
-          <nav aria-label="Dispute workflow steps" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+          {/* auto-fit: cards wrap onto extra rows rather than shrinking below a
+              readable width — fixed 6-col grid clipped labels at mid-desktop
+              widths (Step-6 D1, operator screenshot) */}
+          <nav aria-label="Dispute workflow steps" className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-2">
             {STEP_ORDER.map(({ value, label, icon: Icon }, index) => {
               const isActive = activeStep === value;
               return (
@@ -1022,7 +1025,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                   aria-current={isActive ? "step" : undefined}
                   onClick={() => setActiveStep(value)}
                   className={cn(
-                    "flex min-w-0 items-start gap-3 border px-4 py-3 text-left transition-colors",
+                    "flex min-w-0 items-start gap-2 border px-3 py-3 text-left transition-colors",
                     isActive
                       ? "border-black bg-black text-white"
                       : "border-black/20 bg-white text-slate-700 hover:border-black/50 hover:bg-black/[0.02]",
@@ -1148,7 +1151,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                     {isEscalationExpanded ? (
                       <div className="space-y-4 p-4">
                         {escalationReasons.map((reason) => (
-                          <div key={`escalation-${reason.id}`} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                          <div key={`escalation-${reason.id}`} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div className="flex items-start gap-3">
                                 <Checkbox
@@ -1299,7 +1302,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                               </TabsList>
 
                               {actionableCategories.map((category) => (
-                                <TabsContent key={`${group.key}-${category.category}-content`} value={category.category} className="space-y-4">
+                                <TabsContent key={`${group.key}-${category.category}-content`} value={category.category} className="space-y-5">
                                   {shouldSuppressInlineProofPlaceholders && category.entries.some((entry) => entry.selected) ? (
                                     <div className="rounded-lg border border-dashed border-black/15 bg-[#faf8f2] px-4 py-3 text-sm leading-6 text-slate-600">
                                       The selected disputes and highlighted source proof for this category are syncing together and will appear once the saved draft is ready.
@@ -1338,7 +1341,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                       } satisfies DisputeReason);
 
                                     return (
-                                      <div key={entry.key} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                      <div key={entry.key} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                           <div className="flex items-start gap-3">
                                             <Checkbox
@@ -1365,7 +1368,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
 
                                         {entry.status === "triggered" ? (
                                           <>
-                                            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                            <div className="mt-5 grid gap-5 md:grid-cols-2">
                                               <div className="space-y-2">
                                                 <Label htmlFor={`summary-${group.entityKey}-${entry.ruleId}`}>Reason summary</Label>
                                                 <Textarea
@@ -1391,7 +1394,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                               </div>
                                             </div>
                                             {(entry.supportingFacts.length > 0 || entry.supportingFields.length > 0) && (
-                                              <div className="mt-4 space-y-3 rounded-lg bg-white p-3 text-sm text-slate-700">
+                                              <div className="mt-5 space-y-4 rounded-lg bg-white p-4 text-sm text-slate-700">
                                                 {entry.supportingFacts.length > 0 && (
                                                   <div>
                                                     <p className="font-medium text-slate-900">Evidence found in the report</p>
@@ -1524,7 +1527,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                             </div>
                           )}
 
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <div>
                                 <h4 className="text-sm font-semibold text-slate-900">Custom account reasons</h4>
@@ -1568,7 +1571,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                         Complete the title and summary to include this custom reason in the draft.
                                       </div>
                                     )}
-                                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                    <div className="mt-5 grid gap-5 md:grid-cols-2">
                                       <div className="space-y-2">
                                         <Label htmlFor={`custom-title-${reason.id}`}>Title</Label>
                                         <Input
@@ -1601,7 +1604,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                         </Select>
                                       </div>
                                     </div>
-                                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                    <div className="mt-5 grid gap-5 md:grid-cols-2">
                                       <div className="space-y-2">
                                         <Label htmlFor={`custom-summary-${reason.id}`}>Summary</Label>
                                         <Textarea
@@ -1706,7 +1709,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                             </p>
                           </div>
                           {group.reasons.map((reason) => (
-                            <div key={reason.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div key={reason.id} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="flex items-start gap-3">
                                   <Checkbox
@@ -1732,7 +1735,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                   {reason.selectionBasis && <p>{humanizeSelectionBasis(reason.selectionBasis)}</p>}
                                 </div>
                               </div>
-                              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                              <div className="mt-5 grid gap-5 md:grid-cols-2">
                                 <div className="space-y-2">
                                   <Label htmlFor={`summary-${reason.id}`}>Reason summary</Label>
                                   <Textarea
@@ -1760,7 +1763,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                 </div>
                               </div>
                               {(reason.supportingFacts.length > 0 || reason.supportingFields.length > 0) && (
-                                <div className="mt-4 space-y-3 rounded-lg bg-white p-3 text-sm text-slate-700">
+                                <div className="mt-5 space-y-4 rounded-lg bg-white p-4 text-sm text-slate-700">
                                   {reason.supportingFacts.length > 0 && (
                                     <div>
                                       <p className="font-medium text-slate-900">Evidence found in the report</p>
