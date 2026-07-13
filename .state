@@ -76,4 +76,49 @@ post-session additions (2026-07-12/13):
   - Snapshot 326f42b + dead-code removal 8164614 (-20k lines) pushed to
     credit-clarifier-ai-main-version; parent repo PRIVATE, session log committed
   - Rollout pending operator: re-extract eq-new + 5 stale Experian sessions (offline, fast)
-updated: 2026-07-13 (Session 21 FULLY COMPLETE — see docs/highlight-certification.md)
+
+EXHIBIT BUILDER SESSION (2026-07-13, continued):
+  - Phases 1 (exhibit renderer, 18741e5), 2 (memorandum generator), 4 (report chips)
+    COMPLETE + 3-agent panel-reviewed (audit/testing/QC per phase), fixes verified.
+    Commits: 18741e5, 498877f. Plan doc status current.
+  - Phases PENDING: 3 (letter Mode A inline figures + Mode B "(See Exhibit N)" refs),
+    5 (server export params letterMode/exhibitNumbering + renderState + UI toggles),
+    6 (certification exhibit gate).
+  - ⚠️ EXTRACTION ESCALATION accepted by operator with conditions (ALL met/in progress):
+    1. GitHub backup FIRST — DONE: tag pre-extraction-audit-backup pushed.
+    2. Investigation (a) approved. GOVERNING RULE: report-information extraction
+       (components.accounts[].*) is UNTOUCHABLE-ACCURATE; only the DISPUTE-extraction
+       layer (meta.accountHistoryEvidence/bboxes/checkmark reads) may be improved.
+    3. Audit must be documented IN THE VAULT (function map: working vs suspect).
+  - Bug: ally p17 2020 row face = Oct 30, Nov 60, Dec GREEN CHECKMARK; evidence says
+    dec='-' blank + INVERTED bbox (xMin 531.888 > xMax 525.448, Dec = last column).
+    Audit agent running; next: verify root cause, vault doc
+    (CREDIT_CLARIFY_EXTRACTION_AUDIT.md in parent root, registered like sibling maps),
+    then Layer-2-only fix with twin-run byte parity + Dec-2020 face re-verification.
+RESUME HERE (Session 23 queue, in priority order — operator-confirmed):
+  1. PANEL + REGRESSION for extraction fix 331cb47 (verified by Lumen: twin-run = exactly
+     14 cells, all Decembers, '-'->OK, 9 accounts, nothing else; face-checked twice;
+     in-app E2E confirmed) — but NOT yet 3-agent-panel reviewed nor certify-batch
+     regressed across the 4 profiles. Do both first.
+  2. RE-EXTRACTION ROLLOUT (needs operator go; offline, fast): stored EQ-old sessions
+     (pre-fix December blanks), EQ-new sessions (no evidence geometry), 5 stale
+     Mar-11 Experian sessions. Worker rerun per session refreshes all.
+  3. PHASE 3 letter modes: Mode A = exhibit figures embedded under each dispute section
+     (disputeLetterBuilder.mjs HTML + dispute_letter_generator.py add_picture/reportlab;
+     HTML block parser needs an image channel). Mode B = "(See Exhibit N)" per section.
+     Numbering from exhibits-manifest.json — generate exhibits BEFORE letter render.
+  4. PHASE 5 dispute-flow UI options (operator confirmed): letter-step toggles
+     [Evidence format: inline (A) | letter+Memorandum (B)] + [Numbering: 123 | ABC].
+     Server: runEvidenceGeneration/executeEvidenceGenerationScript add
+     --exhibits-dir/--exhibit-numbering; spawn dispute_memorandum_generator.py for
+     Mode B; renderState += exhibits/memorandum paths; UI buttons for Memorandum +
+     Highlighted Report (artifacts route already serves draft-dir files).
+  5. PHASE 6 certification exhibit gate: certify-batch renders exhibits+memo per
+     report; assert exhibitCount==exportable, files exist, PNG dims==cropBox,
+     memo numbering==manifest.
+  6. Parked decisions: 5-slide exhibit cap lift; vision validator activation.
+environment-as-left: API (PYTHON_EXECUTABLE=anaconda) + Vite 8080 + headed browser on
+  dispute page; fresh refs: session ea563e72, draft 523e440d (28 reasons, 28/28 export,
+  crops inline in UI). Restore tag: pre-extraction-audit-backup.
+updated: 2026-07-13 (Session 22 END — exhibit builder 1/2/4 + extraction audit/fix done,
+  in-app E2E proven; Session 23 queue above)
