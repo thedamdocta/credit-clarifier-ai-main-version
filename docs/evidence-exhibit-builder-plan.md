@@ -104,5 +104,14 @@ crops at print resolution (300 DPI source images).
 - 2026-07-13: Phase 1 (exhibit renderer + numbering map) DONE — panel-reviewed, 18741e5.
 - 2026-07-13: Phase 2 (Memorandum DOCX+PDF) + Phase 4 (report chips) DONE — panel-reviewed
   (QC FAIL on an EXTRACTION-layer data bug, escalated to operator; all builder-layer findings
-  fixed and verified), 498877f. Phases 3 (letter modes), 5 (server/UI), 6 (certification)
-  pending.
+  fixed and verified), 498877f.
+- 2026-07-13 (Session 23): Phase 3 (letter modes) DONE — 7eeb1f1 + panel fixes 9f79658.
+  Design record: `tmp/diagnostics/phase3-letter-modes/design.md` (D1-D10). Panel: testing
+  PASS 7/7 (alpha E2E, letter↔memo agreement, missing-PNG degradation, traversal,
+  concurrency); audit PASS-W-F (all findings fixed incl. HIGH stale-manifest gate); QC
+  FAIL→fixed→visually re-verified (per-slide pagination w/ server-side pre-scaled dims,
+  heading keep-with-next, orphan-caption suppression). OPEN operator DECISIONS: (1)
+  consumer_information_indicator disputes have NO letter section (pre-existing; Exhibit-28
+  class warns at export) — add one? (2) must letter exhibits meet the highlighted-report
+  validator bar (ties to parked vision-validator activation)? Phases 5 (server/UI toggles —
+  chips-numbering F9 already threaded), 6 (certification exhibit gate) pending.
