@@ -3948,6 +3948,14 @@ const ACCOUNT_RULE_DEFINITIONS: AccountRuleDefinition[] = [
     canEvaluate: (account) => hasStructuredPaymentHistory(account),
   },
   {
+    issueType: "payment_history_activity_before_table_coverage",
+    issueLabel: "Derogatory history predates supporting table coverage",
+    category: "payment_history",
+    description: "Checks whether derogatory payment-grid months predate every record in the supporting balance/past-due/payment tables, leaving that derogatory history unsupported (FCRA incompleteness).",
+    applies: () => true,
+    canEvaluate: (account) => hasStructuredPaymentHistory(account),
+  },
+  {
     issueType: "payment_history_incomplete_since_open_date",
     issueLabel: "Payment history from date opened is incomplete",
     category: "payment_history",
@@ -5829,6 +5837,84 @@ const detectAccountReasons = (accountViews: ReasonAccountView[], report: CreditR
           },
           evidenceRefs: useExperianPhaseOneProvenance ? buildExperianGapEvidenceRefs(entityKey, [group], balanceHistoryCells) : [],
         }));
+      }
+    }
+
+    // Coverage-span incompleteness: the payment grid reports DEROGATORY activity in
+    // months that predate every record in the supporting money tables (balance,
+    // amount past due, actual/scheduled payment). Under the FCRA, incomplete
+    // information is disputable alongside inaccurate information — a furnisher
+    // reporting delinquency without the supporting month records for those months
+    // leaves the derogatory marks unsupported on the face of the report.
+    {
+      const meaningfulMoneyValue = (value: string | null | undefined) => {
+        const normalized = normalizeText(String(value ?? "")).toLowerCase();
+        return Boolean(normalized) && !["-", "--", "blank", "n/a"].includes(normalized);
+      };
+      const supportingTables: Array<{ field: string; label: string; cells: HistoryCell[] }> = [
+        { field: "balanceHistory", label: "Balance history", cells: balanceHistoryCells },
+        { field: "amountPastDueHistory", label: "Amount past due history", cells: pastDueHistoryCells },
+        { field: "actualPaymentHistory", label: "Actual payment history", cells: paidAmountHistoryCells },
+        { field: "scheduledPaymentHistory", label: "Scheduled payment history", cells: scheduledPaymentHistoryCells },
+      ];
+      const derogatoryGridMonths = chronologicalPaymentHistoryCells
+        .filter((cell) => isDerogatoryHistoryValue(cell.value))
+        .map((cell) => toHistoryMonthKey(cell.year, cell.month));
+      if (derogatoryGridMonths.length > 0) {
+        const affected: Array<{ field: string; label: string; coverageStart: HistoryMonthKey; months: HistoryMonthKey[] }> = [];
+        for (const table of supportingTables) {
+          const covered = table.cells
+            .filter((cell) => meaningfulMoneyValue(cell.value))
+            .map((cell) => toHistoryMonthKey(cell.year, cell.month));
+          if (covered.length === 0) {
+            continue; // an entirely empty table is handled by the insufficient-history rules
+          }
+          const coverageStartValue = Math.min(...covered.map(historyMonthSortValue));
+          const coverageStart = covered.find((key) => historyMonthSortValue(key) === coverageStartValue) as HistoryMonthKey;
+          const uncovered = derogatoryGridMonths.filter((key) => historyMonthSortValue(key) < coverageStartValue);
+          if (uncovered.length >= 2) {
+            affected.push({ field: table.field, label: table.label, coverageStart, months: uncovered });
+          }
+        }
+        if (affected.length > 0) {
+          const primary = affected.find((entry) => entry.field === "balanceHistory") ?? affected[0];
+          const uncoveredGroups = groupConsecutiveHistoryMonths(primary.months);
+          // Show both ends of the unsupported span: where the derogatory run began
+          // (earliest marks, e.g. the 30/60/90 progression) and the months adjacent
+          // to the table's coverage boundary.
+          const displayMonths = primary.months.length <= 6
+            ? primary.months
+            : [...primary.months.slice(0, 3), ...primary.months.slice(-3)];
+          reasons.push(buildReason({
+            id: `history-activity-before-table-coverage:${entityKey}`,
+            bureau: report.bureau,
+            profileId: report.profileId,
+            component: "accounts",
+            entityType: "account",
+            entityKey,
+            issueType: "payment_history_activity_before_table_coverage",
+            issueLabel: "Derogatory history predates supporting table coverage",
+            reasonSummary: `The tradeline for ${displayName} reports derogatory payment-history activity during ${uncoveredGroups.map(describeHistoryMonthGroup).join(", ")}, but ${affected.map((entry) => `the ${entry.label.toLowerCase()} does not begin until ${formatHistoryMonth(entry.coverageStart)}`).join(" and ")} — leaving those derogatory months without supporting records on the face of the report.`,
+            supportingFacts: [
+              ...affected.map((entry) => `${entry.label} coverage begins ${formatHistoryMonth(entry.coverageStart)}; ${entry.months.length} derogatory month(s) precede it.`),
+              `Derogatory months without table support: ${uncoveredGroups.map(describeHistoryMonthGroup).join(", ")}.`,
+            ],
+            supportingFields: ["paymentHistory", ...affected.map((entry) => entry.field)],
+            sourcePages,
+            requestedAction: "Please reinvestigate and provide the complete month-by-month balance and payment records supporting the derogatory history for these months, or correct/delete any reporting that cannot be verified as complete.",
+            severity: "high",
+            evidence: {
+              comparedFields: ["paymentHistory", ...affected.map((entry) => entry.field)],
+              monthlyComparisons: displayMonths.map((month) => ({
+                month: formatHistoryMonth(month),
+                leftLabel: "Payment history",
+                leftValue: paymentHistoryLookup.get(month) || "blank",
+                rightLabel: `${primary.label} coverage begins ${formatHistoryMonth(primary.coverageStart)}`,
+                rightValue: "No record for this month",
+              })),
+            },
+          }));
+        }
       }
     }
 
