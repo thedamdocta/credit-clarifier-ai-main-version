@@ -19,7 +19,6 @@ from typing import Dict, List, Optional
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt
-from PIL import Image
 
 from dispute_letter_generator import (
     CONTENT_WIDTH_INCHES,

@@ -102,14 +102,18 @@ export const buildDisputeLetterPreviewCss = () => {
       padding-left: 0.34in;
       text-indent: -0.18in;
     }
-    .exhibit-figure {
+    .exhibit-figure,
+    .exhibit-slide {
       margin: ${blockSpaceAfterPt}pt 0;
     }
-    .exhibit-figure img {
-      /* Explicit width/height attributes give the browser the aspect ratio up
-         front, so the synchronous pagination measurement reserves the right
-         height before the image loads; max-width keeps 300-DPI crops inside
-         the content column. */
+    .exhibit-figure img,
+    .exhibit-slide img {
+      /* width/height attrs are emitted PRE-SCALED by the letter builder
+         (content-width + 8in height cap, mirroring DOCX/PDF sizing), so the
+         synchronous pagination measurement sees the exact final size before
+         the image loads. Never add width/height:auto here — an unloaded image
+         with auto dimensions measures ~0 and the paginator packs pages wrong.
+         max-width stays as a safety net for legacy markup without attrs. */
       max-width: 100%;
       height: auto;
       display: block;

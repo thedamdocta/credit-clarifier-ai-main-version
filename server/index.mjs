@@ -632,9 +632,12 @@ const loadEnrichedExhibitsManifest = async (exhibitsDir) => {
           if (dims) {
             slide.widthPx = dims.width;
             slide.heightPx = dims.height;
+          } else {
+            console.warn(`[exhibits] no IHDR dims for ${slide.file} — preview pagination may misestimate its height`);
           }
-        } catch {
+        } catch (error) {
           // missing/unreadable PNG: slide stays dimension-less; renderers warn-and-skip
+          console.warn(`[exhibits] could not read dims for ${slide.file}: ${String(error)}`);
         }
       }
     }
@@ -1705,6 +1708,10 @@ app.post("/api/dispute-drafts/:draftId/evidence", async (req, res) => {
       const nextDraft = {
         ...draft,
         evidenceManifest: evidenceResult.manifest ?? null,
+        // Evidence regen without exhibits makes any persisted exhibits manifest
+        // stale (numbering/content may no longer match) — drop it; the next
+        // mode-aware export regenerates it (panel F3).
+        exhibitsManifest: null,
         renderState: {
           ...draft.renderState,
           highlightedReportPdfPath: null,
@@ -1732,12 +1739,18 @@ app.post("/api/dispute-drafts/:draftId/highlighted-report", async (req, res) => 
 
   try {
     const result = await runSharedJob(inFlightEvidenceJobs, `${draft.id}:highlighted-report`, async () => {
-      const evidenceResult = await runEvidenceGeneration(draft, { generateHighlightedReport: true });
+      // Chip numbering must follow the draft's persisted style so an alpha
+      // letter never mails next to numeric chips (panel F9).
+      const evidenceResult = await runEvidenceGeneration(draft, {
+        generateHighlightedReport: true,
+        exhibitNumbering: draft.exhibitNumbering ?? null,
+      });
       const blockingUnresolvedReasonIds = evidenceResult.manifest?.blockingUnresolvedReasonIds ?? [];
       if (!evidenceResult.canGenerateHighlightedReport || blockingUnresolvedReasonIds.length > 0) {
         const nextDraft = await disputeLetterStore.saveDraft({
           ...draft,
           evidenceManifest: evidenceResult.manifest ?? null,
+          exhibitsManifest: null,
           renderState: {
             ...draft.renderState,
             highlightedReportPdfPath: null,
@@ -1756,6 +1769,7 @@ app.post("/api/dispute-drafts/:draftId/highlighted-report", async (req, res) => 
       const nextDraft = {
         ...draft,
         evidenceManifest: evidenceResult.manifest ?? null,
+        exhibitsManifest: null,
         renderState: {
           ...draft.renderState,
           highlightedReportPdfPath: evidenceResult.highlightedReportPdfPath ?? null,
@@ -1797,6 +1811,12 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
   if (!draft) return;
 
   try {
+    if (req.body?.letterMode !== undefined && typeof req.body.letterMode !== "string") {
+      return sendError(res, 400, "letterMode must be a string (inline | memorandum | none).");
+    }
+    if (req.body?.exhibitNumbering !== undefined && typeof req.body.exhibitNumbering !== "string") {
+      return sendError(res, 400, "exhibitNumbering must be a string (numeric | alpha).");
+    }
     const requestedMode = typeof req.body?.letterMode === "string" ? req.body.letterMode : null;
     const requestedNumbering = typeof req.body?.exhibitNumbering === "string" ? req.body.exhibitNumbering : null;
     if (requestedMode !== null && !["inline", "memorandum", "none"].includes(requestedMode)) {
@@ -1826,30 +1846,62 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
           "full-document override active — exhibit figures/references were not injected; re-render from sections to use letter modes"
         );
       } else {
-        const evidenceResult = await runSharedJob(inFlightEvidenceJobs, `${workingDraft.id}:evidence`, () =>
-          runEvidenceGeneration(workingDraft, {
-            skipValidation: true,
-            generateExhibits: true,
-            exhibitNumbering: workingDraft.exhibitNumbering ?? "numeric",
-          })
-        );
-        if (evidenceResult?.manifest) {
-          workingDraft.evidenceManifest = evidenceResult.manifest;
-          workingDraft.renderState = {
-            ...workingDraft.renderState,
-            evidenceGeneratedAt: new Date().toISOString(),
-          };
+        let evidenceResult = null;
+        try {
+          // Own job key: sharing `${id}:evidence` with POST /evidence lets the
+          // two flows steal each other's results across incompatible options
+          // (panel finding F2).
+          evidenceResult = await runSharedJob(inFlightEvidenceJobs, `${workingDraft.id}:export-evidence`, () =>
+            runEvidenceGeneration(workingDraft, {
+              skipValidation: true,
+              generateExhibits: true,
+              exhibitNumbering: workingDraft.exhibitNumbering ?? "numeric",
+            })
+          );
+        } catch (error) {
+          evidenceResult = null;
+          exportWarnings.push(
+            `exhibit generation failed — letter rendered without exhibit figures/references: ${String(error)}`
+          );
         }
-        const exhibitsManifest = await loadEnrichedExhibitsManifest(exhibitsDir);
+        // NOTE: the skipValidation manifest is used transiently for this render
+        // only — it must never overwrite validator-annotated draft state (F4).
+        // Blocked run = the on-disk exhibits dir was NOT regenerated by Python
+        // (its can_generate gate) — loading it would inject STALE evidence into
+        // a mailed document (panel finding F1, HIGH). Inject nothing instead.
+        const exhibitsFresh = Boolean(evidenceResult) && evidenceResult.canGenerateHighlightedReport !== false;
+        const exhibitsManifest = exhibitsFresh ? await loadEnrichedExhibitsManifest(exhibitsDir) : null;
         if (exhibitsManifest) {
           workingDraft.exhibitsManifest = exhibitsManifest;
           if (Array.isArray(exhibitsManifest.warnings) && exhibitsManifest.warnings.length) {
             exportWarnings.push(...exhibitsManifest.warnings);
           }
-        } else {
-          exportWarnings.push(
-            "exhibit generation produced no manifest — letter rendered without exhibit figures/references"
+          const sectionReasonIds = new Set(
+            ["accountDisputes", "personalInformationDisputes"].flatMap((group) =>
+              (workingDraft.sections?.[group] ?? [])
+                .filter((section) => section.enabled)
+                .flatMap((section) => section.reasonIds ?? [])
+            )
           );
+          const orphanExhibits = (exhibitsManifest.exhibits ?? []).filter(
+            (exhibit) => !sectionReasonIds.has(exhibit.reasonId)
+          );
+          for (const orphan of orphanExhibits) {
+            exportWarnings.push(
+              `Exhibit ${orphan.exhibit} (${orphan.issueLabel ?? orphan.reasonId}) has no corresponding letter section — it appears in the memorandum and report chips only`
+            );
+          }
+        } else {
+          workingDraft.exhibitsManifest = null;
+          if (evidenceResult && evidenceResult.canGenerateHighlightedReport === false) {
+            exportWarnings.push(
+              "evidence generation is blocked for this draft — exhibits were not regenerated; letter rendered without exhibit figures/references"
+            );
+          } else if (evidenceResult) {
+            exportWarnings.push(
+              "exhibit generation produced no manifest — letter rendered without exhibit figures/references"
+            );
+          }
         }
       }
     }
@@ -1869,12 +1921,30 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
     if (Array.isArray(exportResult.warnings) && exportResult.warnings.length) {
       exportWarnings.push(...exportResult.warnings);
     }
+    // Merge onto a FRESH read: a PATCH landing during the evidence/letter run
+    // must not be silently reverted by this whole-object save (panel F6). Only
+    // export-owned fields are overlaid; if sections changed mid-export, the
+    // rendered letter lags them — surface that as draftDirty + a warning.
+    const latestDraft = (await disputeLetterStore.getDraft(savedDraft.id)) ?? savedDraft;
+    const sectionsChangedMidExport = JSON.stringify(latestDraft.sections) !== JSON.stringify(savedDraft.sections);
+    if (sectionsChangedMidExport) {
+      exportWarnings.push(
+        "draft sections changed while the export was running — the exported letter reflects the pre-change sections; re-export to pick them up"
+      );
+    }
     const nextDraft = {
-      ...savedDraft,
+      ...latestDraft,
+      letterMode: savedDraft.letterMode ?? null,
+      exhibitNumbering: savedDraft.exhibitNumbering ?? null,
+      exhibitsManifest: savedDraft.exhibitsManifest ?? null,
+      fullDocumentHtml: savedDraft.fullDocumentHtml,
       renderState: {
-        ...savedDraft.renderState,
+        ...latestDraft.renderState,
+        previewHtml: savedDraft.renderState.previewHtml,
+        lastGeneratedFromSectionsAt: savedDraft.renderState.lastGeneratedFromSectionsAt,
         docxPath: exportResult.docxPath ?? null,
         pdfPath: exportResult.pdfPath ?? null,
+        draftDirty: sectionsChangedMidExport ? true : latestDraft.renderState?.draftDirty ?? false,
       },
     };
     const persisted = await disputeLetterStore.saveDraft(nextDraft);
@@ -1896,7 +1966,10 @@ app.get("/api/dispute-drafts/:draftId/artifacts/exhibits/:fileName", async (req,
   const fileName = path.basename(req.params.fileName);
   const targetPath = path.join(appConfig.disputeOutputRoot, draft.id, "exhibits", fileName);
   try {
-    await fs.access(targetPath);
+    const stat = await fs.stat(targetPath);
+    if (!stat.isFile()) {
+      throw new Error("not a file");
+    }
     res.setHeader("Cache-Control", "private, max-age=60");
     res.sendFile(targetPath);
   } catch {

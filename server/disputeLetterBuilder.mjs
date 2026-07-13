@@ -1,6 +1,6 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { buildDisputeLetterPreviewCss, buildDisputeLetterPreviewPaginationScript } from "../shared/disputeLetterLayout.mjs";
+import { DISPUTE_LETTER_LAYOUT, buildDisputeLetterPreviewCss, buildDisputeLetterPreviewPaginationScript } from "../shared/disputeLetterLayout.mjs";
 
 const normalizeText = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 const normalizeMatchText = (value) => normalizeText(value).toLowerCase();
@@ -476,31 +476,48 @@ const formatExhibitRefText = (exhibits) => {
 };
 
 const buildSectionExhibitFiguresHtml = (exhibits, draft) => {
+  // Heading and each slide are emitted as SIBLING top-level nodes (no wrapping
+  // div): the preview paginator treats each top-level node as one unbreakable
+  // unit, so a wrapper around a multi-slide exhibit clipped tall stacks and
+  // left pages mostly blank (Phase-3 QC FAIL). Per-slide divs let pages break
+  // between slides while each image stays glued to its own caption.
   const parts = [];
   for (const exhibit of exhibits) {
     const slides = Array.isArray(exhibit.slides) ? exhibit.slides : [];
     if (!slides.length) {
       continue;
     }
-    const heading = `<p class="exhibit-heading"><strong>Exhibit ${escapeHtml(String(exhibit.exhibit))} — ${escapeHtml(exhibit.issueLabel || "Disputed item")}</strong></p>`;
-    const figures = slides
-      .map((slide) => {
-        if (!slide?.file) {
-          return "";
+    parts.push(
+      `<p class="exhibit-heading"><strong>Exhibit ${escapeHtml(String(exhibit.exhibit))} — ${escapeHtml(exhibit.issueLabel || "Disputed item")}</strong></p>`
+    );
+    for (const slide of slides) {
+      if (!slide?.file) {
+        continue;
+      }
+      // Pre-scale to the DISPLAY size (CSS px @96dpi): content width bound +
+      // the same 8in height cap DOCX/PDF use (scaled_image_size). Emitting
+      // final dims lets the preview paginator measure exactly, pre-load.
+      let dims = "";
+      if (Number.isFinite(slide.widthPx) && Number.isFinite(slide.heightPx) && slide.widthPx > 0 && slide.heightPx > 0) {
+        const contentWidthCssPx = (DISPUTE_LETTER_LAYOUT.pageWidthInches - 2 * DISPUTE_LETTER_LAYOUT.marginInches) * 96;
+        const maxHeightCssPx = 8 * 96;
+        let displayW = Math.min(contentWidthCssPx, (slide.widthPx * 96) / 300);
+        let displayH = (slide.heightPx * displayW) / slide.widthPx;
+        if (displayH > maxHeightCssPx) {
+          displayW = (displayW * maxHeightCssPx) / displayH;
+          displayH = maxHeightCssPx;
         }
-        const dims =
-          Number.isFinite(slide.widthPx) && Number.isFinite(slide.heightPx)
-            ? ` width="${slide.widthPx}" height="${slide.heightPx}"`
-            : "";
-        const src = draft?.id ? `/api/dispute-drafts/${draft.id}/artifacts/exhibits/${encodeURIComponent(slide.file)}` : "";
-        const caption = `Source: Credit report, page ${slide.pageNumber}${slide.label ? ` — ${slide.label}` : ""}`;
-        return (
+        dims = ` width="${Math.max(1, Math.round(displayW))}" height="${Math.max(1, Math.round(displayH))}"`;
+      }
+      const src = draft?.id ? `/api/dispute-drafts/${draft.id}/artifacts/exhibits/${encodeURIComponent(slide.file)}` : "";
+      const caption = `Source: Credit report, page ${slide.pageNumber}${slide.label ? ` — ${slide.label}` : ""}`;
+      parts.push(
+        `<div class="exhibit-slide">` +
           `<img src="${escapeHtml(src)}"${dims} data-exhibit-file="${escapeHtml(slide.file)}" alt="Exhibit ${escapeHtml(String(exhibit.exhibit))} evidence">` +
-          `<p class="exhibit-caption"><em>${escapeHtml(caption)}</em></p>`
-        );
-      })
-      .join("");
-    parts.push(`<div class="exhibit-figure">${heading}${figures}</div>`);
+          `<p class="exhibit-caption"><em>${escapeHtml(caption)}</em></p>` +
+          `</div>`
+      );
+    }
   }
   return parts.join("");
 };
@@ -691,6 +708,14 @@ export const updateDraftSection = (draft, group, sectionId, patch) => {
       throw new Error(`Section '${sectionId}' was not found.`);
     }
     Object.assign(container, patch);
+  }
+
+  // Exhibit numbering derives from section order/enabled state — a persisted
+  // exhibits manifest is stale the moment either changes. Null it so the
+  // preview degrades honestly (no decoration) instead of rendering figures
+  // with wrong numbers; the next mode-aware export regenerates it.
+  if (Object.prototype.hasOwnProperty.call(patch, "enabled") || Object.prototype.hasOwnProperty.call(patch, "order")) {
+    nextDraft.exhibitsManifest = null;
   }
 
   nextDraft.renderState.draftDirty = nextDraft.renderState.documentOverride ? true : false;

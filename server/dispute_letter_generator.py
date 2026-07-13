@@ -199,6 +199,10 @@ def apply_block_spacing(paragraph, block: Block):
         paragraph.paragraph_format.left_indent = Inches(0.34)
         paragraph.paragraph_format.first_line_indent = Inches(-0.18)
 
+    if "exhibit-heading" in css_classes:
+        # Keep "Exhibit N" headings on the same page as their first figure.
+        paragraph.paragraph_format.keep_with_next = True
+
 
 def resolve_exhibit_image(block: Block, exhibits_dir: Optional[Path], warnings: List[str]) -> Optional[Path]:
     """Map an image block to a file inside the exhibits dir (basename only —
@@ -214,7 +218,7 @@ def resolve_exhibit_image(block: Block, exhibits_dir: Optional[Path], warnings: 
         warnings.append(f"image block '{name}' skipped — PIL unavailable")
         return None
     path = exhibits_dir / name
-    if not path.exists():
+    if not path.is_file() or path.suffix.lower() != ".png":
         warnings.append(f"exhibit image missing on disk — slide skipped: {name}")
         return None
     return path
@@ -225,13 +229,30 @@ def build_docx(blocks: List[Block], output_path: Path, exhibits_dir: Optional[Pa
     document = Document()
     configure_document(document)
 
-    for block in blocks:
+    consumed = set()
+    for idx, block in enumerate(blocks):
+        if idx in consumed:
+            continue
         if block.kind == "image":
+            next_block = blocks[idx + 1] if idx + 1 < len(blocks) else None
+            has_caption = (
+                next_block is not None
+                and next_block.kind != "image"
+                and "exhibit-caption" in set(next_block.css_class.split())
+            )
             image_path = resolve_exhibit_image(block, exhibits_dir, warnings)
-            if image_path is None:
+            embedded = False
+            if image_path is not None:
+                try:
+                    size = scaled_image_size(image_path)
+                    document.add_picture(str(image_path), width=Inches(size["width"]))
+                    embedded = True
+                except Exception as exc:
+                    warnings.append(f"exhibit image unreadable — slide skipped: {image_path.name} ({exc})")
+            if not embedded:
+                if has_caption:
+                    consumed.add(idx + 1)  # never mail an orphan caption
                 continue
-            size = scaled_image_size(image_path)
-            document.add_picture(str(image_path), width=Inches(size["width"]))
             picture_paragraph = document.paragraphs[-1]
             picture_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
             picture_paragraph.paragraph_format.keep_with_next = True
@@ -299,26 +320,48 @@ def build_pdf(blocks: List[Block], output_path: Path, exhibits_dir: Optional[Pat
 
     story = []
     consumed = set()
+    pending_heading = None
     for idx, block in enumerate(blocks):
       if idx in consumed:
           continue
       if block.kind == "image":
           # Must precede the empty-markup skip below — image blocks carry no runs.
-          image_path = resolve_exhibit_image(block, exhibits_dir, warnings)
-          if image_path is None:
-              continue
-          size = scaled_image_size(image_path)
-          flowable = RLImage(str(image_path), width=size["width"] * inch, height=size["height"] * inch)
-          flowable.hAlign = "LEFT"
-          bundle = [flowable]
           next_block = blocks[idx + 1] if idx + 1 < len(blocks) else None
-          if next_block is not None and next_block.kind != "image" and "exhibit-caption" in set(next_block.css_class.split()):
+          has_caption = (
+              next_block is not None
+              and next_block.kind != "image"
+              and "exhibit-caption" in set(next_block.css_class.split())
+          )
+          image_path = resolve_exhibit_image(block, exhibits_dir, warnings)
+          flowable = None
+          if image_path is not None:
+              try:
+                  size = scaled_image_size(image_path)
+                  flowable = RLImage(str(image_path), width=size["width"] * inch, height=size["height"] * inch)
+                  flowable.hAlign = "LEFT"
+              except Exception as exc:
+                  warnings.append(f"exhibit image unreadable — slide skipped: {image_path.name} ({exc})")
+          if flowable is None:
+              if has_caption:
+                  consumed.add(idx + 1)  # never mail an orphan caption
+              if pending_heading is not None:
+                  story.append(pending_heading)  # keep the exhibit label visible
+                  pending_heading = None
+              continue
+          bundle = [flowable]
+          if pending_heading is not None:
+              bundle.insert(0, pending_heading)  # heading stays with its first figure
+              pending_heading = None
+          if has_caption:
               caption_markup = runs_to_reportlab_markup(next_block.runs)
               if caption_markup.strip():
                   bundle.append(Paragraph(caption_markup, caption_style))
               consumed.add(idx + 1)
           story.append(KeepTogether(bundle))
           continue
+      if pending_heading is not None:
+          story.append(pending_heading)  # heading not followed by an image after all
+          pending_heading = None
       markup = runs_to_reportlab_markup(block.runs)
       if not markup.strip():
           continue
@@ -344,7 +387,14 @@ def build_pdf(blocks: List[Block], output_path: Path, exhibits_dir: Optional[Pat
               firstLineIndent=-0.18 * 72,
               spaceAfter=max(6, round(LAYOUT["paragraphSpaceAfterPt"] * 0.7)),
           )
-      story.append(Paragraph(markup, style))
+      paragraph = Paragraph(markup, style)
+      next_block = blocks[idx + 1] if idx + 1 < len(blocks) else None
+      if "exhibit-heading" in css_classes and next_block is not None and next_block.kind == "image":
+          pending_heading = paragraph  # bundled into the first figure's KeepTogether
+          continue
+      story.append(paragraph)
+    if pending_heading is not None:
+        story.append(pending_heading)
     doc.build(story)
     return output_path
 
