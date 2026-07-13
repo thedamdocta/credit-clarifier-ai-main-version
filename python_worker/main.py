@@ -1987,7 +1987,14 @@ def table_column_boundaries(table: Dict[str, Any]) -> List[float]:
     boundaries = [float(bbox.get("xMin") or columns[0])]
     for idx in range(1, len(columns)):
         boundaries.append((float(columns[idx - 1]) + float(columns[idx])) / 2.0)
-    boundaries.append(float(bbox.get("xMax") or columns[-1]))
+    # Same last-edge guard as column_boundaries_from_positions: never collapse
+    # below the last interior boundary (image-only last cells shrink the bbox).
+    table_x_max = float(bbox.get("xMax") or columns[-1])
+    if len(boundaries) >= 2:
+        column_width = boundaries[-1] - boundaries[-2]
+    else:
+        column_width = 0.0
+    boundaries.append(max(table_x_max, boundaries[-1] + max(column_width, 1.0)))
     return boundaries
 
 
@@ -2228,7 +2235,16 @@ def column_boundaries_from_positions(row: Dict[str, Any], columns: List[float]) 
     boundaries = [float(bbox.get("xMin") or columns[0])]
     for idx in range(1, len(columns)):
         boundaries.append((float(columns[idx - 1]) + float(columns[idx])) / 2.0)
-    boundaries.append(float(bbox.get("xMax") or columns[-1]))
+    # The final edge must never collapse below the last interior boundary: a row whose
+    # last cell is a checkmark IMAGE has no last-column text, so the data row's xMax
+    # ends at the previous column and would invert the last cell's bbox (the Dec-2020
+    # miss). Extend by one typical column width past the last header midpoint instead.
+    row_x_max = float(bbox.get("xMax") or columns[-1])
+    if len(boundaries) >= 2:
+        column_width = boundaries[-1] - boundaries[-2]
+    else:
+        column_width = 0.0
+    boundaries.append(max(row_x_max, boundaries[-1] + max(column_width, 1.0)))
     return boundaries
 
 
@@ -2286,9 +2302,17 @@ def row_cell_details_for_columns(row: Dict[str, Any], columns: List[float]) -> L
             cell["bbox"] = merged
             continue
         if index + 1 < len(boundaries):
+            left_edge = float(boundaries[index])
+            right_edge = float(boundaries[index + 1])
+            if right_edge <= left_edge:
+                # Never emit an inverted/degenerate bbox — fall back to one median
+                # column width to the right of the cell's own left edge.
+                widths = [boundaries[i + 1] - boundaries[i] for i in range(len(boundaries) - 1) if boundaries[i + 1] > boundaries[i]]
+                fallback_width = sorted(widths)[len(widths) // 2] if widths else 10.0
+                right_edge = left_edge + fallback_width
             cell["bbox"] = {
-                "xMin": float(boundaries[index]),
-                "xMax": float(boundaries[index + 1]),
+                "xMin": left_edge,
+                "xMax": right_edge,
                 "yMin": row_top,
                 "yMax": row_bottom,
             }
@@ -2476,12 +2500,18 @@ def enrich_payment_history_evidence_from_image(
                     bbox = cell.get("bbox") or {}
                     if not bbox:
                         continue
-                    left = max(int(float(bbox.get("xMin") or 0.0) * scale_x), 0)
+                    x_lo = min(float(bbox.get("xMin") or 0.0), float(bbox.get("xMax") or 0.0))
+                    x_hi = max(float(bbox.get("xMin") or 0.0), float(bbox.get("xMax") or 0.0))
+                    left = max(int(x_lo * scale_x), 0)
                     top = max(int(float(bbox.get("yMin") or 0.0) * scale_y), 0)
-                    right = min(int(float(bbox.get("xMax") or 0.0) * scale_x), image.width)
+                    right = min(int(x_hi * scale_x), image.width)
                     bottom = min(int(float(bbox.get("yMax") or 0.0) * scale_y), image.height)
                     if right <= left or bottom <= top:
-                        continue
+                        # Never silently skip a candidate cell: a degenerate window
+                        # hid the Dec-2020 checkmark. Widen to one nominal cell width.
+                        right = min(left + max(int(36.0 * scale_x), 8), image.width)
+                        if right <= left or bottom <= top:
+                            continue
                     crop = image.crop((left, top, right, bottom))
                     if not detect_green_checkmark(crop):
                         continue
