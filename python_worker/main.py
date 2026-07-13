@@ -6785,7 +6785,11 @@ def ensure_component_required_fields(components: Dict[str, Any]) -> List[Dict[st
                 "activityDesignatorHistory",
             ]:
                 history = account.get(history_key)
-                if not isinstance(history, list) or len(history) != 3:
+                # Empty is a legitimate face state: some tradelines print no
+                # money-history tables at all (QC face-verified, Session 23 F1).
+                # The March-era worker fabricated 3 placeholder rows (year '-')
+                # for them; honest [] must not be flagged as an error.
+                if not isinstance(history, list) or len(history) not in (0, 3):
                     issues.append(
                         {
                             "component": "accounts",
