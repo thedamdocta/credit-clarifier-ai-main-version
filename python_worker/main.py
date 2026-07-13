@@ -1381,6 +1381,22 @@ def select_pages_for_component(
         if personal_pages:
             return personal_pages
 
+    if component_name == "inquiries":
+        # Keyword-anchored selection only matches HEADING pages ("Hard
+        # Inquiries" / "Soft Inquiries") ±1 neighbor — a pure continuation
+        # page in a 3+ page inquiry list has no heading and falls in the gap,
+        # silently dropping every inquiry printed on it (audit-proven on the
+        # EQ-old reference report: one skipped interior page, 9 hard inquiries
+        # lost). Use the contiguous section range instead — same machinery and
+        # bounds the componentSources inference already uses for inquiries.
+        inquiry_pages = find_section_page_range(
+            page_artifacts,
+            INQUIRIES_SECTION_PATTERN,
+            [PUBLIC_RECORDS_SECTION_PATTERN],
+        )
+        if inquiry_pages:
+            return inquiry_pages
+
     keywords = component_keywords.get(component_name, [])
     lowered_keywords = [keyword.lower() for keyword in keywords]
 
