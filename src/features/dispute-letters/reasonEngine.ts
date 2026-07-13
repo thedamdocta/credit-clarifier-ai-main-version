@@ -3336,9 +3336,14 @@ const findPaymentHistoryGapSinceOpenedDate = (
     return null;
   }
 
+  // Operator ruling (Session 23): a payment can never be reported for the
+  // month the account opened — the first month history can be expected for is
+  // the month AFTER opening. Expecting the opening month itself produced
+  // logically impossible "missing month" disputes on newly opened accounts.
+  const firstExpectableMonth = addUtcMonths(startOfUtcMonth(openedDate), 1);
   const expectedStartDate = startOfUtcMonth(
-    monthsBetweenDates(addUtcMonths(startOfUtcMonth(anchorDate), -(maxLookbackMonths - 1)), startOfUtcMonth(openedDate)) > 0
-      ? startOfUtcMonth(openedDate)
+    monthsBetweenDates(addUtcMonths(startOfUtcMonth(anchorDate), -(maxLookbackMonths - 1)), firstExpectableMonth) > 0
+      ? firstExpectableMonth
       : addUtcMonths(startOfUtcMonth(anchorDate), -(maxLookbackMonths - 1)),
   );
   const firstReportedMonthDate = startOfUtcMonth(firstReportedDate);
@@ -4370,8 +4375,17 @@ const detectAccountReasons = (accountViews: ReasonAccountView[], report: CreditR
         .map((cell) => toHistoryMonthKey(cell.year, cell.month)),
     );
     const recentCurrentHistoryCells = findRecentCurrentHistoryCells(chronologicalPaymentHistoryCells);
+    // Operator ruling (Session 23): no month at or before the account's
+    // opening month can ever be a "missing payment" — no payment could have
+    // been reported yet. Applies to every missing-payment reason below.
+    const parsedOpenedDateForHistory = parseDateLike(account.dateOpenedValue);
+    const openedMonthSortValue = parsedOpenedDateForHistory
+      ? historyMonthSortValue(historyMonthKeyFromDate(startOfUtcMonth(parsedOpenedDateForHistory)))
+      : null;
     const missingPaymentHistoryMonths = findMissingHistoryMonths(chronologicalPaymentHistoryCells).filter(
-      (monthKey) => !useExperianPhaseOneProvenance || provablePaymentGapMonths.has(monthKey),
+      (monthKey) =>
+        (!useExperianPhaseOneProvenance || provablePaymentGapMonths.has(monthKey)) &&
+        (openedMonthSortValue === null || historyMonthSortValue(monthKey) > openedMonthSortValue),
     );
     const paymentHistoryLookup = toHistoryLookup(chronologicalPaymentHistoryCells);
     const balanceHistoryCells = account.balanceHistoryCells.length > 0 ? account.balanceHistoryCells : account.month24Sections?.balance ?? [];
@@ -4458,6 +4472,21 @@ const detectAccountReasons = (accountViews: ReasonAccountView[], report: CreditR
       account.dateReportedValue,
       account.statusUpdatedValue,
       latestPaymentCell ? formatHistoryCellMonth(latestPaymentCell) : "",
+    );
+    // Operator ruling (Session 23): an account is too new to owe ANY payment
+    // history until its first possible payment month (opening month + 1) has
+    // fully elapsed and could appear on the report — i.e. the report anchor
+    // sits at least 2 months past the opening month. Younger accounts have
+    // naturally blank history; disputing that is logically impossible and
+    // legally weak.
+    const parsedTimelineAnchorDate = parseDateLike(timelineAnchorValue);
+    const accountTooNewForPaymentHistory = Boolean(
+      parsedOpenedDateForHistory &&
+        parsedTimelineAnchorDate &&
+        monthsBetweenDates(
+          startOfUtcMonth(parsedOpenedDateForHistory),
+          startOfUtcMonth(parsedTimelineAnchorDate),
+        ) < 2,
     );
     const paymentHistoryLookbackMonths = resolvePaymentHistoryLookbackMonths(account);
     const paymentHistoryGapSinceOpenedDate = findPaymentHistoryGapSinceOpenedDate(
@@ -4808,7 +4837,7 @@ const detectAccountReasons = (accountViews: ReasonAccountView[], report: CreditR
       }));
     }
 
-    if (!paymentHistoryPresent && !collectionLike && !account.isClosed) {
+    if (!paymentHistoryPresent && !collectionLike && !account.isClosed && !accountTooNewForPaymentHistory) {
       reasons.push(buildReason({
         id: `missing-payment-history:${entityKey}`,
         bureau: report.bureau,

@@ -38,7 +38,14 @@ def harness_totals(draft, manifest):
     exp = re.search(r"EXPORTABLE: (\S+)", out)
     return (tot.group(1) if tot else "?"), (exp.group(1) if exp else "?")
 
+# A missing harness must abort the whole run, not degrade into per-row
+# failures (or worse, silently reuse stale engine output from a prior sweep).
+if not os.path.isfile(f"{HARNESS_DIR}/sweep-one.mjs"):
+    sys.exit(f"FATAL: engine harness not found at {HARNESS_DIR}/sweep-one.mjs "
+             "(set CC_ENGINE_HARNESS or restore tmp/diagnostics/engine-harness)")
+
 summary = {}
+failures = 0
 for profile in PROFILES:
     rows = []
     reports = latest_sessions(profile)
@@ -46,13 +53,22 @@ for profile in PROFILES:
     for name, (_, sid, rpath, pdf, images) in sorted(reports.items()):
         tag = f"{profile.split('_')[0]}-{re.sub(r'[^A-Za-z0-9_-]', '_', name.replace('.pdf',''))[:34]}"
         reasons_out = f"{SWEEP}/{tag}.reasons.json"
-        subprocess.run(["node", f"{HARNESS_DIR}/sweep-one.mjs", rpath, sid, reasons_out],
-                       capture_output=True, text=True, timeout=120)
+        # Never let a stale reasons file from an earlier sweep masquerade as
+        # fresh engine output when the engine fails to run.
         try:
+            os.remove(reasons_out)
+        except FileNotFoundError:
+            pass
+        node = subprocess.run(["node", f"{HARNESS_DIR}/sweep-one.mjs", rpath, sid, reasons_out],
+                              capture_output=True, text=True, timeout=120)
+        try:
+            assert node.returncode == 0, node.stderr[-200:]
             eng = json.load(open(reasons_out))
             assert eng.get('ok')
-        except Exception:
-            rows.append({"report": name, "status": "ENGINE-FAIL"}); print(f"ENGINE-FAIL {name}", flush=True); continue
+        except Exception as exc:
+            failures += 1
+            rows.append({"report": name, "status": "ENGINE-FAIL", "err": str(exc)[:200]})
+            print(f"ENGINE-FAIL {name}", flush=True); continue
         draft_path = f"{SWEEP}/{tag}.draft.json"
         json.dump({"sessionId": sid, "selectedReasons": eng["reasons"]}, open(draft_path, 'w'))
         outdir = f"{SWEEP}/{tag}.out"; os.makedirs(outdir, exist_ok=True)
@@ -62,6 +78,7 @@ for profile in PROFILES:
                               "--highlighted-pdf-path", f"{outdir}/highlighted-report.pdf"],
                              capture_output=True, text=True, timeout=600)
         if gen.returncode != 0:
+            failures += 1
             rows.append({"report": name, "status": "GEN-FAIL", "err": gen.stderr[-200:]})
             print(f"GEN-FAIL {name}", flush=True); continue
         m = json.load(open(f"{outdir}/evidence-manifest.json"))
@@ -81,3 +98,5 @@ for profile in PROFILES:
 
 json.dump(summary, open(f"{SWEEP}/certification-summary.json", 'w'), indent=1)
 print("\nwritten:", f"{SWEEP}/certification-summary.json")
+if failures:
+    sys.exit(f"CERTIFY FAILED: {failures} report(s) did not complete the pipeline")
