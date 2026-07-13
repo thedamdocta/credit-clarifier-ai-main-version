@@ -435,6 +435,106 @@ def union_pdf_boxes(pdf_boxes: Sequence[Optional[Dict[str, float]]]) -> Optional
     }
 
 
+def snap_crop_to_text_lines(
+    crop: Dict[str, float],
+    words: Sequence["Word"],
+    page_width: float,
+    page_height: float,
+    protected: Optional[Sequence[Dict[str, float]]] = None,
+    pad: float = 10.0,
+    max_expand: float = 150.0,
+) -> Dict[str, int]:
+    """Operator polish rule (Session 23): a crop edge must never slice through
+    a text line — clipped words look unclean and can affect interpretation.
+    For every word an edge cuts, the edge either moves OUTWARD to include the
+    word fully (when the needed expansion is small) or INWARD past it, then a
+    small whitespace pad applies. Edges never contract past a protected
+    (highlight) rect; highlight geometry itself is untouched — only the
+    visible window moves."""
+    left = float(crop["x"])
+    top = float(crop["y"])
+    right = left + float(crop["width"])
+    bottom = top + float(crop["height"])
+
+    # The rects this crop exists to show — contraction may never cross them.
+    p_left, p_top, p_right, p_bottom = right, bottom, left, top
+    for rect in protected or []:
+        p_left = min(p_left, float(rect["x"]))
+        p_top = min(p_top, float(rect["y"]))
+        p_right = max(p_right, float(rect["x"]) + float(rect["width"]))
+        p_bottom = max(p_bottom, float(rect["y"]) + float(rect["height"]))
+    has_protected = bool(protected)
+
+    # Per-word nudging oscillates when a label column interleaves with value
+    # columns (include A slices B, exclude B slices C, ...). Instead: merge the
+    # spans of every word an edge could slice into FORBIDDEN INTERVALS and
+    # place the edge outside them in one deterministic step — expansion when
+    # cheap, contraction otherwise, and contraction never crosses a highlight
+    # (a larger crop is the lesser evil than cutting evidence).
+    def merged_intervals(spans: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+        merged: List[List[float]] = []
+        for start, end in sorted(spans):
+            if merged and start <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], end)
+            else:
+                merged.append([start, end])
+        return [(m[0], m[1]) for m in merged]
+
+    def resolve_edge(
+        edge: float,
+        spans: List[Tuple[float, float]],
+        lo_bound: float,
+        hi_bound: float,
+        expand_low: bool,
+        protect_limit: Optional[float],
+    ) -> float:
+        # Labels and headers live LEFT of and ABOVE values — inclusion on those
+        # edges preserves interpretive context (which table, which field), so
+        # they get double the expansion allowance before contraction wins.
+        allowance = max_expand * 3.0 if expand_low else max_expand
+        for start, end in merged_intervals(spans):
+            if start < edge < end:
+                if expand_low:  # left/top edges expand by moving toward lo_bound
+                    expand_pos = max(lo_bound, start - pad)
+                    contract_pos = end + pad
+                    expand_cost = edge - expand_pos
+                    contract_ok = protect_limit is None or contract_pos <= protect_limit
+                else:  # right/bottom edges expand by moving toward hi_bound
+                    expand_pos = min(hi_bound, end + pad)
+                    contract_pos = start - pad
+                    expand_cost = expand_pos - edge
+                    contract_ok = protect_limit is None or contract_pos >= protect_limit
+                return expand_pos if (expand_cost <= allowance or not contract_ok) else contract_pos
+        return edge
+
+    for _ in range(2):  # vertical edges first, then horizontal against the new band
+        x_overlapping = [
+            (float(w.box["y"]), float(w.box["y"]) + float(w.box["height"]))
+            for w in words
+            if float(w.box["x"]) + float(w.box["width"]) > left and float(w.box["x"]) < right
+        ]
+        top = resolve_edge(top, x_overlapping, 0.0, page_height, True, (p_top - pad) if has_protected else None)
+        bottom = resolve_edge(bottom, x_overlapping, 0.0, page_height, False, (p_bottom + pad) if has_protected else None)
+        y_overlapping = [
+            (float(w.box["x"]), float(w.box["x"]) + float(w.box["width"]))
+            for w in words
+            if float(w.box["y"]) + float(w.box["height"]) > top and float(w.box["y"]) < bottom
+        ]
+        left = resolve_edge(left, y_overlapping, 0.0, page_width, True, (p_left - pad) if has_protected else None)
+        right = resolve_edge(right, y_overlapping, 0.0, page_width, False, (p_right + pad) if has_protected else None)
+
+    left = max(0.0, min(left, page_width - 1.0))
+    top = max(0.0, min(top, page_height - 1.0))
+    right = max(left + 1.0, min(right, page_width))
+    bottom = max(top + 1.0, min(bottom, page_height))
+    return {
+        "x": int(round(left)),
+        "y": int(round(top)),
+        "width": int(round(right - left)),
+        "height": int(round(bottom - top)),
+    }
+
+
 def expand_box(box: Dict[str, float], page_width: float, page_height: float, padding_x: float, padding_y: float) -> Dict[str, int]:
     return clip_box(
         {
@@ -3965,6 +4065,26 @@ def build_manifest(
 ) -> Dict[str, object]:
     selected_reasons = draft.get("selectedReasons") or []
     bundles = [build_reason_bundle(reason, locator, session_context, retry_mode) for reason in selected_reasons]
+    # Crop-polish pass: snap every slide's crop window to text-line whitespace
+    # so no edge slices a word (operator, Session 23). Applied at manifest
+    # assembly so ALL slide-building paths inherit it uniformly.
+    for bundle in bundles:
+        for slide in bundle.get("slides") or []:
+            crop = slide.get("cropBox")
+            page_number = slide.get("pageNumber")
+            if not isinstance(crop, dict) or not page_number:
+                continue
+            words = locator.page_words.get(int(page_number)) or []
+            size = locator.page_sizes.get(int(page_number))
+            if not words or not size:
+                continue
+            slide["cropBox"] = snap_crop_to_text_lines(
+                crop,
+                words,
+                float(size[0]),
+                float(size[1]),
+                protected=slide.get("highlightBoxes") or [],
+            )
     unresolved_reason_ids = [bundle["reasonId"] for bundle in bundles if bundle["status"] != "ready"]
     blocking_unresolved_reason_ids = [
         bundle["reasonId"]
