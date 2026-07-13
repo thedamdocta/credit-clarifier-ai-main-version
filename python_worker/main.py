@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import asyncio
+import atexit
 import json
 import os
 import re
@@ -1979,6 +1980,33 @@ def payment_history_from_table(table: Dict[str, Any]) -> List[str]:
     return normalize_payment_history_values(values)
 
 
+GEOMETRY_REPAIR_COUNTS: Dict[str, int] = {}
+
+
+def note_geometry_repair(kind: str, detail: str = "", immediate: bool = False) -> None:
+    """Record a defensive geometry repair so masked upstream bugs stay visible.
+
+    Aggregate kinds (immediate=False) are routine — e.g. a grid row's final edge
+    extended past text that stops short of the last column — and surface only in
+    the exit summary (per-row warnings would flood stderr and train readers to
+    ignore it). Anomaly kinds (immediate=True) should be unreachable in healthy
+    extraction; each occurrence prints to stderr with identifiers. Session-22
+    lesson: silent repairs/skips in this pipeline hid the Dec-2020 checkmark
+    miss. stderr is safe here — the server collects it for logs only
+    (pythonWorker.mjs) and failure is signaled by exit code/status.
+    """
+    GEOMETRY_REPAIR_COUNTS[kind] = GEOMETRY_REPAIR_COUNTS.get(kind, 0) + 1
+    if immediate:
+        print(f"[geometry-repair] {kind}: {detail}", file=sys.stderr)
+
+
+@atexit.register
+def _emit_geometry_repair_summary() -> None:
+    if GEOMETRY_REPAIR_COUNTS:
+        counts = ", ".join(f"{kind}={count}" for kind, count in sorted(GEOMETRY_REPAIR_COUNTS.items()))
+        print(f"[geometry-repair] summary: {counts}", file=sys.stderr)
+
+
 def table_column_boundaries(table: Dict[str, Any]) -> List[float]:
     columns = table.get("columns") or []
     if not columns:
@@ -1994,7 +2022,10 @@ def table_column_boundaries(table: Dict[str, Any]) -> List[float]:
         column_width = boundaries[-1] - boundaries[-2]
     else:
         column_width = 0.0
-    boundaries.append(max(table_x_max, boundaries[-1] + max(column_width, 1.0)))
+    guarded_edge = boundaries[-1] + max(column_width, 1.0)
+    if guarded_edge > table_x_max:
+        note_geometry_repair("table_last_edge_extended")
+    boundaries.append(max(table_x_max, guarded_edge))
     return boundaries
 
 
@@ -2244,7 +2275,10 @@ def column_boundaries_from_positions(row: Dict[str, Any], columns: List[float]) 
         column_width = boundaries[-1] - boundaries[-2]
     else:
         column_width = 0.0
-    boundaries.append(max(row_x_max, boundaries[-1] + max(column_width, 1.0)))
+    guarded_edge = boundaries[-1] + max(column_width, 1.0)
+    if guarded_edge > row_x_max:
+        note_geometry_repair("row_last_edge_extended")
+    boundaries.append(max(row_x_max, guarded_edge))
     return boundaries
 
 
@@ -2307,6 +2341,11 @@ def row_cell_details_for_columns(row: Dict[str, Any], columns: List[float]) -> L
             if right_edge <= left_edge:
                 # Never emit an inverted/degenerate bbox — fall back to one median
                 # column width to the right of the cell's own left edge.
+                note_geometry_repair(
+                    "degenerate_cell_bbox_repaired",
+                    f"column {index + 1}/{len(boundaries) - 1} edges [{left_edge:.2f}, {right_edge:.2f}] row y {row_top:.2f}",
+                    immediate=True,
+                )
                 widths = [boundaries[i + 1] - boundaries[i] for i in range(len(boundaries) - 1) if boundaries[i + 1] > boundaries[i]]
                 fallback_width = sorted(widths)[len(widths) // 2] if widths else 10.0
                 right_edge = left_edge + fallback_width
@@ -2500,6 +2539,12 @@ def enrich_payment_history_evidence_from_image(
                     bbox = cell.get("bbox") or {}
                     if not bbox:
                         continue
+                    if float(bbox.get("xMax") or 0.0) < float(bbox.get("xMin") or 0.0):
+                        note_geometry_repair(
+                            "inverted_bbox_normalized",
+                            f"page {page_number} year {row.get('year')} month {month} bbox xMin {bbox.get('xMin')} > xMax {bbox.get('xMax')}",
+                            immediate=True,
+                        )
                     x_lo = min(float(bbox.get("xMin") or 0.0), float(bbox.get("xMax") or 0.0))
                     x_hi = max(float(bbox.get("xMin") or 0.0), float(bbox.get("xMax") or 0.0))
                     left = max(int(x_lo * scale_x), 0)
@@ -2509,8 +2554,18 @@ def enrich_payment_history_evidence_from_image(
                     if right <= left or bottom <= top:
                         # Never silently skip a candidate cell: a degenerate window
                         # hid the Dec-2020 checkmark. Widen to one nominal cell width.
+                        note_geometry_repair(
+                            "degenerate_crop_normalized",
+                            f"page {page_number} year {row.get('year')} month {month} window [{left}, {top}, {right}, {bottom}]",
+                            immediate=True,
+                        )
                         right = min(left + max(int(36.0 * scale_x), 8), image.width)
                         if right <= left or bottom <= top:
+                            note_geometry_repair(
+                                "degenerate_crop_skipped",
+                                f"page {page_number} year {row.get('year')} month {month} unrecoverable window [{left}, {top}, {right}, {bottom}]",
+                                immediate=True,
+                            )
                             continue
                     crop = image.crop((left, top, right, bottom))
                     if not detect_green_checkmark(crop):
