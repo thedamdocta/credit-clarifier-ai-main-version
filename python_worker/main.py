@@ -3049,6 +3049,42 @@ def is_meaningful_account_comment_text(value: str) -> bool:
     return not any(re.search(pattern, clean, re.IGNORECASE) for pattern in ACCOUNT_COMMENT_NARRATIVE_PATTERNS)
 
 
+EQUIFAX_NEW_HISTORY_FIELD_ALIASES = {
+    "paymentHistory": "paymentHistory",
+    "month24:balance": "balanceHistory",
+    "month24:paymentAmount": "actualPaymentHistory",
+    "month24:pastDueAmount": "amountPastDueHistory",
+    "month24:highCredit": "highCreditHistory",
+    "month24:creditLimit": "creditLimitHistory",
+    "month24:lastPaymentDate": "lastPaymentDateHistory",
+    "month24:narrativeCodes": "narrativeCodesHistory",
+}
+
+
+def remap_equifax_new_history_fields(accounts: Any) -> List[Dict[str, Any]]:
+    """Non-mutating view of eq-new accounts whose _historyEvidence keys use the
+    canonical history-field names (balanceHistory, actualPaymentHistory, ...) so the
+    shared evidence collector emits fields/provenance ids the dispute layer already
+    understands. Additive only — the source account dicts are never modified."""
+    remapped: List[Dict[str, Any]] = []
+    for account in accounts if isinstance(accounts, list) else []:
+        if not isinstance(account, dict):
+            remapped.append(account)
+            continue
+        evidence = account.get("_historyEvidence")
+        if not isinstance(evidence, dict) or not evidence:
+            remapped.append(account)
+            continue
+        renamed = {
+            EQUIFAX_NEW_HISTORY_FIELD_ALIASES.get(field, field): rows
+            for field, rows in evidence.items()
+        }
+        clone = dict(account)
+        clone["_historyEvidence"] = renamed
+        remapped.append(clone)
+    return remapped
+
+
 def collect_account_history_evidence(accounts: Any) -> List[Dict[str, Any]]:
     evidence_items: List[Dict[str, Any]] = []
     if not isinstance(accounts, list):
@@ -6932,6 +6968,14 @@ def generate_equifax_new_result(
             "componentSources": component_sources,
             "pageIndexSource": page_tree.get("source", "heuristic"),
             "pageIndexFallbackReason": page_tree.get("fallback_reason"),
+            # Additive (2026-07-12): eq-new now emits accountHistoryEvidence in the
+            # equifax_old schema (per-cell bbox -> pdfBBox + provenance id via the
+            # shared collector) so the dispute evidence generator can highlight
+            # measured cells. month24:* field keys are remapped to their canonical
+            # history-field names for downstream consumers.
+            "accountHistoryEvidence": collect_account_history_evidence(
+                remap_equifax_new_history_fields((components.get("accounts") or {}).get("accounts"))
+            ),
             "layoutArtifactsPath": str(session_dir / "ingestion" / "layout-artifacts.json"),
             "layoutSummary": [
                 {

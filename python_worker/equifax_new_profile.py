@@ -747,15 +747,22 @@ def set_history_cell(
     value: str,
     page_number: int,
     source_type: str,
+    bbox: Optional[Dict[str, float]] = None,
 ) -> None:
     if not year or not month or year not in history_rows or month not in MONTH_KEYS:
         return
     history_rows[year][month] = value
-    history_evidence[year]["months"][month] = {
+    cell: Dict[str, Any] = {
         "value": value,
         "pageNumber": page_number,
         "sourceType": source_type,
     }
+    # Additive geometry (2026-07-12): per-cell PDF-point bbox enables
+    # meta.accountHistoryEvidence parity with equifax_old so the dispute
+    # evidence generator can highlight measured cells. Existing keys unchanged.
+    if bbox:
+        cell["bbox"] = bbox
+    history_evidence[year]["months"][month] = cell
 
 
 def detect_green_checkmark(crop: "Image.Image") -> bool:
@@ -1022,6 +1029,13 @@ def parse_payment_history(section_rows: List[Dict[str, Any]], page: Any) -> Tupl
     }
     year_ranges = year_ranges_from_block(year_block, years, float(section_rows[0]["bbox"]["yMax"]), legend_top)
 
+    def month_cell_bbox(month_key: str, block: Dict[str, Any], line_center: float, line_height: float) -> Dict[str, float]:
+        span = spans.get(month_key)
+        x_min = float(span[0]) if span else float(block["bbox"]["xMin"])
+        x_max = float(span[1]) if span else float(block["bbox"]["xMax"])
+        half = max(line_height, 4.0) / 2.0
+        return {"xMin": x_min, "xMax": x_max, "yMin": line_center - half, "yMax": line_center + half}
+
     for month_key, block in month_blocks.items():
         lines = lines_from_block(block)
         if len(lines) <= 1:
@@ -1034,7 +1048,10 @@ def parse_payment_history(section_rows: List[Dict[str, Any]], page: Any) -> Tupl
             line_center = float(block["bbox"]["yMin"]) + ((line_index + 0.5) * line_height)
             year = nearest_year_for_y(line_center, year_ranges)
             if year and history_rows[year][month_key] == "-":
-                set_history_cell(history_rows, history_evidence, year, month_key, value, page_number, "text")
+                set_history_cell(
+                    history_rows, history_evidence, year, month_key, value, page_number, "text",
+                    bbox=month_cell_bbox(month_key, block, line_center, line_height),
+                )
 
     month_centers = {
         month: (float(block["bbox"]["xMin"]) + float(block["bbox"]["xMax"])) / 2.0
@@ -1068,7 +1085,10 @@ def parse_payment_history(section_rows: List[Dict[str, Any]], page: Any) -> Tupl
                 line_center = float(block["bbox"]["yMin"]) + ((line_index + 0.5) * line_height)
                 year = nearest_year_for_y(line_center, year_ranges)
                 if year and history_rows[year][month_key] == "-":
-                    set_history_cell(history_rows, history_evidence, year, month_key, value, page_number, "text")
+                    set_history_cell(
+                        history_rows, history_evidence, year, month_key, value, page_number, "text",
+                        bbox=month_cell_bbox(month_key, block, line_center, line_height),
+                    )
 
     if spans:
         for year in years:
@@ -1086,7 +1106,26 @@ def parse_payment_history(section_rows: List[Dict[str, Any]], page: Any) -> Tupl
                     (span[0], row_top, span[1], row_bottom),
                 )
                 if value != "-":
-                    set_history_cell(history_rows, history_evidence, year, month, value, page_number, source_type)
+                    set_history_cell(
+                        history_rows, history_evidence, year, month, value, page_number, source_type,
+                        bbox={"xMin": float(span[0]), "xMax": float(span[1]), "yMin": float(row_top), "yMax": float(row_bottom)},
+                    )
+
+    # Blank cells still get measured geometry (month span x year band) so absence
+    # is highlightable downstream — mirrors equifax_old's column-boundary fallback.
+    if spans:
+        for year in years:
+            row_top, row_bottom = year_ranges.get(year, (0.0, 0.0))
+            if row_bottom <= row_top:
+                continue
+            for month in MONTH_KEYS:
+                cell = history_evidence[year]["months"][month]
+                if cell.get("bbox"):
+                    continue
+                span = spans.get(month)
+                if not span:
+                    continue
+                cell["bbox"] = {"xMin": float(span[0]), "xMax": float(span[1]), "yMin": float(row_top), "yMax": float(row_bottom)}
 
     return [history_rows[year] for year in years], [history_evidence[year] for year in years]
 
@@ -1242,6 +1281,7 @@ def parse_month24_history(section_rows: List[Dict[str, Any]], page: Any) -> Tupl
                     continue
                 year, month_key = mapped
                 if value_row_maps[field_key][year][month_key] == "-":
+                    half_line = max(line_height, 4.0) / 2.0
                     set_history_cell(
                         value_row_maps[field_key],
                         evidence_row_maps[field_key],
@@ -1250,6 +1290,12 @@ def parse_month24_history(section_rows: List[Dict[str, Any]], page: Any) -> Tupl
                         value,
                         page_number,
                         "text",
+                        bbox={
+                            "xMin": float(block["bbox"]["xMin"]),
+                            "xMax": float(block["bbox"]["xMax"]),
+                            "yMin": y_center - half_line,
+                            "yMax": y_center + half_line,
+                        },
                     )
 
     sections = []
