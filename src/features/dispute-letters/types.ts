@@ -235,6 +235,12 @@ export interface DisputeLetterSection {
   reasonIds?: string[];
 }
 
+export interface DisputeEvidenceOptions {
+  inlineExhibits: boolean;
+  memorandum: boolean;
+  highlightedReport: boolean;
+}
+
 export interface DisputeLetterRenderState {
   previewHtml: string;
   docxPath?: string | null;
@@ -243,6 +249,10 @@ export interface DisputeLetterRenderState {
   pdfUrl?: string | null;
   highlightedReportPdfPath?: string | null;
   highlightedReportPdfUrl?: string | null;
+  memorandumDocxPath?: string | null;
+  memorandumDocxUrl?: string | null;
+  memorandumPdfPath?: string | null;
+  memorandumPdfUrl?: string | null;
   draftDirty: boolean;
   documentOverride: boolean;
   evidenceGeneratedAt?: string | null;
@@ -368,6 +378,9 @@ export interface DisputeLetterDraft {
   variantSelection: Record<string, number>;
   renderState: DisputeLetterRenderState;
   evidenceManifest?: DisputeEvidenceManifest | null;
+  evidenceOptions?: DisputeEvidenceOptions | null;
+  letterMode?: "inline" | "memorandum" | null;
+  exhibitNumbering?: "numeric" | "alpha" | null;
   fullDocumentHtml: string;
   reportSummary: {
     fileName?: string;

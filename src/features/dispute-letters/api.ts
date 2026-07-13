@@ -92,13 +92,22 @@ export const renderDisputeLetterDraft = async (draftId: string, rebuildFromSecti
   return json.draft as DisputeLetterDraft;
 };
 
-export const exportDisputeLetterDraft = async (draftId: string) => {
+export interface ExportEvidenceSelection {
+  inlineExhibits: boolean;
+  memorandum: boolean;
+  highlightedReport: boolean;
+  exhibitNumbering: "numeric" | "alpha";
+}
+
+export const exportDisputeLetterDraft = async (draftId: string, selection?: ExportEvidenceSelection) => {
   const response = await fetch(`/api/dispute-drafts/${draftId}/export`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: selection ? JSON.stringify(selection) : undefined,
   });
   const json = await ensureOk(response, "Failed to export dispute letter artifacts.");
-  return json.draft as DisputeLetterDraft;
+  const warnings = Array.isArray(json.warnings) ? (json.warnings as string[]) : [];
+  return { draft: json.draft as DisputeLetterDraft, warnings };
 };
 
 export const generateDisputeEvidence = async (draftId: string) => {

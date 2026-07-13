@@ -291,6 +291,27 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
   const [lastAutoEvidenceDraftId, setLastAutoEvidenceDraftId] = useState<string | null>(null);
   const [isAutoSyncPending, setIsAutoSyncPending] = useState(false);
   const [draft, setDraft] = useState<DisputeLetterDraft | null>(null);
+  const [evidenceSelection, setEvidenceSelection] = useState({
+    inlineExhibits: false,
+    memorandum: false,
+    highlightedReport: false,
+  });
+  const [exhibitNumbering, setExhibitNumbering] = useState<"numeric" | "alpha">("numeric");
+  const syncedEvidenceDraftId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!draft || syncedEvidenceDraftId.current === draft.id) return;
+    syncedEvidenceDraftId.current = draft.id;
+    if (draft.evidenceOptions) {
+      setEvidenceSelection({
+        inlineExhibits: Boolean(draft.evidenceOptions.inlineExhibits),
+        memorandum: Boolean(draft.evidenceOptions.memorandum),
+        highlightedReport: Boolean(draft.evidenceOptions.highlightedReport),
+      });
+    }
+    if (draft.exhibitNumbering === "numeric" || draft.exhibitNumbering === "alpha") {
+      setExhibitNumbering(draft.exhibitNumbering);
+    }
+  }, [draft]);
   const [isSaving, setIsSaving] = useState(false);
   const [fullDocumentHtml, setFullDocumentHtml] = useState("");
   const autoSyncStartedAtRef = useRef<number | null>(null);
@@ -695,12 +716,21 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
     if (!draft) return;
     setIsSaving(true);
     try {
-      const nextDraft = await exportDisputeLetterDraft(draft.id);
+      const { draft: nextDraft, warnings } = await exportDisputeLetterDraft(draft.id, {
+        ...evidenceSelection,
+        exhibitNumbering,
+      });
       setDraft(nextDraft);
       toast({
         title: "Artifacts generated",
-        description: "DOCX and PDF outputs were generated into the dispute-letter output folder.",
+        description: "The dispute letter and selected evidence documents were generated.",
       });
+      for (const warning of warnings.slice(0, 3)) {
+        toast({ title: "Export note", description: warning });
+      }
+      if (warnings.length > 3) {
+        toast({ title: "Export notes", description: `${warnings.length - 3} additional notes — see the draft output folder.` });
+      }
     } catch (error) {
       toast({
         title: "Export failed",
@@ -2033,20 +2063,89 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
               </Alert>
             ) : (
               <>
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                  <p className="font-medium text-slate-900">Evidence package</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    The dispute letter always ships. Choose which evidence documents accompany it.
+                  </p>
+                  <div className="mt-5 space-y-4">
+                    {[
+                      {
+                        key: "inlineExhibits" as const,
+                        title: "Screenshots inside the letter",
+                        description: "Each dispute section carries its highlighted report crops as numbered exhibit figures.",
+                      },
+                      {
+                        key: "memorandum" as const,
+                        title: "Evidence memorandum",
+                        description: "A separate document mirroring the letter's exhibit numbering, carrying the screenshots.",
+                      },
+                      {
+                        key: "highlightedReport" as const,
+                        title: "Highlighted full report",
+                        description: "The complete credit report with every disputed item marked and chip-numbered.",
+                      },
+                    ].map((option) => (
+                      <div key={option.key} className="flex items-start gap-3">
+                        <Checkbox
+                          id={`evidence-${option.key}`}
+                          checked={evidenceSelection[option.key]}
+                          onCheckedChange={(checked) =>
+                            setEvidenceSelection((current) => ({ ...current, [option.key]: checked === true }))
+                          }
+                          className="mt-0.5"
+                        />
+                        <div className="space-y-0.5">
+                          <Label htmlFor={`evidence-${option.key}`} className="cursor-pointer font-medium text-slate-900">
+                            {option.title}
+                          </Label>
+                          <p className="text-sm leading-relaxed text-slate-500">{option.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+                    <Label className="text-sm font-medium text-slate-900">Exhibit numbering</Label>
+                    <Select value={exhibitNumbering} onValueChange={(value) => setExhibitNumbering(value as "numeric" | "alpha")}>
+                      <SelectTrigger className="w-44">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="numeric">Exhibit 1, 2, 3…</SelectItem>
+                        <SelectItem value="alpha">Exhibit A, B, C…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button variant="outline" onClick={() => void refreshPreview()} disabled={isSaving}>
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Refresh Preview
                   </Button>
-                  <Button onClick={() => void exportDraft()} disabled={isSaving}>Generate DOCX / PDF</Button>
+                  <Button onClick={() => void exportDraft()} disabled={isSaving}>Generate Documents</Button>
                   {draft.renderState.docxUrl && (
                     <Button asChild variant="outline">
-                      <a href={draft.renderState.docxUrl} target="_blank" rel="noreferrer">Open DOCX</a>
+                      <a href={draft.renderState.docxUrl} target="_blank" rel="noreferrer">Letter DOCX</a>
                     </Button>
                   )}
                   {draft.renderState.pdfUrl && (
                     <Button asChild variant="outline">
-                      <a href={draft.renderState.pdfUrl} target="_blank" rel="noreferrer">Open PDF</a>
+                      <a href={draft.renderState.pdfUrl} target="_blank" rel="noreferrer">Letter PDF</a>
+                    </Button>
+                  )}
+                  {draft.renderState.memorandumDocxUrl && (
+                    <Button asChild variant="outline">
+                      <a href={draft.renderState.memorandumDocxUrl} target="_blank" rel="noreferrer">Memorandum DOCX</a>
+                    </Button>
+                  )}
+                  {draft.renderState.memorandumPdfUrl && (
+                    <Button asChild variant="outline">
+                      <a href={draft.renderState.memorandumPdfUrl} target="_blank" rel="noreferrer">Memorandum PDF</a>
+                    </Button>
+                  )}
+                  {draft.renderState.highlightedReportPdfUrl && (
+                    <Button asChild variant="outline">
+                      <a href={draft.renderState.highlightedReportPdfUrl} target="_blank" rel="noreferrer">Highlighted Report</a>
                     </Button>
                   )}
                 </div>
