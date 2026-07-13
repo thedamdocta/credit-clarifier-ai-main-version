@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import fitz  # type: ignore
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 GENERIC_VALUE_TOKENS = {
@@ -118,6 +118,8 @@ SCALAR_FIELD_PRINTED_LABELS = {
     "dateopened": ["Date Opened"],
     "closuretiming": ["Date of Last Payment"],
     "paymentamount": ["Actual Payment Amount"],
+    "dateoffirstdelinquency": ["Date of First Delinquency"],
+    "monthsreviewed": ["Months Reviewed"],
     # Consumer-information-indicator metadata is derived by the dispute layer and has
     # no printed section on Equifax old-format reports — the on-face evidence is the
     # conflicting Account Status values, which the structured slide boxes directly.
@@ -148,6 +150,8 @@ SCALAR_CITATION_LABEL_KEYWORDS = [
     ("charge-off", "chargeoffamount"),
     ("account number", "accountnumber"),
     ("payment amount", "paymentamount"),
+    ("first delinquency", "dateoffirstdelinquency"),
+    ("months reviewed", "monthsreviewed"),
     ("indicator code", "indicatorcode"),
     ("indicator description", "indicatordescription"),
     ("indicator category", "indicatorcategory"),
@@ -3037,9 +3041,19 @@ def build_structured_slides(
         "last_payment_date_without_scheduled_payment_amount",
     } and not slides:
         last_payment_values = resolve_account_field_values(account_context, "lastPaymentDate")
-        payment_label_variants = ["Payment Amount", "Actual Payment", "Scheduled Payment", "Recent Payment"]
+        # Per-variant label + field specs: the two issue types cite DIFFERENT missing
+        # fields — a shared spec list made both reasons highlight "Actual Payment"
+        # and produce byte-identical exhibits (Phase 1 QC finding).
+        if issue_type == "last_payment_date_without_scheduled_payment_amount":
+            fallback_label = "Last payment date without scheduled payment amount"
+            payment_label_variants = ["Scheduled Payment Amount", "Scheduled Payment"]
+            payment_anchor_label = "scheduled Payment Amount"
+        else:
+            fallback_label = "Last payment date without payment amount"
+            payment_label_variants = ["Actual Payment Amount", "Actual Payment", "Payment Amount", "Recent Payment"]
+            payment_anchor_label = "payment Amount"
         add_targeted_slide(
-            "Last payment date without payment amount",
+            fallback_label,
             [
                 TextSearchSpec("Tradeline", [account_context.account_name], "identity", False, 2.0),
                 TextSearchSpec(
@@ -3050,7 +3064,7 @@ def build_structured_slides(
                     4.0,
                 ),
                 TextSearchSpec("Reported last payment date field", last_payment_values, "account_field", False, 4.8),
-                TextSearchSpec("payment Amount", payment_label_variants, "field", False, 4.6),
+                TextSearchSpec(payment_anchor_label, payment_label_variants, "field", False, 4.6),
             ],
         )
 
@@ -3173,6 +3187,29 @@ def build_structured_slides(
     # blanks are highlighted in every table they implicate. Both sides of a
     # payment-vs-balance (or present-vs-missing) comparison get their own box.
     if not slides and monthly_comparisons:
+        # Accumulate across comparisons and emit ONE combined slide set: repeated
+        # resolutions (e.g. the same coverage-boundary cell cited by every month)
+        # collapse to a single box instead of duplicate mislabeled slides
+        # (Phase 1 QC finding: three byte-identical boundary slides labeled as
+        # three different months).
+        generic_matches: List[Match] = []
+        seen_generic: set = set()
+        span_months: List[Tuple[str, str]] = []
+
+        def add_generic(match: Optional[Match]) -> None:
+            if not match:
+                return
+            key = match.provenance_id or (
+                match.page_number,
+                round(match.box["x"], 1),
+                round(match.box["y"], 1),
+                round(match.box["width"], 1),
+            )
+            if key in seen_generic:
+                return
+            seen_generic.add(key)
+            generic_matches.append(match)
+
         for comparison in monthly_comparisons[:6]:
             if not isinstance(comparison, dict):
                 continue
@@ -3180,7 +3217,7 @@ def build_structured_slides(
             if not parsed_month:
                 continue
             year, month_key = parsed_month
-            matches: List[Match] = []
+            span_months.append((year, month_key))
             for side_label_key, side_value_key in (("leftLabel", "leftValue"), ("rightLabel", "rightValue")):
                 side_label = normalize_text(comparison.get(side_label_key))
                 side_value = normalize_text(comparison.get(side_value_key))
@@ -3199,24 +3236,24 @@ def build_structured_slides(
                 if cells:
                     cell = cells[0]
                     cell_text = normalize_text(cell.value) or missing_history_slot_text(field_name, cell_year, cell_month)
-                    matches.append(
+                    add_generic(
                         build_account_history_match(
                             side_label or humanize_field_name(field_name), cell, 5.0, matched_text=cell_text
                         )
                     )
                 else:
-                    gap_match = infer_history_gap_match(
-                        account_context, field_name, cell_year, cell_month, locator,
-                        label=f"{side_label or humanize_field_name(field_name)} — {format_month_reference(cell_year, cell_month)} missing",
+                    add_generic(
+                        infer_history_gap_match(
+                            account_context, field_name, cell_year, cell_month, locator,
+                            label=f"{side_label or humanize_field_name(field_name)} — {format_month_reference(cell_year, cell_month)} missing",
+                        )
                     )
-                    if gap_match:
-                        matches.append(gap_match)
                 if side_value and side_value.lower() not in GENERIC_VALUE_TOKENS:
                     progression = split_value_progression(side_value)
                     if progression:
                         next_year, next_month_key = next_month_reference(year, month_key)
                         for cell in find_history_cells_for_month(account_context, field_name, next_year, next_month_key, [progression[1]]):
-                            matches.append(
+                            add_generic(
                                 build_account_history_match(
                                     f"Next-month {side_label or humanize_field_name(field_name)}".strip(),
                                     cell,
@@ -3224,10 +3261,16 @@ def build_structured_slides(
                                     matched_text=cell.value,
                                 )
                             )
-            if matches:
-                slide_from_matches_by_page_with_context(
-                    f"{format_month_reference(year, month_key)} cross-table comparison", matches
-                )
+        if generic_matches:
+            if span_months:
+                first = format_month_reference(*span_months[0])
+                last = format_month_reference(*span_months[-1])
+                span_label = first if first == last else f"{first} – {last}"
+            else:
+                span_label = "Cited months"
+            slide_from_matches_by_page_with_context(
+                f"{span_label} cross-table comparison", generic_matches
+            )
 
     return dedupe_slides(slides)[:5]
 
@@ -3276,6 +3319,7 @@ def build_scalar_citation_slides(
         return []
 
     matches_by_page: Dict[int, List[Match]] = defaultdict(list)
+    context_boxes_by_page: Dict[int, List[Dict[str, float]]] = {}
     claimed_rects: set = set()
 
     for citation_label, cited_value in citations:
@@ -3285,7 +3329,7 @@ def build_scalar_citation_slides(
             # exists on the face). Either way there is nothing to anchor to.
             continue
         cited_missing = not cited_value or cited_value.lower() in GENERIC_VALUE_TOKENS
-        candidates: List[Tuple[Tuple[int, int, int], Match]] = []
+        candidates: List[Tuple[Tuple[int, int, int], Match, Dict[str, float]]] = []
         for printed in printed_labels:
             probe_anchor = create_anchor(citation_label, printed, "field", False, 1.0)
             for page_order, page_number in enumerate(pages):
@@ -3401,12 +3445,13 @@ def build_scalar_citation_slides(
                         )
                         # a blank row when the citation expects absence is the goal
                         rank = (0 if cited_missing else 3, page_order, 1)
-                    candidates.append((rank, candidate))
+                    candidates.append((rank, candidate, dict(label_box)))
 
         if not candidates:
             continue
         candidates.sort(key=lambda entry: entry[0])
         best = candidates[0][1]
+        best_label_box = candidates[0][2]
         rect_key = (
             best.page_number,
             round(best.box["x"], 0),
@@ -3416,6 +3461,7 @@ def build_scalar_citation_slides(
         if rect_key not in claimed_rects:
             claimed_rects.add(rect_key)
             matches_by_page[best.page_number].append(best)
+            context_boxes_by_page.setdefault(best.page_number, []).append(best_label_box)
 
     slides: List[Dict[str, object]] = []
     for page_number in sorted(matches_by_page.keys()):
@@ -3423,9 +3469,21 @@ def build_scalar_citation_slides(
         if not page_matches:
             continue
         page_width, page_height = locator.page_sizes[page_number]
+        crop_union = union_boxes(
+            [match.box for match in page_matches] + context_boxes_by_page.get(page_number, [])
+        )
+        contextual_crop = None
+        if crop_union:
+            padding_x = max(40.0, page_width * 0.02)
+            padding_y = max(34.0, page_height * 0.02)
+            contextual_crop = {
+                "cropBox": expand_box(crop_union, page_width, page_height, padding_x, padding_y),
+                "cropPadding": {"x": round(padding_x, 2), "y": round(padding_y, 2)},
+            }
         slides.append(
             build_slide_from_matches(
-                page_matches, page_width, page_height, label="Account detail citations"
+                page_matches, page_width, page_height, label="Account detail citations",
+                contextual_crop=contextual_crop,
             )
         )
     return slides
@@ -3664,6 +3722,168 @@ def render_highlighted_report_pdf(source_pdf: Path, output_pdf: Path, manifest: 
     doc.close()
 
 
+# --- Evidence exhibits (Phase 1 of the Exhibit Builder plan) -------------------
+# Persist per-dispute screenshot crops with the SAME manifest geometry the certified
+# views use, numbered to match the letter's dispute order. Export-grade only.
+
+EXHIBIT_HIGHLIGHT_FILL = (255, 235, 59, 107)   # matches the 0.42-alpha yellow
+EXHIBIT_HIGHLIGHT_OUTLINE = (218, 165, 32, 200)
+
+
+def format_exhibit_number(index: int, style: str) -> str:
+    if style == "alpha":
+        label = ""
+        value = index
+        while True:
+            label = chr(ord("A") + value % 26) + label
+            value = value // 26 - 1
+            if value < 0:
+                break
+        return label
+    return str(index + 1)
+
+
+def build_exhibit_map(
+    draft: Dict[str, object],
+    manifest: Dict[str, object],
+    numbering_style: str = "numeric",
+) -> List[Dict[str, object]]:
+    """Letter-ordered exhibit list: one exhibit per export-grade dispute, numbered in
+    the order the letter presents its disputes (sections.accountDisputes[].reasonIds),
+    with any remaining export-grade reasons appended in manifest order."""
+    bundles = {bundle.get("reasonId"): bundle for bundle in manifest.get("reasons") or []}
+    reasons_by_id = {reason.get("id"): reason for reason in draft.get("selectedReasons") or []}
+
+    # Letter-order fidelity: walk BOTH section families in presentation order, honor
+    # section.enabled (a disabled section's disputes are not in the letter, so they
+    # must not consume exhibit numbers), and never resurrect a disabled reason via
+    # the manifest-order fallback.
+    ordered: List[str] = []
+    disabled: set = set()
+    sections = draft.get("sections") or {}
+    for section_key in ("accountDisputes", "personalInformationDisputes"):
+        for section in sorted(sections.get(section_key) or [], key=lambda entry: entry.get("order") or 0):
+            is_enabled = section.get("enabled", True)
+            for reason_id in section.get("reasonIds") or []:
+                if is_enabled:
+                    if reason_id not in ordered:
+                        ordered.append(reason_id)
+                else:
+                    disabled.add(reason_id)
+    disabled -= set(ordered)
+    for bundle in manifest.get("reasons") or []:
+        reason_id = bundle.get("reasonId")
+        if reason_id not in ordered and reason_id not in disabled:
+            ordered.append(reason_id)
+
+    exhibits: List[Dict[str, object]] = []
+    index = 0
+    for reason_id in ordered:
+        bundle = bundles.get(reason_id)
+        if not bundle or bundle.get("status") != "ready" or not bundle.get("exportGrade"):
+            continue
+        reason = reasons_by_id.get(reason_id) or {}
+        exhibits.append(
+            {
+                "exhibit": format_exhibit_number(index, numbering_style),
+                "reasonId": reason_id,
+                "issueType": bundle.get("issueType") or reason.get("issueType") or "",
+                "issueLabel": bundle.get("issueLabel") or reason.get("issueLabel") or "",
+                "reasonSummary": bundle.get("reasonSummary") or reason.get("reasonSummary") or "",
+                "requestedAction": reason.get("requestedAction") or "",
+                "entityKey": bundle.get("entityKey") or "",
+                "sourcePages": bundle.get("sourcePages") or [],
+                "slides": bundle.get("slides") or [],
+            }
+        )
+        index += 1
+    return exhibits
+
+
+def render_dispute_exhibits(
+    manifest: Dict[str, object],
+    draft: Dict[str, object],
+    locator: PageTextLocator,
+    exhibits_dir: Path,
+    numbering_style: str = "numeric",
+) -> Dict[str, object]:
+    """Render every exhibit slide to a PNG (crop + translucent highlight rects) and
+    write exhibits-manifest.json describing the compilation. Pure assembly on the
+    certified geometry — no coordinate math beyond crop-relative offsets."""
+    exhibits = build_exhibit_map(draft, manifest, numbering_style)
+    exhibits_dir.mkdir(parents=True, exist_ok=True)
+    # Stale exhibits from prior runs (renumbered disputes, numbering-style switches)
+    # must never survive — the artifacts route serves anything in this directory.
+    for stale in exhibits_dir.glob("exhibit-*.png"):
+        stale.unlink()
+    rendered: List[Dict[str, object]] = []
+    warnings: List[str] = []
+
+    for exhibit in exhibits:
+        slides_out: List[Dict[str, object]] = []
+        missing_image_pages: List[int] = []
+        for slide_index, slide in enumerate(exhibit["slides"], start=1):
+            page_number = int(slide.get("pageNumber") or 0)
+            image_path = locator.image_paths.get(page_number)
+            if not image_path or not Path(image_path).exists():
+                missing_image_pages.append(page_number)
+                warnings.append(
+                    f"exhibit {exhibit['exhibit']}: page {page_number} image missing — slide skipped"
+                )
+                continue
+            crop = slide.get("cropBox") or {}
+            x = int(crop.get("x") or 0)
+            y = int(crop.get("y") or 0)
+            width = max(1, int(crop.get("width") or 1))
+            height = max(1, int(crop.get("height") or 1))
+            with Image.open(image_path) as page_image:
+                cropped = page_image.crop((x, y, x + width, y + height)).convert("RGBA")
+                overlay = Image.new("RGBA", cropped.size, (0, 0, 0, 0))
+                draw = ImageDraw.Draw(overlay)
+                for box in slide.get("highlightBoxes") or []:
+                    left = int(box.get("x", 0)) - x
+                    top = int(box.get("y", 0)) - y
+                    right = left + int(box.get("width", 0))
+                    bottom = top + int(box.get("height", 0))
+                    draw.rectangle(
+                        (left, top, right, bottom),
+                        fill=EXHIBIT_HIGHLIGHT_FILL,
+                        outline=EXHIBIT_HIGHLIGHT_OUTLINE,
+                        width=2,
+                    )
+                composed = Image.alpha_composite(cropped, overlay).convert("RGB")
+                file_name = f"exhibit-{exhibit['exhibit']}-{slide_index:02d}.png"
+                composed.save(str(exhibits_dir / file_name))
+            slides_out.append(
+                {
+                    "file": file_name,
+                    "pageNumber": page_number,
+                    "label": slide.get("label") or "",
+                    "matchedText": slide.get("matchedText") or "",
+                    "highlightCount": len(slide.get("highlightBoxes") or []),
+                }
+            )
+        rendered.append(
+            {
+                **{key: exhibit[key] for key in (
+                    "exhibit", "reasonId", "issueType", "issueLabel",
+                    "reasonSummary", "requestedAction", "entityKey", "sourcePages",
+                )},
+                "slides": slides_out,
+                **({"missingImagePages": missing_image_pages} if missing_image_pages else {}),
+            }
+        )
+
+    exhibits_manifest = {
+        "numberingStyle": numbering_style,
+        "exhibitCount": len(rendered),
+        "exhibits": rendered,
+        **({"warnings": warnings} if warnings else {}),
+    }
+    (exhibits_dir / "exhibits-manifest.json").write_text(json.dumps(exhibits_manifest, indent=2))
+    return exhibits_manifest
+
+
 def build_manifest(
     draft: Dict[str, object],
     locator: PageTextLocator,
@@ -3710,6 +3930,8 @@ def main():
     parser.add_argument("--highlighted-pdf-path")
     parser.add_argument("--session-id")
     parser.add_argument("--retry-mode", default="default")
+    parser.add_argument("--exhibits-dir")
+    parser.add_argument("--exhibit-numbering", default="numeric", choices=["numeric", "alpha"])
     args = parser.parse_args()
 
     draft_path = Path(args.draft_json)
@@ -3732,6 +3954,14 @@ def main():
         highlighted_pdf_path = Path(args.highlighted_pdf_path)
         render_highlighted_report_pdf(source_pdf, highlighted_pdf_path, manifest)
 
+    exhibits_manifest = None
+    exhibits_dir = None
+    if args.exhibits_dir and can_generate:
+        exhibits_dir = Path(args.exhibits_dir)
+        exhibits_manifest = render_dispute_exhibits(
+            manifest, draft, locator, exhibits_dir, args.exhibit_numbering
+        )
+
     print(
         json.dumps(
             {
@@ -3741,6 +3971,8 @@ def main():
                 "canGenerateHighlightedReport": can_generate,
                 "blockingUnresolvedReasonIds": manifest.get("blockingUnresolvedReasonIds") or [],
                 "exportableReasonIds": manifest.get("exportableReasonIds") or [],
+                "exhibitsDir": str(exhibits_dir) if exhibits_dir else None,
+                "exhibitCount": exhibits_manifest.get("exhibitCount") if exhibits_manifest else 0,
             }
         )
     )
