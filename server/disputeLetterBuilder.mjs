@@ -364,7 +364,16 @@ const buildAccountHeading = (account, fallbackTitle) => {
 };
 
 const buildPersonalInformationReferenceHtml = (draft) => {
-  if (!draft.sections.personalInformationDisputes.some((section) => section.enabled)) {
+  // The standardize-my-identifiers block belongs ONLY to genuine personal-
+  // identifier disputes. Indicator disputes (bankruptcy flags etc.) share the
+  // section group but must NEVER pull standardized language into the letter —
+  // operator ruling (Session 23): what is reportable on a bankruptcy is
+  // governed by legal precedent, and standardized disputes are weaker when
+  // argued in court.
+  const hasIdentifierDispute = draft.sections.personalInformationDisputes.some(
+    (section) => section.enabled && !String(section.entityKey ?? "").startsWith("consumer_information_indicator")
+  );
+  if (!hasIdentifierDispute) {
     return "";
   }
 
