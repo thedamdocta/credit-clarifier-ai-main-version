@@ -69,4 +69,11 @@ context:
   mission (operator): crops and full-report highlights are two views of the SAME detections —
     never divergent; highlight what is on the face INCLUDING missing/blank information;
     both sides of cross-table conflicts marked in their own tables
-updated: 2026-07-12 (Session 21 END — highlighter + engine + ALL-BUREAU CERTIFICATION complete; see docs/highlight-certification.md)
+post-session additions (2026-07-12/13):
+  - Coverage-span dispute reason payment_history_activity_before_table_coverage (82d2dd0)
+  - EQ-new extraction enhancement: per-cell bbox + accountHistoryEvidence emission,
+    twin-run byte parity, 21 measured boxes end-to-end (e0ceb0b)
+  - Snapshot 326f42b + dead-code removal 8164614 (-20k lines) pushed to
+    credit-clarifier-ai-main-version; parent repo PRIVATE, session log committed
+  - Rollout pending operator: re-extract eq-new + 5 stale Experian sessions (offline, fast)
+updated: 2026-07-13 (Session 21 FULLY COMPLETE — see docs/highlight-certification.md)

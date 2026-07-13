@@ -5,7 +5,7 @@ type: subsystem
 status: active
 tags: [type/subsystem, topic/disputes, topic/evidence, topic/verification]
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-13
 related:
   - "[[dispute-generation]]"
   - "[[CREDIT_CLARIFY_DISPUTE_EVIDENCE_MAP]]"
@@ -55,7 +55,7 @@ Full verification narrative: `tmp/diagnostics/highlighter-s21/FINDINGS.md`.
 | equifax_old_v1 | ✅ 12/12 reports | ✅ | ✅ 3 consumers | ✅ (twice) | Reference standard |
 | experian_acr_v1 | ✅ 12/12 | ✅ 7 current-extraction reports | ✅ canonical (Vera-era) + quality-lift sample | ➖ pipeline profile-agnostic; TU/EX-specific server run pending | 5 reports have stale Mar-11 extractions (predate evidence emission) — system FAILS SAFE on them; re-extract to lift |
 | transunion_acr_v1 | ✅ 9/9 | ✅ | ✅ 2 table styles → **`layout:` promoted to export grade** | ➖ same as Experian | Landscape reports need harness page dims; off-page boxes = account headers on prior page (verified legitimate) |
-| equifax_new_v1 | ✅ 4/4 (after profile-precise builder routing) | ✅ text-grade | partial | ➖ | Extractor emits no cell bboxes for new format → grid highlights use text/blank geometry, no measured cells. True extraction-lane item (needs operator's approval). |
+| equifax_new_v1 | ✅ 4/4 (after profile-precise builder routing) | ✅ measured cells (post-enhancement) | ✅ grid cells verified | ➖ | Extraction enhancement (e0ceb0b, additive, twin-run byte parity): eq-new now emits accountHistoryEvidence with per-cell bbox/pdfBBox/provenance. 21 measured boxes on the reference report (was 0). Existing sessions need re-extraction (seconds each, offline) to benefit. |
 
 ## Key decisions of record
 
@@ -72,8 +72,10 @@ Full verification narrative: `tmp/diagnostics/highlighter-s21/FINDINGS.md`.
 
 ## Open items
 
-1. Coverage-span rule (grid activity in years the money tables never cover).
-2. EQ-new cell-geometry emission (extraction lane — requires explicit approval).
+1. ~~Coverage-span rule~~ DONE (82d2dd0): payment_history_activity_before_table_coverage,
+   verified + regression-clean across 40 report-runs.
+2. ~~EQ-new cell-geometry emission~~ DONE (e0ceb0b): additive, twin-run byte parity,
+   measured cells verified. Roll-out = re-extract existing eq-new sessions (offline, fast).
 3. Re-extract the 5 stale Mar-11 Experian sessions through the current pipeline.
 4. Vocabulary additions for citation labels (dateOfFirstDelinquency, monthsReviewed,
    comments/remarks) + slide-cap review for dense bundles.
