@@ -5,7 +5,9 @@ certification summary JSON. Gates 1+2 of the per-profile certification protocol.
 import json, os, glob, subprocess, sys, re
 
 ROOT = os.getcwd()
-SCRATCH = "/private/tmp/claude-501/-Users-operator-credit-clarify---gain-equity/5817f472-9600-4c26-bebd-98167fca0689/scratchpad"
+# Engine harness lives in gitignored repo tmp so this path survives sessions
+# and never embeds a machine/user-specific directory.
+HARNESS_DIR = os.environ.get("CC_ENGINE_HARNESS", "tmp/diagnostics/engine-harness")
 SWEEP = "tmp/diagnostics/highlighter-s21/sweep"
 PROFILES = sys.argv[1:] or ["experian_acr_v1"]
 
@@ -44,7 +46,7 @@ for profile in PROFILES:
     for name, (_, sid, rpath, pdf, images) in sorted(reports.items()):
         tag = f"{profile.split('_')[0]}-{re.sub(r'[^A-Za-z0-9_-]', '_', name.replace('.pdf',''))[:34]}"
         reasons_out = f"{SWEEP}/{tag}.reasons.json"
-        subprocess.run(["node", f"{SCRATCH}/engine-harness/sweep-one.mjs", rpath, sid, reasons_out],
+        subprocess.run(["node", f"{HARNESS_DIR}/sweep-one.mjs", rpath, sid, reasons_out],
                        capture_output=True, text=True, timeout=120)
         try:
             eng = json.load(open(reasons_out))
