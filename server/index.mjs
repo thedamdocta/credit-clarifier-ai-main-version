@@ -1817,6 +1817,11 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
     if (req.body?.exhibitNumbering !== undefined && typeof req.body.exhibitNumbering !== "string") {
       return sendError(res, 400, "exhibitNumbering must be a string (numeric | alpha).");
     }
+    for (const flag of ["inlineExhibits", "memorandum", "highlightedReport"]) {
+      if (req.body?.[flag] !== undefined && typeof req.body[flag] !== "boolean") {
+        return sendError(res, 400, `${flag} must be a boolean.`);
+      }
+    }
     const requestedMode = typeof req.body?.letterMode === "string" ? req.body.letterMode : null;
     const requestedNumbering = typeof req.body?.exhibitNumbering === "string" ? req.body.exhibitNumbering : null;
     if (requestedMode !== null && !["inline", "memorandum", "none"].includes(requestedMode)) {
@@ -1827,9 +1832,41 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
     }
 
     const workingDraft = structuredClone(draft);
-    if (requestedMode !== null) {
-      workingDraft.letterMode = requestedMode === "none" ? null : requestedMode;
+    // Evidence-package model (operator, Session 23): the letter always ships;
+    // the user picks any combination of three evidence outputs — screenshots
+    // inline in the letter, the separate memorandum, and the highlighted
+    // report. letterMode remains as the letter-decoration contract (inline =
+    // figures, memorandum = "(See Exhibit N)" refs) and as API back-compat.
+    const anyFlagProvided = ["inlineExhibits", "memorandum", "highlightedReport"].some(
+      (flag) => typeof req.body?.[flag] === "boolean"
+    );
+    const priorOptions = workingDraft.evidenceOptions ?? {
+      inlineExhibits: workingDraft.letterMode === "inline",
+      memorandum: workingDraft.letterMode === "memorandum",
+      highlightedReport: false,
+    };
+    let evidenceOptions;
+    if (anyFlagProvided) {
+      evidenceOptions = {
+        inlineExhibits: req.body?.inlineExhibits ?? priorOptions.inlineExhibits ?? false,
+        memorandum: req.body?.memorandum ?? priorOptions.memorandum ?? false,
+        highlightedReport: req.body?.highlightedReport ?? priorOptions.highlightedReport ?? false,
+      };
+    } else if (requestedMode !== null) {
+      evidenceOptions = {
+        inlineExhibits: requestedMode === "inline",
+        memorandum: requestedMode === "memorandum",
+        highlightedReport: priorOptions.highlightedReport ?? false,
+      };
+    } else {
+      evidenceOptions = { ...priorOptions };
     }
+    workingDraft.evidenceOptions = evidenceOptions;
+    workingDraft.letterMode = evidenceOptions.inlineExhibits
+      ? "inline"
+      : evidenceOptions.memorandum
+        ? "memorandum"
+        : null;
     if (requestedNumbering !== null) {
       workingDraft.exhibitNumbering = requestedNumbering;
     }
@@ -1839,12 +1876,15 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
     const exportWarnings = [];
     let exportEvidenceRan = false;
 
-    // Letter modes need fresh exhibits (manifest has no freshness fields — the
-    // only sound policy is regenerate-immediately-before-render, same draft).
-    if (workingDraft.letterMode) {
+    // Evidence outputs need fresh exhibits (manifest has no freshness fields —
+    // the only sound policy is regenerate-immediately-before-render, same draft).
+    const wantsExhibits = evidenceOptions.inlineExhibits || evidenceOptions.memorandum;
+    const wantsAnyEvidence = wantsExhibits || evidenceOptions.highlightedReport;
+    let exhibitsManifestForMemo = null;
+    if (wantsAnyEvidence) {
       if (workingDraft.renderState?.documentOverride) {
         exportWarnings.push(
-          "full-document override active — exhibit figures/references were not injected; re-render from sections to use letter modes"
+          "full-document override active — evidence outputs were not generated; re-render from sections to use them"
         );
       } else {
         let evidenceResult = null;
@@ -1859,40 +1899,50 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
           // certified report would be blocked.
           evidenceResult = await runSharedJob(inFlightEvidenceJobs, `${workingDraft.id}:export-evidence`, () =>
             runEvidenceGeneration(workingDraft, {
-              generateExhibits: true,
+              generateExhibits: wantsExhibits,
+              generateHighlightedReport: evidenceOptions.highlightedReport,
               exhibitNumbering: workingDraft.exhibitNumbering ?? "numeric",
             })
           );
         } catch (error) {
           evidenceResult = null;
           exportWarnings.push(
-            `exhibit generation failed — letter rendered without exhibit figures/references: ${String(error)}`
+            `evidence generation failed — letter rendered without evidence outputs: ${String(error)}`
           );
         }
         // The manifest is validator-annotated (same path as POST /evidence),
         // so persisting it keeps the draft's validation state consistent —
-        // and, matching every other path that persists a new manifest, the
-        // previously certified highlighted report is revoked (rulings-panel
-        // F1: a new evidence run makes the old PDF's provenance stale; the
-        // pairing of manifest N+1 with a PDF from run N must never mail).
+        // and, matching every other path that persists a new manifest, any
+        // PREVIOUSLY certified highlighted report is revoked (rulings-panel
+        // F1). When this run itself produced a highlighted report, that fresh
+        // PDF is coherent with THIS manifest and becomes the certified one.
         if (evidenceResult?.manifest) {
           exportEvidenceRan = true;
           workingDraft.evidenceManifest = evidenceResult.manifest;
-          if (workingDraft.renderState?.highlightedReportPdfPath) {
-            await fs.rm(workingDraft.renderState.highlightedReportPdfPath, { force: true });
+          const freshHighlightedPath = evidenceResult.highlightedReportPdfPath ?? null;
+          const oldHighlightedPath = workingDraft.renderState?.highlightedReportPdfPath;
+          if (oldHighlightedPath && oldHighlightedPath !== freshHighlightedPath) {
+            await fs.rm(oldHighlightedPath, { force: true });
           }
           workingDraft.renderState = {
             ...workingDraft.renderState,
-            highlightedReportPdfPath: null,
+            highlightedReportPdfPath: freshHighlightedPath,
             highlightedReportPdfUrl: null,
             evidenceGeneratedAt: evidenceResult.manifest?.generatedAt ?? new Date().toISOString(),
           };
+          if (evidenceOptions.highlightedReport && !freshHighlightedPath) {
+            exportWarnings.push(
+              "highlighted report was requested but generation is blocked for this draft (unresolved dispute localization)"
+            );
+          }
         }
         // Blocked run = the on-disk exhibits dir was NOT regenerated by Python
         // (its can_generate gate) — loading it would inject STALE evidence into
         // a mailed document (panel finding F1, HIGH). Inject nothing instead.
-        const exhibitsFresh = Boolean(evidenceResult) && evidenceResult.canGenerateHighlightedReport !== false;
+        const exhibitsFresh =
+          wantsExhibits && Boolean(evidenceResult) && evidenceResult.canGenerateHighlightedReport !== false;
         const exhibitsManifest = exhibitsFresh ? await loadEnrichedExhibitsManifest(exhibitsDir) : null;
+        exhibitsManifestForMemo = exhibitsManifest;
         if (exhibitsManifest) {
           workingDraft.exhibitsManifest = exhibitsManifest;
           if (Array.isArray(exhibitsManifest.warnings) && exhibitsManifest.warnings.length) {
@@ -1943,6 +1993,44 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
     if (Array.isArray(exportResult.warnings) && exportResult.warnings.length) {
       exportWarnings.push(...exportResult.warnings);
     }
+
+    // Memorandum (separate evidence document): generated from the SAME saved
+    // draft.json + fresh exhibits as the letter, so letter/memo numbering can
+    // never disagree. Any previously generated memorandum is superseded the
+    // moment a new evidence run happened (same coherence invariant as the
+    // highlighted report).
+    let memorandumDocxPath = null;
+    let memorandumPdfPath = null;
+    if (exportEvidenceRan) {
+      for (const stale of [savedDraft.renderState?.memorandumDocxPath, savedDraft.renderState?.memorandumPdfPath]) {
+        if (stale) {
+          await fs.rm(stale, { force: true });
+        }
+      }
+    }
+    if (evidenceOptions.memorandum) {
+      if (exhibitsManifestForMemo) {
+        try {
+          const { stdout: memoStdout } = await execFileAsync(
+            appConfig.pythonExecutable,
+            [appConfig.disputeMemorandumScript, draftPath, "--exhibits-dir", exhibitsDir, "--output-dir", outputDir],
+            { cwd: appConfig.repoRoot, env: process.env, maxBuffer: 16 * 1024 * 1024 }
+          );
+          const memoResult = JSON.parse(String(memoStdout || "{}"));
+          memorandumDocxPath = memoResult.docxPath ?? null;
+          memorandumPdfPath = memoResult.pdfPath ?? null;
+          if (Array.isArray(memoResult.warnings) && memoResult.warnings.length) {
+            exportWarnings.push(...memoResult.warnings);
+          }
+        } catch (error) {
+          exportWarnings.push(`memorandum generation failed: ${String(error)}`);
+        }
+      } else {
+        exportWarnings.push(
+          "memorandum was requested but exhibits are unavailable for this draft — memorandum not generated"
+        );
+      }
+    }
     // Merge onto a FRESH read: a PATCH landing during the evidence/letter run
     // must not be silently reverted by this whole-object save (panel F6). Only
     // export-owned fields are overlaid; if sections changed mid-export, the
@@ -1958,6 +2046,7 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
       ...latestDraft,
       letterMode: savedDraft.letterMode ?? null,
       exhibitNumbering: savedDraft.exhibitNumbering ?? null,
+      evidenceOptions: savedDraft.evidenceOptions ?? null,
       exhibitsManifest: savedDraft.exhibitsManifest ?? null,
       // evidenceManifest/evidenceGeneratedAt are export-owned ONLY when this
       // export actually ran an evidence job — otherwise a POST /evidence
@@ -1973,9 +2062,21 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
         evidenceGeneratedAt: exportEvidenceRan
           ? savedDraft.renderState.evidenceGeneratedAt ?? null
           : latestDraft.renderState?.evidenceGeneratedAt ?? null,
-        // the F1 revocation must survive this merge — never resurrect the
-        // superseded certified PDF from a concurrent snapshot
-        ...(exportEvidenceRan ? { highlightedReportPdfPath: null, highlightedReportPdfUrl: null } : {}),
+        // coherence must survive this merge — never resurrect artifacts
+        // certified under a superseded manifest from a concurrent snapshot;
+        // fresh artifacts from THIS run take their place
+        ...(exportEvidenceRan
+          ? {
+              highlightedReportPdfPath: savedDraft.renderState.highlightedReportPdfPath ?? null,
+              highlightedReportPdfUrl: null,
+              memorandumDocxPath,
+              memorandumPdfPath,
+              memorandumDocxUrl: null,
+              memorandumPdfUrl: null,
+            }
+          : evidenceOptions.memorandum && (memorandumDocxPath || memorandumPdfPath)
+            ? { memorandumDocxPath, memorandumPdfPath, memorandumDocxUrl: null, memorandumPdfUrl: null }
+            : {}),
         docxPath: exportResult.docxPath ?? null,
         pdfPath: exportResult.pdfPath ?? null,
         draftDirty: sectionsChangedMidExport ? true : latestDraft.renderState?.draftDirty ?? false,

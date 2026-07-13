@@ -44,6 +44,8 @@ export const appConfig = {
     process.env.DISPUTE_EVIDENCE_SCRIPT ?? path.join(repoRoot, "server", "dispute_evidence_generator.py"),
   disputeHighlightValidatorScript:
     process.env.DISPUTE_HIGHLIGHT_VALIDATOR_SCRIPT ?? path.join(repoRoot, "server", "dispute_highlight_validator.py"),
+  disputeMemorandumScript:
+    process.env.DISPUTE_MEMORANDUM_SCRIPT ?? path.join(repoRoot, "server", "dispute_memorandum_generator.py"),
   disputeEvidenceMaxRetries: toNumber(process.env.DISPUTE_EVIDENCE_MAX_RETRIES, 1),
   pythonExecutable: resolvePythonExecutable(),
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434",

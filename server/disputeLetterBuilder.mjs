@@ -763,6 +763,12 @@ export const updateDraftFullDocument = (draft, html) => {
   nextDraft.renderState.docxUrl = null;
   nextDraft.renderState.pdfPath = null;
   nextDraft.renderState.pdfUrl = null;
+  // a hand-edited document invalidates the generated companions too — the
+  // memorandum mirrors the letter's numbering, which this edit may break
+  nextDraft.renderState.memorandumDocxPath = null;
+  nextDraft.renderState.memorandumDocxUrl = null;
+  nextDraft.renderState.memorandumPdfPath = null;
+  nextDraft.renderState.memorandumPdfUrl = null;
   return nextDraft;
 };
 
@@ -776,6 +782,12 @@ export const attachArtifactUrls = (draft, outputRoot) => {
   }
   if (nextDraft.renderState.highlightedReportPdfPath) {
     nextDraft.renderState.highlightedReportPdfUrl = `/api/dispute-drafts/${nextDraft.id}/artifacts/${path.basename(nextDraft.renderState.highlightedReportPdfPath)}`;
+  }
+  if (nextDraft.renderState.memorandumDocxPath) {
+    nextDraft.renderState.memorandumDocxUrl = `/api/dispute-drafts/${nextDraft.id}/artifacts/${path.basename(nextDraft.renderState.memorandumDocxPath)}`;
+  }
+  if (nextDraft.renderState.memorandumPdfPath) {
+    nextDraft.renderState.memorandumPdfUrl = `/api/dispute-drafts/${nextDraft.id}/artifacts/${path.basename(nextDraft.renderState.memorandumPdfPath)}`;
   }
   return nextDraft;
 };
