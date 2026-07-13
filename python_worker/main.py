@@ -6785,11 +6785,14 @@ def ensure_component_required_fields(components: Dict[str, Any]) -> List[Dict[st
                 "activityDesignatorHistory",
             ]:
                 history = account.get(history_key)
-                # Empty is a legitimate face state: some tradelines print no
-                # money-history tables at all (QC face-verified, Session 23 F1).
-                # The March-era worker fabricated 3 placeholder rows (year '-')
-                # for them; honest [] must not be flagged as an error.
-                if not isinstance(history, list) or len(history) not in (0, 3):
+                # 0-3 year rows are all legitimate face states (QC face-verified,
+                # Session 23 F1): tradelines may print NO money-history tables at
+                # all (the March-era worker fabricated 3 placeholder rows with
+                # year '-' for these), and recently-opened / sparsely-reported
+                # accounts print 1-2 year rows (PENNYMAC 2023-24, DHI 2023+2025,
+                # DEPT OF ED 2021-22 — coverage-span disputes exist BECAUSE of
+                # this). Only more rows than the layout can print is invalid.
+                if not isinstance(history, list) or len(history) > 3:
                     issues.append(
                         {
                             "component": "accounts",
