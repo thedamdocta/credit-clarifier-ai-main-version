@@ -33,3 +33,9 @@ vite.config.ts.timestamp-*
 .env
 
 __pycache__/
+
+# Local-only: operational state + reference-report test fixtures (contain consumer data)
+.state
+scripts/assert_reference_extraction_examples.mjs
+scripts/assert_experian_payment_history_generalization.mjs
+scripts/generate_dispute_fixture_artifacts.mjs

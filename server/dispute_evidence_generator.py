@@ -96,7 +96,7 @@ COMPARISON_LABEL_FIELD_KEYWORDS = [
 ]
 # Printed field labels on Equifax account detail pages, keyed by the dispute layer's
 # scalar field names / citation-label keywords. Values are search phrases as printed
-# on the face of the report (verified against REF-EQOLD-A Equifax pp16-18).
+# on the face of the report (verified against the EQ-old reference report pp16-18).
 SCALAR_FIELD_PRINTED_LABELS = {
     "dateclosed": ["Date Closed"],
     "closeddate": ["Date Closed"],
@@ -4024,7 +4024,7 @@ def main():
     can_generate = len(manifest.get("blockingUnresolvedReasonIds") or []) == 0 and len(manifest.get("exportableReasonIds") or []) > 0
     if args.highlighted_pdf_path and can_generate:
         highlighted_pdf_path = Path(args.highlighted_pdf_path)
-        # Chips always carry letter-order exhibit numbers (operator: every mark maps to
+        # Chips always carry letter-order exhibit numbers (product rule: every mark maps to
         # its dispute) — the same map the exhibits/memorandum use.
         chip_index = build_box_exhibit_index(build_exhibit_map(draft, manifest, args.exhibit_numbering))
         render_highlighted_report_pdf(source_pdf, highlighted_pdf_path, manifest, box_exhibit_index=chip_index)

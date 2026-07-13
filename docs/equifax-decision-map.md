@@ -23,7 +23,7 @@ summary: >
 - **Mode:** Headed, incognito, maximized
 - **Launch command:** `AGENT_BROWSER_HEADED=true agent-browser open "https://www.annualcreditreport.com" --args "--incognito" --args "--start-maximized"`
 - **Important:** Do NOT use `agent-browser set viewport` after launch — it causes the page to glitch and shift right. `--start-maximized` handles sizing on its own.
-- **Handoff points:** operator enters personal info (SSN, DOB, name, address), OTP codes, and security question answers
+- **Handoff points:** The operator enters personal info (SSN, DOB, name, address), OTP codes, and security question answers
 
 ---
 
@@ -82,7 +82,7 @@ summary: >
 - **Exact commands:**
   ```
   agent-browser snapshot -i
-  agent-browser fill @e9 "operator"
+  agent-browser fill @e9 "<FIRST_NAME>"
   agent-browser fill @e10 "A"
   agent-browser fill @e11 "Smart"
   agent-browser select @e12 "Junior,Jr.,J"
@@ -272,7 +272,7 @@ summary: >
   - `button "Get your next report or finish"` [@e2] — navigate to next bureau or exit
   - `link "Contact us"` [@e3]
 - **Phase 2 handling:** Agent must detect this page (URL hash check for `#/system-error`). If it occurs, retry from the beginning (fresh ACR session). If persistent across retries, report the error and skip Equifax.
-- **Screenshot:** `tmp/eq-processing-error-TEST-B.png` (Session 9)
+- **Screenshot:** `tmp/eq-processing-error-identityB.png` (Session 9)
 
 ---
 

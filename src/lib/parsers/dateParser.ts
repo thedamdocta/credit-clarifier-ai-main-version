@@ -17,7 +17,7 @@ export const extractDate = (text: string): string => {
   }
   
   // Look for specific pattern with name and pipe delimiter
-  const nameWithDatePattern = /REF-D\s+REF-D\s+\|\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})(?:\s|$)/i;
+  const nameWithDatePattern = /[A-Z]+(?:\s+[A-Z]+)+\s+\|\s+((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})(?:\s|$)/i;
   const nameWithDateMatch = text.match(nameWithDatePattern);
   
   if (nameWithDateMatch && nameWithDateMatch[1]) {

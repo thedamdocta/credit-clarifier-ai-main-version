@@ -107,7 +107,7 @@ summary: >
 
 - **URL:** `https://annualcreditreport.transunion.com/cvd/?enterprise=FactAct#/orderComplete` OR `#/enroll-step-3`
 - **How identified:** URL hash contains `#/orderComplete` OR `#/enroll-step-3`. Page shows "You are all set, the request has been processed" message with personalized greeting ("Thank you for choosing TransUnion, [Name].").
-- **URL variance:** Session 7 (TEST-ID-A) used `#/orderComplete`. Session 10 (TEST-ID-B) used `#/enroll-step-3`. Both show the same content. Phase 2 agent must check for BOTH hash values.
+- **URL variance:** Session 7 (Test Identity A) used `#/orderComplete`. Session 10 (Test Identity B) used `#/enroll-step-3`. Both show the same content. Phase 2 agent must check for BOTH hash values.
 - **Key interactive elements:**
   - `button "Continue"` — navigates to the actual credit report
 - **Exact commands:**
@@ -118,8 +118,8 @@ summary: >
   agent-browser wait 5000
   ```
 - **Key difference from Equifax:** Equifax goes straight from OTP to report. TransUnion has this intermediate "order complete" confirmation page.
-- **Note:** operator observed there may be additional intermediate steps between OTP verification and this page that load quickly and could be missed with long waits. Phase 2 agent should poll more frequently during this transition.
-- **Screenshot:** `tmp/tu-order-complete-TEST-B.png` (Session 10)
+- **Note:** Operator note: there may be additional intermediate steps between OTP verification and this page that load quickly and could be missed with long waits. Phase 2 agent should poll more frequently during this transition.
+- **Screenshot:** `tmp/tu-order-complete-identityB.png` (Session 10)
 - **Result:** Navigated to credit report disclosure page (`#/disclosure`).
 
 ## Page 9-TU: TransUnion Credit Report (Disclosure)
@@ -132,8 +132,8 @@ summary: >
   - **Report metadata:** File Number, Date Created
   - **"Print or Save My Report"** link — top right of report area (with printer icon)
 - **Confirmed runs:**
-  - Session 7 (TEST-ID-A): File #REDACTED, 03/30/2026
-  - Session 10 (TEST-ID-B): File #REDACTED, 03/31/2026
+  - Session 7 (Test Identity A): File #<redacted>, 03/30/2026
+  - Session 10 (Test Identity B): File #<redacted>, 03/31/2026
 - **Key interactive elements:**
   - `link "Credit Report"` [@e3] — current tab
   - `link "Credit Score"` [@e4]
@@ -148,7 +148,7 @@ summary: >
   - `button "Payment/Remarks Key"` — multiple instances
   - **"Print or Save My Report"** — NOT a standard link/button in snapshot. It's a `<p>` with class `DisclosureCategories_printCTA__rRciL` containing a `<span>` with `dataclick` attribute. Uses React click handler.
 - **Report data visible:**
-  - Personal Credit Report for: TEST-ID-A
+  - Personal Credit Report for: <CONSUMER NAME>
   - File Number: 448708763
   - Date Created: 03/30/2026
   - Personal info, accounts, inquiries, additional info sections
@@ -260,7 +260,7 @@ Current patched state (actions.js only, not loaded by running daemon):
   - `a.CustomModal_closeButton__DtHcA "Cancel"` — **dismiss the dialog**
 - **How to dismiss:** JS eval: `document.querySelector('.CustomModal_closeButton__DtHcA').click()`
 - **Phase 2 rule:** After saving the PDF but before navigating away, check for this modal overlay. If present, click "Cancel" to dismiss. NEVER submit the email form — it would enroll the client in TransUnion marketing.
-- **Screenshot:** `tmp/tu-marketing-dialog-TEST-B.png` (Session 10)
+- **Screenshot:** `tmp/tu-marketing-dialog-identityB.png` (Session 10)
 
 ### General Bureau Marketing Pattern
 
