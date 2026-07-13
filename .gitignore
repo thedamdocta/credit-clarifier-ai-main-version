@@ -31,3 +31,5 @@ public/verification/
 .playwright-cli/
 vite.config.ts.timestamp-*
 .env
+
+__pycache__/

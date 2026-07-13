@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { ArrowRight, Bug, Cable, Settings2, Workflow } from "lucide-react";
+import { ArrowRight, Bug, Cable, Settings2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import WebhookManager from "@/components/WebhookManager";
 import ParsingDebugger from "@/components/ParsingDebugger";
@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { DossierPageHeader, DossierSection, DossierSectionHeader } from "@/components/dossier/DossierPrimitives";
 import { useReportWorkspace } from "@/features/workspace/ReportWorkspaceContext";
-import { NodeEditor } from "@/features/node-editor/components/NodeEditor";
+
+// Node editor (Jan 2026 era) removed 2026-07-12 — deprecated as product direction
+// (CREDIT_CLARIFY_MEMORY.md); code preserved in git history (snapshot 326f42b).
 
 const settingsSections = [
   { key: "integrations", label: "Integrations", icon: Cable },
   { key: "diagnostics", label: "Diagnostics", icon: Bug },
-  { key: "developer", label: "Developer Tools", icon: Workflow },
 ] as const;
 
 const SettingsPage = () => {
@@ -111,7 +112,7 @@ const SettingsPage = () => {
         </div>
       </DossierSection>
 
-      <DossierSection className="dossier-settings-section">
+      <DossierSection className="border-b-0 dossier-settings-section">
         <div
           ref={(element) => {
             sectionRefs.current.diagnostics = element;
@@ -127,21 +128,6 @@ const SettingsPage = () => {
         </div>
       </DossierSection>
 
-      <DossierSection className="border-b-0 dossier-settings-section">
-        <div
-          ref={(element) => {
-            sectionRefs.current.developer = element;
-          }}
-        >
-          <DossierSectionHeader
-            title="Developer Tools"
-            description="The node editor and pipeline tooling keep the same execution, save, import, and export behavior."
-          />
-          <div className="dossier-developer-surface">
-            <NodeEditor className="h-[78vh] min-h-[820px]" />
-          </div>
-        </div>
-      </DossierSection>
     </div>
   );
 };
