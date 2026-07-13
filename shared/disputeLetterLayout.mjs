@@ -102,6 +102,31 @@ export const buildDisputeLetterPreviewCss = () => {
       padding-left: 0.34in;
       text-indent: -0.18in;
     }
+    .exhibit-figure {
+      margin: ${blockSpaceAfterPt}pt 0;
+    }
+    .exhibit-figure img {
+      /* Explicit width/height attributes give the browser the aspect ratio up
+         front, so the synchronous pagination measurement reserves the right
+         height before the image loads; max-width keeps 300-DPI crops inside
+         the content column. */
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid #d1d5db;
+    }
+    p.exhibit-heading {
+      margin-bottom: 4pt;
+    }
+    p.exhibit-caption {
+      margin-top: 2pt;
+      margin-bottom: ${blockSpaceAfterPt}pt;
+      font-size: ${Math.max(8, fontSizePt - 2)}pt;
+      color: #374151;
+    }
+    p.exhibit-reference {
+      margin-bottom: ${blockSpaceAfterPt}pt;
+    }
     #document-source {
       display: none;
     }

@@ -21,7 +21,14 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt
 from PIL import Image
 
-from dispute_letter_generator import LAYOUT, REPORTLAB_AVAILABLE, configure_document
+from dispute_letter_generator import (
+    CONTENT_WIDTH_INCHES,
+    LAYOUT,
+    MAX_IMAGE_HEIGHT_INCHES,
+    REPORTLAB_AVAILABLE,
+    configure_document,
+    scaled_image_size,
+)
 
 if REPORTLAB_AVAILABLE:
     from reportlab.lib.pagesizes import letter as letter_pagesize
@@ -35,9 +42,6 @@ if REPORTLAB_AVAILABLE:
         SimpleDocTemplate,
         Spacer,
     )
-
-CONTENT_WIDTH_INCHES = LAYOUT["pageWidthInches"] - 2 * LAYOUT["marginInches"]
-
 
 def escape_paragraph_text(text: object) -> str:
     """reportlab Paragraph parses XML-ish markup; report-derived text must be
@@ -68,21 +72,6 @@ def format_entity(entity_key: str) -> str:
     name = parts[0].upper()
     tail = parts[-1] if len(parts) > 1 and parts[-1] != parts[0] else ""
     return f"{name} — {tail}" if tail else name
-
-
-MAX_IMAGE_HEIGHT_INCHES = 8.0  # leave room for the caption inside the content frame
-
-
-def scaled_image_size(image_path: Path) -> Dict[str, float]:
-    with Image.open(image_path) as image:
-        width_px, height_px = image.size
-    width_in = min(CONTENT_WIDTH_INCHES, width_px / 300.0)
-    height_in = height_px * (width_in / width_px)
-    if height_in > MAX_IMAGE_HEIGHT_INCHES:
-        scale = MAX_IMAGE_HEIGHT_INCHES / height_in
-        width_in *= scale
-        height_in = MAX_IMAGE_HEIGHT_INCHES
-    return {"width": width_in, "height": height_in}
 
 
 def memorandum_header_lines(draft: Dict[str, object], exhibits_manifest: Dict[str, object]) -> List[str]:

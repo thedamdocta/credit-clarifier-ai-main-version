@@ -562,6 +562,8 @@ const executeEvidenceGenerationScript = async ({
   session,
   highlightedReportPath = null,
   retryMode = "default",
+  exhibitsDir = null,
+  exhibitNumbering = null,
 }) => {
   const args = [
     appConfig.disputeEvidenceScript,
@@ -583,6 +585,12 @@ const executeEvidenceGenerationScript = async ({
   if (highlightedReportPath) {
     args.push("--highlighted-pdf-path", highlightedReportPath);
   }
+  if (exhibitsDir) {
+    args.push("--exhibits-dir", exhibitsDir);
+  }
+  if (exhibitNumbering) {
+    args.push("--exhibit-numbering", exhibitNumbering);
+  }
 
   const { stdout } = await execFileAsync(appConfig.pythonExecutable, args, {
     cwd: appConfig.repoRoot,
@@ -591,6 +599,49 @@ const executeEvidenceGenerationScript = async ({
   });
 
   return JSON.parse(String(stdout || "{}"));
+};
+
+const readPngDimensions = async (filePath) => {
+  const handle = await fs.open(filePath, "r");
+  try {
+    const header = Buffer.alloc(24);
+    await handle.read(header, 0, 24, 0);
+    if (header.readUInt32BE(12) !== 0x49484452) {
+      return null; // not an IHDR chunk where PNG requires it
+    }
+    return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+  } finally {
+    await handle.close();
+  }
+};
+
+// The persisted copy of exhibits-manifest.json gains widthPx/heightPx per slide
+// (read from each PNG's IHDR) so the letter builder can emit explicit <img>
+// dimensions — the preview paginator measures synchronously and would treat a
+// dimension-less image as zero-height. Enrichment lives here, NOT in the
+// certified evidence generator.
+const loadEnrichedExhibitsManifest = async (exhibitsDir) => {
+  try {
+    const raw = await fs.readFile(path.join(exhibitsDir, "exhibits-manifest.json"), "utf8");
+    const manifest = JSON.parse(raw);
+    for (const exhibit of manifest?.exhibits ?? []) {
+      for (const slide of exhibit?.slides ?? []) {
+        if (!slide?.file) continue;
+        try {
+          const dims = await readPngDimensions(path.join(exhibitsDir, path.basename(slide.file)));
+          if (dims) {
+            slide.widthPx = dims.width;
+            slide.heightPx = dims.height;
+          }
+        } catch {
+          // missing/unreadable PNG: slide stays dimension-less; renderers warn-and-skip
+        }
+      }
+    }
+    return manifest;
+  } catch {
+    return null;
+  }
 };
 
 const runHighlightValidation = async ({ draftPath, manifestPath, imagesDir, outputDir }) => {
@@ -785,7 +836,7 @@ const annotateManifestWithValidation = ({
 
 const runEvidenceGeneration = async (
   draft,
-  { generateHighlightedReport = false, skipValidation = false } = {},
+  { generateHighlightedReport = false, skipValidation = false, generateExhibits = false, exhibitNumbering = null } = {},
 ) => {
   if (!Array.isArray(draft?.selectedReasons) || draft.selectedReasons.length === 0) {
     throw new Error("Select at least one dispute reason before generating dispute evidence.");
@@ -806,6 +857,8 @@ const runEvidenceGeneration = async (
   const draftPath = path.join(outputDir, "draft.json");
   const highlightedReportPath = path.join(outputDir, "highlighted-report.pdf");
   const imagesDir = path.join(session.workspaceDir, "ingestion", "images");
+  const exhibitsDir = generateExhibits ? path.join(outputDir, "exhibits") : null;
+  const exhibitOptions = { exhibitsDir, exhibitNumbering: exhibitNumbering ?? (generateExhibits ? "numeric" : null) };
   let retryMode = "default";
   let retryCount = 0;
   let evidenceResult = await executeEvidenceGenerationScript({
@@ -813,6 +866,7 @@ const runEvidenceGeneration = async (
     outputDir,
     session,
     retryMode,
+    ...exhibitOptions,
   });
 
   let validationResult = skipValidation
@@ -840,6 +894,7 @@ const runEvidenceGeneration = async (
       outputDir,
       session,
       retryMode,
+      ...exhibitOptions,
     });
     validationResult = skipValidation
       ? { reportPath: null, report: null, validatorActive: false }
@@ -877,6 +932,7 @@ const runEvidenceGeneration = async (
       session,
       retryMode,
       highlightedReportPath,
+      ...exhibitOptions,
     });
     highlightedReportPdfPath = highlightedResult.highlightedReportPdfPath ?? highlightedReportPath;
     if (annotatedManifest && evidenceResult.manifestPath) {
@@ -891,6 +947,7 @@ const runEvidenceGeneration = async (
     manifest: annotatedManifest,
     canGenerateHighlightedReport,
     highlightedReportPdfPath,
+    exhibitsDir,
     validationReportPath: validationResult.reportPath,
     validationSummary: validationResult.report?.summary ?? null,
     evidenceRetryMode: retryMode,
@@ -1740,18 +1797,78 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
   if (!draft) return;
 
   try {
-    const refreshedDraft = withRenderedPreview(draft);
+    const requestedMode = typeof req.body?.letterMode === "string" ? req.body.letterMode : null;
+    const requestedNumbering = typeof req.body?.exhibitNumbering === "string" ? req.body.exhibitNumbering : null;
+    if (requestedMode !== null && !["inline", "memorandum", "none"].includes(requestedMode)) {
+      return sendError(res, 400, `Unknown letterMode '${requestedMode}' — expected inline | memorandum | none.`);
+    }
+    if (requestedNumbering !== null && !["numeric", "alpha"].includes(requestedNumbering)) {
+      return sendError(res, 400, `Unknown exhibitNumbering '${requestedNumbering}' — expected numeric | alpha.`);
+    }
+
+    const workingDraft = structuredClone(draft);
+    if (requestedMode !== null) {
+      workingDraft.letterMode = requestedMode === "none" ? null : requestedMode;
+    }
+    if (requestedNumbering !== null) {
+      workingDraft.exhibitNumbering = requestedNumbering;
+    }
+
+    const outputDir = path.join(appConfig.disputeOutputRoot, workingDraft.id);
+    const exhibitsDir = path.join(outputDir, "exhibits");
+    const exportWarnings = [];
+
+    // Letter modes need fresh exhibits (manifest has no freshness fields — the
+    // only sound policy is regenerate-immediately-before-render, same draft).
+    if (workingDraft.letterMode) {
+      if (workingDraft.renderState?.documentOverride) {
+        exportWarnings.push(
+          "full-document override active — exhibit figures/references were not injected; re-render from sections to use letter modes"
+        );
+      } else {
+        const evidenceResult = await runSharedJob(inFlightEvidenceJobs, `${workingDraft.id}:evidence`, () =>
+          runEvidenceGeneration(workingDraft, {
+            skipValidation: true,
+            generateExhibits: true,
+            exhibitNumbering: workingDraft.exhibitNumbering ?? "numeric",
+          })
+        );
+        if (evidenceResult?.manifest) {
+          workingDraft.evidenceManifest = evidenceResult.manifest;
+          workingDraft.renderState = {
+            ...workingDraft.renderState,
+            evidenceGeneratedAt: new Date().toISOString(),
+          };
+        }
+        const exhibitsManifest = await loadEnrichedExhibitsManifest(exhibitsDir);
+        if (exhibitsManifest) {
+          workingDraft.exhibitsManifest = exhibitsManifest;
+          if (Array.isArray(exhibitsManifest.warnings) && exhibitsManifest.warnings.length) {
+            exportWarnings.push(...exhibitsManifest.warnings);
+          }
+        } else {
+          exportWarnings.push(
+            "exhibit generation produced no manifest — letter rendered without exhibit figures/references"
+          );
+        }
+      }
+    }
+
+    const refreshedDraft = withRenderedPreview(workingDraft);
     const savedDraft = await disputeLetterStore.saveDraft(refreshedDraft);
     const draftPath = path.join(appConfig.disputeOutputRoot, savedDraft.id, "draft.json");
-    const { stdout } = await execFileAsync(
-      appConfig.pythonExecutable,
-      [appConfig.disputeGeneratorScript, draftPath, "--output-dir", path.join(appConfig.disputeOutputRoot, savedDraft.id)],
-      {
-        cwd: appConfig.repoRoot,
-        env: process.env,
-      }
-    );
+    const generatorArgs = [appConfig.disputeGeneratorScript, draftPath, "--output-dir", outputDir];
+    if (savedDraft.letterMode === "inline") {
+      generatorArgs.push("--exhibits-dir", exhibitsDir);
+    }
+    const { stdout } = await execFileAsync(appConfig.pythonExecutable, generatorArgs, {
+      cwd: appConfig.repoRoot,
+      env: process.env,
+    });
     const exportResult = JSON.parse(String(stdout || "{}"));
+    if (Array.isArray(exportResult.warnings) && exportResult.warnings.length) {
+      exportWarnings.push(...exportResult.warnings);
+    }
     const nextDraft = {
       ...savedDraft,
       renderState: {
@@ -1765,9 +1882,25 @@ app.post("/api/dispute-drafts/:draftId/export", async (req, res) => {
       status: "ok",
       draft: attachArtifactUrls(persisted),
       exportResult,
+      warnings: exportWarnings,
     });
   } catch (error) {
     sendError(res, 500, "Failed to export dispute letter artifacts", String(error));
+  }
+});
+
+app.get("/api/dispute-drafts/:draftId/artifacts/exhibits/:fileName", async (req, res) => {
+  const draft = await getDraftOr404(res, req.params.draftId);
+  if (!draft) return;
+
+  const fileName = path.basename(req.params.fileName);
+  const targetPath = path.join(appConfig.disputeOutputRoot, draft.id, "exhibits", fileName);
+  try {
+    await fs.access(targetPath);
+    res.setHeader("Cache-Control", "private, max-age=60");
+    res.sendFile(targetPath);
+  } catch {
+    sendError(res, 404, `Exhibit '${fileName}' not found for draft '${draft.id}'.`);
   }
 });
 

@@ -395,7 +395,9 @@ export const normalizeDraftStructure = (draft) => {
     !Array.isArray(draft?.selectedReasons) ||
     !Object.prototype.hasOwnProperty.call(renderState, "highlightedReportPdfPath") ||
     !Object.prototype.hasOwnProperty.call(renderState, "evidenceGeneratedAt") ||
-    !Object.prototype.hasOwnProperty.call(draft ?? {}, "evidenceManifest");
+    !Object.prototype.hasOwnProperty.call(draft ?? {}, "evidenceManifest") ||
+    !Object.prototype.hasOwnProperty.call(draft ?? {}, "exhibitsManifest") ||
+    !Object.prototype.hasOwnProperty.call(draft ?? {}, "letterMode");
 
   if (!needsHeaderNormalization && !needsEvidenceNormalization) {
     return draft;
@@ -404,6 +406,9 @@ export const normalizeDraftStructure = (draft) => {
   const nextDraft = structuredClone(draft);
   nextDraft.selectedReasons = Array.isArray(nextDraft.selectedReasons) ? nextDraft.selectedReasons : [];
   nextDraft.evidenceManifest = nextDraft.evidenceManifest ?? null;
+  nextDraft.exhibitsManifest = nextDraft.exhibitsManifest ?? null;
+  nextDraft.letterMode = nextDraft.letterMode ?? null;
+  nextDraft.exhibitNumbering = nextDraft.exhibitNumbering ?? null;
   nextDraft.renderState = {
     ...nextDraft.renderState,
     highlightedReportPdfPath: nextDraft.renderState?.highlightedReportPdfPath ?? null,
@@ -454,6 +459,71 @@ export const normalizeDraftStructure = (draft) => {
   return nextDraft;
 };
 
+const exhibitsForSection = (section, exhibitsManifest) => {
+  const exhibits = exhibitsManifest?.exhibits;
+  if (!section?.reasonIds?.length || !Array.isArray(exhibits) || !exhibits.length) {
+    return [];
+  }
+  const wanted = new Set(section.reasonIds);
+  return exhibits.filter((exhibit) => wanted.has(exhibit.reasonId));
+};
+
+const formatExhibitRefText = (exhibits) => {
+  if (exhibits.length === 1) {
+    return `(See Exhibit ${exhibits[0].exhibit})`;
+  }
+  return `(See Exhibits ${exhibits[0].exhibit}–${exhibits[exhibits.length - 1].exhibit})`;
+};
+
+const buildSectionExhibitFiguresHtml = (exhibits, draft) => {
+  const parts = [];
+  for (const exhibit of exhibits) {
+    const slides = Array.isArray(exhibit.slides) ? exhibit.slides : [];
+    if (!slides.length) {
+      continue;
+    }
+    const heading = `<p class="exhibit-heading"><strong>Exhibit ${escapeHtml(String(exhibit.exhibit))} — ${escapeHtml(exhibit.issueLabel || "Disputed item")}</strong></p>`;
+    const figures = slides
+      .map((slide) => {
+        if (!slide?.file) {
+          return "";
+        }
+        const dims =
+          Number.isFinite(slide.widthPx) && Number.isFinite(slide.heightPx)
+            ? ` width="${slide.widthPx}" height="${slide.heightPx}"`
+            : "";
+        const src = draft?.id ? `/api/dispute-drafts/${draft.id}/artifacts/exhibits/${encodeURIComponent(slide.file)}` : "";
+        const caption = `Source: Credit report, page ${slide.pageNumber}${slide.label ? ` — ${slide.label}` : ""}`;
+        return (
+          `<img src="${escapeHtml(src)}"${dims} data-exhibit-file="${escapeHtml(slide.file)}" alt="Exhibit ${escapeHtml(String(exhibit.exhibit))} evidence">` +
+          `<p class="exhibit-caption"><em>${escapeHtml(caption)}</em></p>`
+        );
+      })
+      .join("");
+    parts.push(`<div class="exhibit-figure">${heading}${figures}</div>`);
+  }
+  return parts.join("");
+};
+
+// Letter modes (Phase 3): decorate each dispute section at RENDER time only —
+// figures/refs are never baked into section.html (exhibits post-date the draft,
+// and the rich-text sanitizer strips them on edit). Absent letterMode = legacy
+// output, byte-stable with pre-Phase-3 drafts.
+const buildSectionExhibitDecorationHtml = (section, draft) => {
+  const letterMode = draft?.letterMode;
+  if (letterMode !== "inline" && letterMode !== "memorandum") {
+    return "";
+  }
+  const exhibits = exhibitsForSection(section, draft?.exhibitsManifest);
+  if (!exhibits.length) {
+    return "";
+  }
+  if (letterMode === "memorandum") {
+    return `<p class="letter-block exhibit-reference"><em>${escapeHtml(formatExhibitRefText(exhibits))}</em></p>`;
+  }
+  return buildSectionExhibitFiguresHtml(exhibits, draft);
+};
+
 const renderStructuredDocumentBody = (draft) => {
   const normalizedDraft = normalizeDraftStructure(draft);
   const sections = [
@@ -463,9 +533,9 @@ const renderStructuredDocumentBody = (draft) => {
     normalizedDraft.sections.reportMetadataBlock?.enabled ? normalizedDraft.sections.reportMetadataBlock.html : "",
     normalizedDraft.sections.openingRequest?.enabled ? normalizedDraft.sections.openingRequest.html : "",
     normalizedDraft.sections.reinvestigationRequest?.enabled ? normalizedDraft.sections.reinvestigationRequest.html : "",
-    ...normalizedDraft.sections.accountDisputes.filter((section) => section.enabled).sort((a, b) => a.order - b.order).map((section) => section.html),
+    ...normalizedDraft.sections.accountDisputes.filter((section) => section.enabled).sort((a, b) => a.order - b.order).map((section) => section.html + buildSectionExhibitDecorationHtml(section, normalizedDraft)),
     buildPersonalInformationReferenceHtml(normalizedDraft),
-    ...normalizedDraft.sections.personalInformationDisputes.filter((section) => section.enabled).sort((a, b) => a.order - b.order).map((section) => section.html),
+    ...normalizedDraft.sections.personalInformationDisputes.filter((section) => section.enabled).sort((a, b) => a.order - b.order).map((section) => section.html + buildSectionExhibitDecorationHtml(section, normalizedDraft)),
     normalizedDraft.sections.recordsRequest?.enabled ? normalizedDraft.sections.recordsRequest.html : "",
     normalizedDraft.sections.responseInstructions?.enabled ? normalizedDraft.sections.responseInstructions.html : "",
     normalizedDraft.sections.closing?.enabled ? normalizedDraft.sections.closing.html : "",
@@ -574,6 +644,9 @@ export const buildDisputeLetterDraft = ({ sessionId, report, intake, reasons, dr
       lastFullDocumentEditAt: null,
     },
     evidenceManifest: null,
+    exhibitsManifest: null,
+    letterMode: null,
+    exhibitNumbering: null,
     fullDocumentHtml: "",
     reportSummary: {
       fileName: report.fileName,
