@@ -2554,23 +2554,29 @@ def build_structured_slides(
                 else f"{format_month_reference(start_year, start_month)} missing from payment history"
             )
             matches: List[Match] = []
-            target_cell = (
-                resolve_history_cell(account_context, "paymentHistoryGapSlots", start_year, start_month)
-                or resolve_history_cell(account_context, "paymentHistory", start_year, start_month)
-            )
-            if target_cell and (target_cell.state in {"blank", "missing_slot"} or not normalize_text(target_cell.value)):
-                matches.append(
-                    build_account_history_match(
-                        "Missing payment-history month",
-                        target_cell,
-                        5.4,
-                        matched_text=missing_history_slot_text(target_cell.field, start_year, start_month),
-                    )
+            # Highlight EVERY month in the gap group, not just the first — a claim of
+            # "missing Apr through May" must mark both cells (Phase 2 QC finding).
+            for gap_year, gap_month, _comparison in month_group:
+                target_cell = (
+                    resolve_history_cell(account_context, "paymentHistoryGapSlots", gap_year, gap_month)
+                    or resolve_history_cell(account_context, "paymentHistory", gap_year, gap_month)
                 )
-            else:
-                gap_match = infer_history_gap_match(account_context, "paymentHistory", start_year, start_month, locator)
-                if gap_match:
-                    matches.append(gap_match)
+                if target_cell and (target_cell.state in {"blank", "missing_slot"} or not normalize_text(target_cell.value)):
+                    matches.append(
+                        build_account_history_match(
+                            "Missing payment-history month",
+                            target_cell,
+                            5.4,
+                            matched_text=missing_history_slot_text(target_cell.field, gap_year, gap_month),
+                        )
+                    )
+                else:
+                    gap_match = infer_history_gap_match(
+                        account_context, "paymentHistory", gap_year, gap_month, locator,
+                        label=f"Missing payment-history month — {format_month_reference(gap_year, gap_month)}",
+                    )
+                    if gap_match:
+                        matches.append(gap_match)
             previous_cell, _ = resolve_neighbor_history_cells(account_context, "paymentHistory", start_year, start_month)
             _, next_cell = resolve_neighbor_history_cells(account_context, "paymentHistory", end_year, end_month)
             for boundary_label, boundary_cell in (("Earlier reported month", previous_cell), ("Later reported month", next_cell)):
@@ -3669,7 +3675,30 @@ def collect_page_highlights(
     return per_page
 
 
-def render_highlighted_report_pdf(source_pdf: Path, output_pdf: Path, manifest: Dict[str, object]):
+def build_box_exhibit_index(exhibit_map: List[Dict[str, object]]) -> Dict[Tuple[int, int, int, int, int], List[str]]:
+    """(page, x, y, w, h) -> exhibit labels citing that box, for number chips on the
+    full report. Identity/context boxes never chip (they never render there anyway)."""
+    index: Dict[Tuple[int, int, int, int, int], List[str]] = {}
+    for exhibit in exhibit_map:
+        for slide in exhibit.get("slides") or []:
+            page_number = int(slide.get("pageNumber") or 0)
+            for box in slide.get("highlightBoxes") or []:
+                if box.get("kind") == "identity":
+                    continue
+                key = (page_number, int(box["x"]), int(box["y"]), int(box["width"]), int(box["height"]))
+                labels = index.setdefault(key, [])
+                label = str(exhibit.get("exhibit"))
+                if label not in labels:
+                    labels.append(label)
+    return index
+
+
+def render_highlighted_report_pdf(
+    source_pdf: Path,
+    output_pdf: Path,
+    manifest: Dict[str, object],
+    box_exhibit_index: Optional[Dict[Tuple[int, int, int, int, int], List[str]]] = None,
+):
     page_highlights = collect_page_highlights(manifest, export_grade_only=True)
     doc = fitz.open(str(source_pdf))
 
@@ -3716,6 +3745,49 @@ def render_highlighted_report_pdf(source_pdf: Path, output_pdf: Path, manifest: 
                 width=1.6,
                 overlay=True,
             )
+            # Exhibit number chip: maps every mark to its dispute so the bureau
+            # never has to guess which highlight belongs to which claim.
+            if box_exhibit_index:
+                chip_key = (
+                    page_number,
+                    int(box.get("x", -1)), int(box.get("y", -1)),
+                    int(box.get("width", -1)), int(box.get("height", -1)),
+                )
+                chip_labels = box_exhibit_index.get(chip_key)
+                if chip_labels:
+                    chip_text = ",".join(chip_labels[:3]) + ("\u2026" if len(chip_labels) > 3 else "")
+                    chip_width = 4.2 * len(chip_text) + 6.0
+                    chip_height = 10.0
+                    chip_x1 = min(right, page_width - 1.0)
+                    chip_x0 = max(1.0, chip_x1 - chip_width)
+                    if top - chip_height - 1.5 >= 1.0:
+                        chip_y0 = top - chip_height - 1.5
+                    else:
+                        chip_y0 = min(bottom + 1.5, page_height - chip_height - 1.0)
+                    chip_rect = fitz.Rect(chip_x0, chip_y0, chip_x1, chip_y0 + chip_height)
+                    page.draw_rect(
+                        chip_rect,
+                        color=(0.72, 0.53, 0.04),
+                        fill=(1.0, 0.98, 0.82),
+                        width=0.7,
+                        overlay=True,
+                    )
+                    # insert_text (not insert_textbox): the 10pt chip is borderline
+                    # for textbox fit math, which silently renders NOTHING on a
+                    # negative return. Baseline insertion always draws.
+                    text_width = fitz.get_text_length(chip_text, fontname="helv", fontsize=6.5)
+                    baseline = fitz.Point(
+                        chip_rect.x0 + max(1.5, (chip_rect.width - text_width) / 2.0),
+                        chip_rect.y0 + 7.6,
+                    )
+                    page.insert_text(
+                        baseline,
+                        chip_text,
+                        fontsize=6.5,
+                        fontname="helv",
+                        color=(0.4, 0.28, 0.0),
+                        overlay=True,
+                    )
 
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(output_pdf))
@@ -3952,7 +4024,10 @@ def main():
     can_generate = len(manifest.get("blockingUnresolvedReasonIds") or []) == 0 and len(manifest.get("exportableReasonIds") or []) > 0
     if args.highlighted_pdf_path and can_generate:
         highlighted_pdf_path = Path(args.highlighted_pdf_path)
-        render_highlighted_report_pdf(source_pdf, highlighted_pdf_path, manifest)
+        # Chips always carry letter-order exhibit numbers (operator: every mark maps to
+        # its dispute) — the same map the exhibits/memorandum use.
+        chip_index = build_box_exhibit_index(build_exhibit_map(draft, manifest, args.exhibit_numbering))
+        render_highlighted_report_pdf(source_pdf, highlighted_pdf_path, manifest, box_exhibit_index=chip_index)
 
     exhibits_manifest = None
     exhibits_dir = None
