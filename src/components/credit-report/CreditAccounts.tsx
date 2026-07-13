@@ -1,10 +1,12 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CreditReport, AccountSummary } from "@/lib/types/creditReport";
 import CreditAccountsHeader from "./accounts/CreditAccountsHeader";
 import CreditAccountsDebug from "./accounts/CreditAccountsDebug";
 import CreditAccountsTable from "./accounts/CreditAccountsTable";
+import ExtractedSourceTabs from "./source/ExtractedSourceTabs";
+import { useReportWorkspace } from "@/features/workspace/ReportWorkspaceContext";
 
 interface CreditAccountsProps {
   report: CreditReport;
@@ -12,6 +14,7 @@ interface CreditAccountsProps {
 
 const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const { advancedUiEnabled } = useReportWorkspace();
   
   // Required account types in order
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
@@ -55,6 +58,12 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
     }
   });
 
+  useEffect(() => {
+    if (!advancedUiEnabled) {
+      setShowDebugInfo(false);
+    }
+  }, [advancedUiEnabled]);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -64,11 +73,20 @@ const CreditAccounts: React.FC<CreditAccountsProps> = ({ report }) => {
         />
       </CardHeader>
       <CardContent>
-        <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
-        
-        {showDebugInfo && <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />}
-        
-        <CreditAccountsTable accountSummaries={accountSummaries} />
+        <ExtractedSourceTabs
+          sessionId={report.sourceSessionId}
+          pageNumbers={report.sourceComponents?.creditAccountsSummary?.pages}
+          sourceTitle="Credit Accounts Summary Source Pages"
+          tabsClassName="mb-4"
+        >
+          <>
+            <p className="mb-4">Your credit report includes information about activity on your credit accounts that may affect your credit score and rating.</p>
+            
+            {advancedUiEnabled && showDebugInfo && <CreditAccountsDebug accountSummaries={report.accountSummaries || []} />}
+            
+            <CreditAccountsTable accountSummaries={accountSummaries} />
+          </>
+        </ExtractedSourceTabs>
       </CardContent>
     </Card>
   );

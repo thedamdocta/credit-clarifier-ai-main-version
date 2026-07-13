@@ -1,5 +1,6 @@
 
 import { toast } from "sonner";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 export interface ProgressCallbacks {
   setCurrentFile: (file: File) => void;
@@ -76,7 +77,7 @@ export const setupProgressTracking = (callbacks: ProgressCallbacks) => {
   
   // Function to handle errors in progress tracking
   const handleProgressError = (error: any) => {
-    console.error("Error in PDF processing:", error);
+    devDiagnostics.error("Error in PDF processing:", error);
     toast.error("An error occurred while processing the PDF.");
     clearProgressTracking();
     setUploadProgress(0);

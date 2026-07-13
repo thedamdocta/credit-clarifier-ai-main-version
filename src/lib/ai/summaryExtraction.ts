@@ -1,13 +1,14 @@
 
 import { extractEntities } from './textAnalysis';
 import { CreditReport } from '../types/creditReport';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Specialized NLP-based extraction for credit report summary sections
  * This targets specific fields with focused extraction rather than parsing the entire document
  */
 export const extractReportSummaryWithAI = async (text: string): Promise<Partial<CreditReport>> => {
-  console.log("Extracting report summary fields with AI...");
+  devDiagnostics.log("Extracting report summary fields with AI...");
   
   try {
     // Initialize the return object
@@ -19,11 +20,11 @@ export const extractReportSummaryWithAI = async (text: string): Promise<Partial<
     
     if (summaryMatch && summaryMatch[0]) {
       summarySection = summaryMatch[0];
-      console.log("Found summary section with length:", summarySection.length);
+      devDiagnostics.log("Found summary section with length:", summarySection.length);
     } else {
       // If no explicit summary section found, take the first part of the document
       summarySection = text.substring(0, 2000);
-      console.log("Using first part of document for summary extraction");
+      devDiagnostics.log("Using first part of document for summary extraction");
     }
     
     // Extract each piece of information separately using focused functions
@@ -39,7 +40,7 @@ export const extractReportSummaryWithAI = async (text: string): Promise<Partial<
     
     return summaryData;
   } catch (error) {
-    console.error("Error extracting summary with AI:", error);
+    devDiagnostics.error("Error extracting summary with AI:", error);
     return {};
   }
 };
@@ -49,7 +50,7 @@ function extractAlertContactsAI(text: string, data: Partial<CreditReport>): void
   const alertMatch = text.match(/Alert\s*Contacts\s*:?\s*(\d+)\s*Records?\s*Found(?:\s|$|\n)/i);
   if (alertMatch && alertMatch[1]) {
     data.alertContacts = alertMatch[1].trim() + " Records Found";
-    console.log("Extracted alert contacts:", data.alertContacts);
+    devDiagnostics.log("Extracted alert contacts:", data.alertContacts);
   }
 }
 
@@ -57,7 +58,7 @@ function extractAverageAccountAgeAI(text: string, data: Partial<CreditReport>): 
   const ageMatch = text.match(/Average\s*Account\s*Age\s*:?\s*(\d+\s*Years?,\s*\d+\s*Months?)(?:\s|$|\n)/i);
   if (ageMatch && ageMatch[1]) {
     data.averageAccountAge = ageMatch[1].trim();
-    console.log("Extracted average account age:", data.averageAccountAge);
+    devDiagnostics.log("Extracted average account age:", data.averageAccountAge);
   }
 }
 
@@ -66,7 +67,7 @@ function extractCreditHistoryLengthAI(text: string, data: Partial<CreditReport>)
   const historyMatch = text.match(/Length\s*of\s*Credit\s*History\s*:?\s*(\d+\s*Years?(?:,\s*\d+\s*Months?)?)(?:\s|$|\n)/i);
   if (historyMatch && historyMatch[1]) {
     data.lengthOfCreditHistory = historyMatch[1].trim();
-    console.log("Extracted credit history length:", data.lengthOfCreditHistory);
+    devDiagnostics.log("Extracted credit history length:", data.lengthOfCreditHistory);
   }
 }
 
@@ -74,7 +75,7 @@ function extractNegativeAccountsAI(text: string, data: Partial<CreditReport>): v
   const negInfoMatch = text.match(/Accounts\s*with\s*Negative\s*Information\s*:?\s*(\d+)(?:\s|$|\n)/i);
   if (negInfoMatch && negInfoMatch[1]) {
     data.accountsWithNegativeInfo = negInfoMatch[1].trim();
-    console.log("Extracted accounts with negative info:", data.accountsWithNegativeInfo);
+    devDiagnostics.log("Extracted accounts with negative info:", data.accountsWithNegativeInfo);
   }
 }
 
@@ -86,7 +87,7 @@ function extractOldestAccountAI(text: string, data: Partial<CreditReport>): void
       accountName: oldestAccountMatch[1].trim(),
       openDate: oldestAccountMatch[2].trim()
     };
-    console.log("Extracted oldest account:", data.oldestAccount);
+    devDiagnostics.log("Extracted oldest account:", data.oldestAccount);
   }
 }
 
@@ -98,7 +99,7 @@ function extractRecentAccountAI(text: string, data: Partial<CreditReport>): void
       accountName: recentAccountMatch[1].trim(),
       openDate: recentAccountMatch[2].trim()
     };
-    console.log("Extracted most recent account:", data.recentAccount);
+    devDiagnostics.log("Extracted most recent account:", data.recentAccount);
   }
 }
 
@@ -108,7 +109,7 @@ function extractStatementsCountAI(text: string, data: Partial<CreditReport>): vo
   if (statementMatch && statementMatch[1]) {
     const count = parseInt(statementMatch[1].trim());
     data.statementCount = count;
-    console.log("Extracted statement count:", count);
+    devDiagnostics.log("Extracted statement count:", count);
   }
 }
 

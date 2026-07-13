@@ -1,69 +1,187 @@
-
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { FileText, Menu, Settings2 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Home, Settings, Webhook } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
+import { useReportWorkspace } from "@/features/workspace/ReportWorkspaceContext";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
+type NavigationItem = {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  emphasized?: boolean;
+};
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const {
+    environmentLabel,
+    hasReport,
+    openProtectedRoute,
+    reportReference,
+  } = useReportWorkspace();
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
   const path = location.pathname;
+  const onUploadRoute = path === "/" || path === "/upload";
+  const onAcquireRoute = path === "/acquire";
+  const onReportRoute = path === "/report";
+  const onDisputeRoute = path === "/dispute";
+  const onSettingsRoute = path === "/settings";
+
+  const primaryItems: NavigationItem[] = [
+    {
+      label: "Dashboard",
+      active: onUploadRoute,
+      onClick: () => navigate("/upload"),
+    },
+    {
+      label: "Reports    [+]",
+      active: onReportRoute || onDisputeRoute,
+      emphasized: true,
+      onClick: () => {
+        if (hasReport) {
+          openProtectedRoute("report");
+          return;
+        }
+        navigate("/upload");
+      },
+    },
+  ];
+
+  const workflowItems: NavigationItem[] = [
+    {
+      label: "Upload PDF",
+      active: onUploadRoute,
+      onClick: () => navigate("/upload"),
+    },
+    {
+      label: "Get Reports",
+      active: onAcquireRoute,
+      onClick: () => navigate("/acquire"),
+    },
+    {
+      label: "> Report View",
+      active: onReportRoute,
+      emphasized: true,
+      onClick: () => openProtectedRoute("report"),
+    },
+    {
+      label: "Dispute Letter",
+      active: onDisputeRoute,
+      onClick: () => openProtectedRoute("dispute"),
+    },
+    {
+      label: "Settings",
+      active: onSettingsRoute,
+      onClick: () => navigate("/settings"),
+    },
+  ];
+
+  const renderNavigation = (mobile = false) => (
+    <div className={mobile ? "space-y-6" : "flex h-full flex-col"}>
+      <div className="logo">
+        <FileText className="mt-1 h-6 w-6 shrink-0" strokeWidth={2} />
+        <span>
+          Credit
+          <br />
+          Clarifier
+        </span>
+      </div>
+
+      <hr className="divider-dashed" />
+
+      <div className="nav-group">
+        {primaryItems.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            className={cn("nav-item text-left", item.active && "active", item.emphasized && "font-semibold")}
+            onClick={() => {
+              item.onClick();
+              setIsMobileNavOpen(false);
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <hr className="divider-dashed" />
+
+      <div className="nav-group">
+        {workflowItems.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            className={cn("nav-item text-left", item.active && "active", item.emphasized && "font-semibold")}
+            onClick={() => {
+              item.onClick();
+              setIsMobileNavOpen(false);
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={cn("sidebar-meta", mobile ? "pt-6" : "mt-auto")}>
+        Currently viewing:
+        <br />
+        Ref: {reportReference}
+        <br />
+        Env: {environmentLabel}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-14 items-center">
-          <Link to="/" className="flex items-center space-x-2">
-            <FileText className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl">CreditClarifier</span>
-          </Link>
-          
-          <div className="flex flex-1 items-center justify-end space-x-2">
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/settings">
-                <Settings className="h-5 w-5" />
-              </Link>
+    <div className="dossier-shell">
+      <div className="dossier-frame">
+        <aside className="sidebar hidden lg:flex">{renderNavigation()}</aside>
+
+        <div className="content">
+          <header className="dossier-mobile-bar lg:hidden">
+            <Sheet open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button type="button" variant="outline" className="dossier-button">
+                  <Menu className="h-4 w-4" />
+                  Menu
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[320px] border-black bg-[#f7f4ee] p-8">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Navigation</SheetTitle>
+                </SheetHeader>
+                {renderNavigation(true)}
+              </SheetContent>
+            </Sheet>
+
+            <div className="font-display text-[1.5rem] leading-none tracking-[-0.06em]">
+              CreditClarifier
+            </div>
+
+            <Button type="button" variant="outline" className="dossier-button" onClick={() => navigate("/settings")}>
+              <Settings2 className="h-4 w-4" />
+              Settings
             </Button>
-          </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto">{children}</main>
         </div>
-      </header>
-      
-      <div className="container py-6">
-        <Tabs defaultValue={path} className="w-full mb-6">
-          <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
-            <TabsTrigger value="/" asChild>
-              <Link to="/" className="flex items-center">
-                <Home className="mr-2 h-4 w-4" />
-                Dashboard
-              </Link>
-            </TabsTrigger>
-            <TabsTrigger value="/reports" asChild>
-              <Link to="/reports" className="flex items-center">
-                <FileText className="mr-2 h-4 w-4" />
-                Reports
-              </Link>
-            </TabsTrigger>
-            <TabsTrigger value="/webhooks" asChild>
-              <Link to="/webhooks" className="flex items-center">
-                <Webhook className="mr-2 h-4 w-4" />
-                Webhooks
-              </Link>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        
-        {children}
       </div>
-      
-      <footer className="border-t py-4">
-        <div className="container text-center text-sm text-muted-foreground">
-          CreditClarifier AI &copy; {new Date().getFullYear()}
-        </div>
-      </footer>
     </div>
   );
 };

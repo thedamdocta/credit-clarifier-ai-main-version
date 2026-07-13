@@ -4,13 +4,11 @@ import { Button } from "@/components/ui/button";
 import { FileUp, Upload } from "lucide-react";
 
 interface PDFUploadPlaceholderProps {
-  triggerFileInput: () => void;
   isProcessing: boolean;
 }
 
 const PDFUploadPlaceholder: React.FC<PDFUploadPlaceholderProps> = ({
-  triggerFileInput,
-  isProcessing
+  isProcessing,
 }) => {
   return (
     <>
@@ -20,10 +18,7 @@ const PDFUploadPlaceholder: React.FC<PDFUploadPlaceholderProps> = ({
         Drag & drop your credit report PDF here, or click to browse
       </p>
       
-      <Button 
-        onClick={triggerFileInput} 
-        disabled={isProcessing}
-      >
+      <Button type="button" disabled={isProcessing} className="pointer-events-none">
         <FileUp className="mr-2 h-4 w-4" />
         Select PDF
       </Button>

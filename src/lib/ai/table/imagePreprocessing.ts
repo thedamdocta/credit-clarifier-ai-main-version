@@ -1,3 +1,4 @@
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Image preprocessing utilities for OCR enhancement
@@ -9,11 +10,11 @@
  */
 export async function preprocessImageForOCR(imageUrl: string): Promise<string | null> {
   try {
-    console.log('Image preprocessing requested for:', imageUrl);
+    devDiagnostics.log('Image preprocessing requested for:', imageUrl);
     
     // Check if we have a valid image URL
     if (!imageUrl || typeof imageUrl !== 'string') {
-      console.error('Invalid image URL provided:', imageUrl);
+      devDiagnostics.error('Invalid image URL provided:', imageUrl);
       return null;
     }
     
@@ -21,7 +22,7 @@ export async function preprocessImageForOCR(imageUrl: string): Promise<string | 
     // This ensures the OCR process sees the exact image as uploaded
     return imageUrl;
   } catch (error) {
-    console.error('Error in image preprocessing:', error);
+    devDiagnostics.error('Error in image preprocessing:', error);
     return null;
   }
 }
@@ -41,13 +42,13 @@ export async function getImageDimensions(imageUrl: string): Promise<{width: numb
         });
       };
       img.onerror = () => {
-        console.error('Failed to load image for dimension calculation');
+        devDiagnostics.error('Failed to load image for dimension calculation');
         reject(null);
       };
       img.src = imageUrl;
     });
   } catch (error) {
-    console.error('Error getting image dimensions:', error);
+    devDiagnostics.error('Error getting image dimensions:', error);
     return null;
   }
 }

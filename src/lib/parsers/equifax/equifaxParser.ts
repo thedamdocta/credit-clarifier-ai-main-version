@@ -6,7 +6,7 @@ import { extractEquifaxSummary } from "./equifaxSummary";
 import { parsingLogger } from "@/utils/parsingLogger";
 import { toast } from "sonner";
 import { getExtractedReportData } from "@/utils/pdf/extractText";
-import { extractTableWithOpenAI } from "@/lib/ai/openai/openaiService";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 export const parseEquifaxReport = async (text: string): Promise<Partial<CreditReport>> => {
   try {
@@ -19,11 +19,11 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
     
     if (confirmationMatch && confirmationMatch[1]) {
       reportSummary.confirmationNumber = confirmationMatch[1].trim();
-      console.log("Found confirmation number:", reportSummary.confirmationNumber);
+      devDiagnostics.log("Found confirmation number:", reportSummary.confirmationNumber);
     }
     
     // Account summaries - use text-based extraction directly
-    console.log("Using text-based account summaries extraction");
+    devDiagnostics.log("Using text-based account summaries extraction");
     let accountSummaries = await extractEquifaxAccountSummaries(text);
     parsingLogger.logAccountSummariesExtraction(accountSummaries);
     
@@ -36,7 +36,7 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
     
     // If text extraction failed, try to get cached data
     if (!hasRealData) {
-      console.log("Text extraction did not yield real data, checking for cached data");
+      devDiagnostics.log("Text extraction did not yield real data, checking for cached data");
       const cachedReport = getExtractedReportData();
       if (cachedReport && cachedReport.accountSummaries && cachedReport.accountSummaries.length > 0) {
         const cachedHasRealData = cachedReport.accountSummaries.some(summary => 
@@ -46,7 +46,7 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
         );
         
         if (cachedHasRealData) {
-          console.log("Using cached account summaries with real data");
+          devDiagnostics.log("Using cached account summaries with real data");
           accountSummaries = cachedReport.accountSummaries;
         }
       }
@@ -64,7 +64,7 @@ export const parseEquifaxReport = async (text: string): Promise<Partial<CreditRe
     
     return equifaxSpecific;
   } catch (error) {
-    console.error("Error in Equifax-specific parsing:", error);
+    devDiagnostics.error("Error in Equifax-specific parsing:", error);
     return {}; // Return empty object on error
   }
 };

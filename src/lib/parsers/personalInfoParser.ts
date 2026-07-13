@@ -1,5 +1,6 @@
 import { PersonalInfo } from "../types/creditReport";
 import { extractSSNWithAI } from "../ai";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 export const extractPersonalInfo = async (text: string): Promise<PersonalInfo> => {
   let name = '';
@@ -42,7 +43,7 @@ export const extractPersonalInfo = async (text: string): Promise<PersonalInfo> =
   try {
     ssn = await extractSSNWithAI(text);
   } catch (error) {
-    console.error("Error extracting SSN with AI:", error);
+    devDiagnostics.error("Error extracting SSN with AI:", error);
     const ssnMatch = text.match(/ssn:?\s*(?:xxx-xx-|[*]{5}|[*]{3}-[*]{2}-)(\d{4})/i);
     if (ssnMatch && ssnMatch[1]) {
       ssn = `XXX-XX-${ssnMatch[1]}`;

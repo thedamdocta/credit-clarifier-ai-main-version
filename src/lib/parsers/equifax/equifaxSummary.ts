@@ -1,5 +1,6 @@
 import { enhanceEquifaxSummaryWithAI } from '../../ai/summaryExtraction';
 import { CreditReport } from '../../types/creditReport';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Extracts summary information from Equifax credit report format
@@ -21,7 +22,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
   consumerName?: string;
   confirmationNumber?: string;
 }> => {
-  console.log("Extracting Equifax summary...");
+  devDiagnostics.log("Extracting Equifax summary...");
   
   // Initialize return object
   const summary: any = {};
@@ -51,7 +52,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     
     // If AI extraction was successful, selectively merge specific fields
     if (Object.keys(enhancedSummary).length > 0) {
-      console.log("AI summary extraction successful");
+      devDiagnostics.log("AI summary extraction successful");
       
       // Merge only fields that were successfully extracted
       if (enhancedSummary.alertContacts && enhancedSummary.alertContacts.length < 30) {
@@ -92,7 +93,7 @@ export const extractEquifaxSummary = async (text: string): Promise<{
     
     return summary;
   } catch (error) {
-    console.error("Error extracting Equifax summary:", error);
+    devDiagnostics.error("Error extracting Equifax summary:", error);
     return {};
   }
 };
@@ -198,7 +199,7 @@ function extractConfirmationNumber(text: string, summary: any): void {
     const confirmationMatch = text.match(pattern);
     if (confirmationMatch && confirmationMatch[1] && confirmationMatch[1].trim().length > 3) {
       summary.confirmationNumber = confirmationMatch[1].trim();
-      console.log("Found confirmation number:", summary.confirmationNumber);
+      devDiagnostics.log("Found confirmation number:", summary.confirmationNumber);
       return;
     }
   }
@@ -208,6 +209,6 @@ function extractConfirmationNumber(text: string, summary: any): void {
   const genericMatch = text.match(genericPattern);
   if (genericMatch && genericMatch[1] && genericMatch[1].trim().length > 5) {
     summary.confirmationNumber = genericMatch[1].trim();
-    console.log("Found generic confirmation number:", summary.confirmationNumber);
+    devDiagnostics.log("Found generic confirmation number:", summary.confirmationNumber);
   }
 }

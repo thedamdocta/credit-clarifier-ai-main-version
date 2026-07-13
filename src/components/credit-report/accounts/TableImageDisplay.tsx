@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { toast } from "sonner";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 interface TableImageDisplayProps {
   imageUrl: string | null;
@@ -23,7 +24,7 @@ const TableImageDisplay: React.FC<TableImageDisplayProps> = ({
   // Automatically attempt extraction once when the image is loaded
   useEffect(() => {
     if (imageUrl && imageLoaded && onDataExtracted) {
-      console.log("Image loaded, attempting automatic extraction");
+      devDiagnostics.log("Image loaded, attempting automatic extraction");
       handleExtractData();
     }
   }, [imageUrl, imageLoaded]);
@@ -38,14 +39,14 @@ const TableImageDisplay: React.FC<TableImageDisplayProps> = ({
       // Add a cache-busting parameter to ensure we're using fresh image data
       const cacheBustUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
       
-      console.log("Extracting data from image:", cacheBustUrl);
+      devDiagnostics.log("Extracting data from image:", cacheBustUrl);
       const tableData = await extractTableFromImage(cacheBustUrl);
       
       if (tableData && tableData.rows && tableData.rows.length > 0) {
-        console.log("Successfully extracted table data:", tableData);
+        devDiagnostics.log("Successfully extracted table data:", tableData);
         
         const accountSummaries = convertTableToAccountSummaries(tableData);
-        console.log("Converted to account summaries:", accountSummaries);
+        devDiagnostics.log("Converted to account summaries:", accountSummaries);
         
         if (accountSummaries && accountSummaries.length > 0 && onDataExtracted) {
           // Check if we have actual data
@@ -56,11 +57,11 @@ const TableImageDisplay: React.FC<TableImageDisplayProps> = ({
           );
           
           if (hasRealData) {
-            console.log("Extracted real data from image, applying to table");
+            devDiagnostics.log("Extracted real data from image, applying to table");
             onDataExtracted(accountSummaries);
             toast.success("Successfully extracted data from table image");
           } else {
-            console.log("No real data found in extracted account summaries");
+            devDiagnostics.log("No real data found in extracted account summaries");
             toast.error("Couldn't extract meaningful data from the image");
           }
         } else {
@@ -70,7 +71,7 @@ const TableImageDisplay: React.FC<TableImageDisplayProps> = ({
         toast.error("Failed to extract table data from the image");
       }
     } catch (error) {
-      console.error("Error extracting data from image:", error);
+      devDiagnostics.error("Error extracting data from image:", error);
       toast.error("Error during data extraction");
     } finally {
       setIsExtracting(false);
@@ -121,10 +122,10 @@ const TableImageDisplay: React.FC<TableImageDisplayProps> = ({
           onError={(e) => {
             e.currentTarget.style.display = 'none';
             setImageLoaded(false);
-            console.error("Error loading table image");
+            devDiagnostics.error("Error loading table image");
           }}
           onLoad={() => {
-            console.log("Table image loaded successfully");
+            devDiagnostics.log("Table image loaded successfully");
             setImageLoaded(true);
           }}
         />

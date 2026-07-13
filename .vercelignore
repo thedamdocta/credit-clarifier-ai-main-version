@@ -1,0 +1,12 @@
+node_modules
+logs
+tmp
+output
+.git
+scripts
+python_workers
+server
+shared
+docs
+*.log
+*.mjs.timestamp-*

@@ -1,7 +1,11 @@
 
 import React from "react";
 import { Account } from "@/lib/types/creditReport";
-import { formatDollarAmount } from "@/utils/formatters/accountValueFormatters";
+import {
+  formatDollarAmount,
+  humanizeExtractedText,
+  isNotReportedValue,
+} from "@/utils/formatters/accountValueFormatters";
 
 interface AccountSummaryProps {
   account: Account;
@@ -13,7 +17,7 @@ const AccountSummary: React.FC<AccountSummaryProps> = ({ account, showDebugInfo 
   const summaryFields = [
     { label: "Account Number", value: account.accountNumber || "Unknown" },
     { label: "Reported Balance", value: account.balance ? formatDollarAmount(account.balance) : "Not reported" },
-    { label: "Account Status", value: account.status || "Unknown" },
+    { label: "Account Status", value: humanizeExtractedText(account.status) || "Unknown" },
     { label: "Open Date", value: account.openDate || "Not reported" },
   ];
 
@@ -26,7 +30,9 @@ const AccountSummary: React.FC<AccountSummaryProps> = ({ account, showDebugInfo 
             className="bg-background p-4 rounded-md border"
           >
             <div className="text-sm font-medium text-muted-foreground mb-1">{field.label}</div>
-            <div className="font-semibold">{field.value}</div>
+            <div className={isNotReportedValue(field.value) ? "font-normal text-slate-400" : "font-semibold"}>
+              {field.value}
+            </div>
           </div>
         ))}
       </div>

@@ -1,0 +1,21 @@
+{
+  "id": "equifax_new_v1",
+  "name": "Equifax AnnualCreditReport New Layout",
+  "sectionAnchors": {
+    "reportConfirmationDetails": ["credit report", "confirmation #", "prepared for"],
+    "summary": ["summary", "average account age", "length of credit history"],
+    "personalInformation": ["personal information", "consumer file notices", "consumer statement"],
+    "accounts": ["credit accounts", "payment history", "24 month history"],
+    "inquiries": ["company information", "inquiry type", "inquiry date(s)"]
+  },
+  "retrieval": {
+    "includeNeighbors": false
+  },
+  "requiredComponents": [
+    "reportConfirmationDetails",
+    "summary",
+    "personalInformation",
+    "accounts",
+    "inquiries"
+  ]
+}

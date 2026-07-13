@@ -6,6 +6,7 @@
  */
 
 import { pipeline } from '@huggingface/transformers';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 // Lazily loaded table detection pipeline
 let tableDetectionPipelinePromise: Promise<any> | null = null;
@@ -32,7 +33,7 @@ export async function detectTablesInImage(
 }>> {
   if (USE_SIMULATION) {
     // Simulate table detection for development
-    console.log(`Simulating ${targetTableName} table detection for`, imageUrl);
+    devDiagnostics.log(`Simulating ${targetTableName} table detection for`, imageUrl);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
     
     // Return simulated bounding box
@@ -49,11 +50,11 @@ export async function detectTablesInImage(
   }
   
   try {
-    console.log(`Starting ${targetTableName} table detection on image:`, imageUrl);
+    devDiagnostics.log(`Starting ${targetTableName} table detection on image:`, imageUrl);
     
     // Initialize the table detection pipeline
     if (!tableDetectionPipelinePromise) {
-      console.log('Loading table detection model...');
+      devDiagnostics.log('Loading table detection model...');
       tableDetectionPipelinePromise = pipeline('object-detection', TABLE_DETECTION_MODEL);
     }
     
@@ -65,7 +66,7 @@ export async function detectTablesInImage(
       threshold: 0.5
     });
     
-    console.log('Table detection results:', results);
+    devDiagnostics.log('Table detection results:', results);
     
     // Extract bounding boxes for detected tables
     const tables = results
@@ -94,7 +95,7 @@ export async function detectTablesInImage(
     
     return tables;
   } catch (error) {
-    console.error('Error in table detection:', error);
+    devDiagnostics.error('Error in table detection:', error);
     return [];
   }
 }
@@ -110,7 +111,7 @@ export async function analyzeImageForTargetTable(
   targetTableName: string = "Credit Accounts"
 ): Promise<number> {
   try {
-    console.log(`Analyzing image for "${targetTableName}" content:`, imageUrl);
+    devDiagnostics.log(`Analyzing image for "${targetTableName}" content:`, imageUrl);
     
     if (USE_SIMULATION) {
       // Return a randomized but high score to simulate finding the correct table
@@ -121,7 +122,7 @@ export async function analyzeImageForTargetTable(
     // if the image contains the target table. For now we'll return a placeholder score.
     return 0.8;
   } catch (error) {
-    console.error('Error analyzing image for target table:', error);
+    devDiagnostics.error('Error analyzing image for target table:', error);
     return 0;
   }
 }
@@ -144,7 +145,7 @@ export async function extractTableStructure(
   }>;
   tableType: string; // Added to identify what type of table it is
 } | null> {
-  console.log(`Extracting "${targetTableName}" table structure from region`, tableRegion);
+  devDiagnostics.log(`Extracting "${targetTableName}" table structure from region`, tableRegion);
   
   if (USE_SIMULATION) {
     await new Promise(resolve => setTimeout(resolve, 700)); // Simulate processing time
@@ -165,7 +166,7 @@ export async function extractTableStructure(
     // For now, return null to trigger fallback methods
     return null;
   } catch (error) {
-    console.error('Error extracting table structure:', error);
+    devDiagnostics.error('Error extracting table structure:', error);
     return null;
   }
 }
@@ -213,7 +214,7 @@ export function calculateCreditAccountsTableScore(text: string): number {
     if (lowerText.includes(keyword.term)) {
       score += keyword.weight;
       totalWeight += keyword.weight;
-      console.log(`Found positive keyword: "${keyword.term}" (weight: ${keyword.weight})`);
+      devDiagnostics.log(`Found positive keyword: "${keyword.term}" (weight: ${keyword.weight})`);
     } else {
       totalWeight += keyword.weight;
     }
@@ -223,13 +224,13 @@ export function calculateCreditAccountsTableScore(text: string): number {
   negativeKeywords.forEach(keyword => {
     if (lowerText.includes(keyword.term)) {
       score += keyword.weight; // Will subtract because these weights are negative
-      console.log(`Found negative keyword: "${keyword.term}" (weight: ${keyword.weight})`);
+      devDiagnostics.log(`Found negative keyword: "${keyword.term}" (weight: ${keyword.weight})`);
     }
   });
   
   // Normalize score to 0-1 range
   const normalizedScore = Math.max(0, Math.min(1, score / totalWeight));
-  console.log(`Calculated credit accounts table score: ${normalizedScore.toFixed(2)} (raw: ${score}/${totalWeight})`);
+  devDiagnostics.log(`Calculated credit accounts table score: ${normalizedScore.toFixed(2)} (raw: ${score}/${totalWeight})`);
   
   return normalizedScore;
 }

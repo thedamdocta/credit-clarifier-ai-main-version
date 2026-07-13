@@ -1,6 +1,7 @@
 
 import { pipeline } from '@huggingface/transformers';
 import { preprocessImageForOCR } from './imagePreprocessing';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 // Lazily loaded OCR pipeline
 let ocrPipelinePromise: Promise<any> | null = null;
@@ -17,13 +18,13 @@ const USE_SIMULATION = true; // For development purposes only
 export async function extractTextFromImageWithOCR(imageUrl: string): Promise<string | null> {
   if (USE_SIMULATION) {
     // Simulate OCR processing for development
-    console.log('Simulating OCR processing for', imageUrl);
+    devDiagnostics.log('Simulating OCR processing for', imageUrl);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing time
     return "Simulated OCR output for development purposes.";
   }
   
   try {
-    console.log('Starting OCR on image:', imageUrl);
+    devDiagnostics.log('Starting OCR on image:', imageUrl);
     
     // Add a cache-busting parameter to ensure we're using the latest image
     const cacheBustUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
@@ -34,7 +35,7 @@ export async function extractTextFromImageWithOCR(imageUrl: string): Promise<str
     
     // Initialize the OCR pipeline
     if (!ocrPipelinePromise) {
-      console.log('Loading OCR model...');
+      devDiagnostics.log('Loading OCR model...');
       ocrPipelinePromise = pipeline('image-to-text', OCR_MODEL);
     }
     
@@ -44,14 +45,14 @@ export async function extractTextFromImageWithOCR(imageUrl: string): Promise<str
     // Process the image
     const result = await ocrPipeline(imageToProcess);
     
-    console.log('OCR result:', result);
+    devDiagnostics.log('OCR result:', result);
     
     // Extract the text from the result
     const extractedText = result.map((item: any) => item.generated_text).join('\n');
     
     return extractedText;
   } catch (error) {
-    console.error('Error in OCR processing:', error);
+    devDiagnostics.error('Error in OCR processing:', error);
     return null;
   }
 }
@@ -63,7 +64,7 @@ export async function extractTextFromImageWithOCR(imageUrl: string): Promise<str
  */
 export async function processImageWithEnhancedOCR(imageUrl: string): Promise<string | null> {
   try {
-    console.log('Starting enhanced OCR processing for', imageUrl);
+    devDiagnostics.log('Starting enhanced OCR processing for', imageUrl);
     
     // Add a timestamp to ensure we're using the latest image
     const uniqueUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}unique=${Date.now()}`;
@@ -82,7 +83,7 @@ export async function processImageWithEnhancedOCR(imageUrl: string): Promise<str
     
     return structuredText;
   } catch (error) {
-    console.error('Error in enhanced OCR processing:', error);
+    devDiagnostics.error('Error in enhanced OCR processing:', error);
     return null;
   }
 }
@@ -92,7 +93,7 @@ export async function processImageWithEnhancedOCR(imageUrl: string): Promise<str
  * This is the second stage of the two-stage OCR process
  */
 async function applyTemplateMatching(extractedText: string, imageUrl: string): Promise<string> {
-  console.log('Applying template matching to extracted text');
+  devDiagnostics.log('Applying template matching to extracted text');
   
   // For now, we'll apply some basic pattern recognition
   // In a production system, this would use more advanced template matching
@@ -105,7 +106,7 @@ async function applyTemplateMatching(extractedText: string, imageUrl: string): P
   
   // If we found at least some of the expected row headers, we can try to extract the table
   if (revolving || mortgage || installment || total) {
-    console.log('Found table structure indicators');
+    devDiagnostics.log('Found table structure indicators');
     // In a real implementation, we would now extract columns of data
     // by looking at spatial relationships in the original image
     
@@ -129,7 +130,7 @@ export async function extractTextFromImageRegion(
   // 2. Apply OCR to the cropped region
   // 3. Return the extracted text
   
-  console.log(`Extracting text from region (${region.x}, ${region.y}, ${region.width}, ${region.height})`);
+  devDiagnostics.log(`Extracting text from region (${region.x}, ${region.y}, ${region.width}, ${region.height})`);
   
   // Add a timestamp to ensure we're using the latest image
   const uniqueUrl = `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}unique=${Date.now()}`;
@@ -145,7 +146,7 @@ export async function extractTextFromImageRegion(
     // Then apply OCR to the cropped image
     return null;
   } catch (error) {
-    console.error('Error extracting text from image region:', error);
+    devDiagnostics.error('Error extracting text from image region:', error);
     return null;
   }
 }

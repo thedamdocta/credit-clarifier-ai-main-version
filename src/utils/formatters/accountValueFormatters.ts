@@ -5,7 +5,6 @@
 export const formatAccountValue = (value: any): string => {
   // Special explicit handling for 0 values - display as "0" not "-"
   if (value === 0 || value === "0") {
-    console.log("formatAccountValue: Formatting zero value");
     return "0";
   }
   
@@ -16,6 +15,35 @@ export const formatAccountValue = (value: any): string => {
   
   // Always return as string, don't do numeric conversions
   return String(value);
+};
+
+/**
+ * Humanize extracted enum-like values without altering exact identifiers like account numbers.
+ */
+export const humanizeExtractedText = (value: any): string => {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return "";
+  }
+
+  const normalized = raw.replace(/\s+/g, " ");
+  if (!normalized.includes("_")) {
+    return normalized;
+  }
+
+  return normalized.replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+};
+
+export const isNotReportedValue = (value: any): boolean => {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  return String(value).trim().toLowerCase() === "not reported";
 };
 
 /**
@@ -33,6 +61,13 @@ export const formatDollarAmount = (value: any): string => {
   }
 
   const stringValue = String(value);
+  const trimmedValue = stringValue.trim();
+  
+  // Never coerce strings with letters into currency. This prevents
+  // date/text contamination like "Nov 2023" turning into "$Nov 2023".
+  if (/[A-Za-z]/.test(trimmedValue)) {
+    return stringValue;
+  }
   
   // For values already properly formatted with $ or -$, return as is
   if ((stringValue.startsWith('$') && !stringValue.startsWith('$-')) || 
@@ -144,7 +179,6 @@ export const extractCellContent = (line: string, startPos: number, endPos: numbe
   
   // Enhanced detection for standalone "0" values
   if (substring.trim() === "0" || /\b0\b/.test(substring)) {
-    console.log("Found standalone '0' value in cell:", substring);
     return "0";
   }
   
@@ -159,7 +193,6 @@ export const extractNumericValue = (cellContent: string | null): string | null =
   
   // Check for exactly "0" with word boundaries (handles the Revolving row case in your example)
   if (cellContent.trim() === "0" || /\b0\b/.test(cellContent)) {
-    console.log("Found standalone '0' value in numeric extraction");
     return "0";
   }
   

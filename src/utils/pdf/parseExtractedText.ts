@@ -3,6 +3,7 @@ import { parseCreditReport } from "@/lib/creditReportParser";
 // Import the table extraction utilities
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
 import { extractCreditAccountsTableImage, resetCurrentReportImage } from "./extractText";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 export const identifyDocumentPatterns = (extractedText: string) => {
   // Pre-process text to better identify account tables
@@ -43,7 +44,7 @@ export const extractAccountSummariesWithRegex = (text: string) => {
     const installmentMatch = text.match(/installment\s+(\d+)\s+(\d+)/i);
     const totalMatch = text.match(/total\s+(\d+)\s+(\d+)/i);
     
-    console.log("Regex extraction found matches:", {
+    devDiagnostics.log("Regex extraction found matches:", {
       revolvingMatch: revolvingMatch ? true : false,
       mortgageMatch: mortgageMatch ? true : false,
       installmentMatch: installmentMatch ? true : false,
@@ -120,7 +121,7 @@ export const extractAccountSummariesWithRegex = (text: string) => {
     
     return accountSummaries;
   } catch (error) {
-    console.error('Error extracting account summaries with regex:', error);
+    devDiagnostics.error('Error extracting account summaries with regex:', error);
     return [];
   }
 };
@@ -272,33 +273,33 @@ export const createDefaultAccountSummaries = () => {
 export const improvedAccountSummaryExtraction = async (parsedReport: any, extractedText: string) => {
   try {
     // First attempt: Try to extract the table image
-    console.log('Attempting to extract account summaries from image...');
+    devDiagnostics.log('Attempting to extract account summaries from image...');
     const tableImageUrl = await extractCreditAccountsTableImage(parsedReport);
     
     if (tableImageUrl) {
-      console.log('Found table image URL for extraction:', tableImageUrl);
+      devDiagnostics.log('Found table image URL for extraction:', tableImageUrl);
       const tableData = await extractTableFromImage(tableImageUrl);
       if (tableData) {
         const accountSummaries = convertTableToAccountSummaries(tableData);
-        console.log('Successfully extracted account summaries from image:', accountSummaries);
+        devDiagnostics.log('Successfully extracted account summaries from image:', accountSummaries);
         
         // If no real data was extracted (all null values), use sample data instead
         const hasRealData = accountSummaries.some(summary => 
           summary.open !== null || summary.withBalance !== null || summary.totalBalance !== null);
         
         if (hasRealData) {
-          console.log('Using extracted data from image');
+          devDiagnostics.log('Using extracted data from image');
           return accountSummaries;
         } else {
-          console.log('Extracted data had no real values, trying regex');
+          devDiagnostics.log('Extracted data had no real values, trying regex');
         }
       }
     } else {
-      console.log('No table image found for extraction');
+      devDiagnostics.log('No table image found for extraction');
     }
     
     // Second attempt: Use regex on extracted text
-    console.log('Falling back to regex extraction for account summaries...');
+    devDiagnostics.log('Falling back to regex extraction for account summaries...');
     const regexSummaries = extractAccountSummariesWithRegex(extractedText);
     
     // Check if regex extraction found any data
@@ -306,20 +307,20 @@ export const improvedAccountSummaryExtraction = async (parsedReport: any, extrac
       summary.open !== null || summary.withBalance !== null);
     
     if (hasRegexData) {
-      console.log('Using account data from regex extraction');
+      devDiagnostics.log('Using account data from regex extraction');
       return regexSummaries;
     }
     
     // Third attempt: Determine if we need sample data for development or empty data for production
     if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') {
-      console.log('Development environment detected: using sample account summaries');
+      devDiagnostics.log('Development environment detected: using sample account summaries');
       return createSampleAccountSummaries();
     } else {
-      console.log('Production environment: using empty account summaries');
+      devDiagnostics.log('Production environment: using empty account summaries');
       return createDefaultAccountSummaries();
     }
   } catch (error) {
-    console.error('Error in improved account summary extraction:', error);
+    devDiagnostics.error('Error in improved account summary extraction:', error);
     // Always return something valid, even if extraction completely fails
     return createDefaultAccountSummaries();
   }
@@ -334,18 +335,18 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
       try {
         parsedReport.accountSummaries = await improvedAccountSummaryExtraction(parsedReport, extractedText);
       } catch (error) {
-        console.error("Error extracting account summaries:", error);
+        devDiagnostics.error("Error extracting account summaries:", error);
         // Always ensure we have account summaries
         parsedReport.accountSummaries = createDefaultAccountSummaries();
       }
     } else {
-      console.log('Report already has account summaries, not overwriting');
+      devDiagnostics.log('Report already has account summaries, not overwriting');
     }
     
     // Additional Equifax-specific enhancements can be added here
     return parsedReport;
   } catch (error) {
-    console.error('Error enhancing Equifax report:', error);
+    devDiagnostics.error('Error enhancing Equifax report:', error);
     return parsedReport;
   }
 };
@@ -353,26 +354,26 @@ const enhanceEquifaxReport = async (parsedReport: any, extractedText: string) =>
 // Main parsing function that combines all aspects of credit report processing
 export const parsePDFContent = async (extractedText: string, useEnhanced: boolean = false) => {
   try {
-    console.log('Parsing PDF content...');
+    devDiagnostics.log('Parsing PDF content...');
     // Reset the current report image for each new PDF processing
     resetCurrentReportImage();
     
     if (!extractedText || extractedText.length < 100) {
-      console.error('Extracted text is too short for parsing');
+      devDiagnostics.error('Extracted text is too short for parsing');
       toast.error('The PDF content could not be processed correctly');
       return null;
     }
     
     // Identify document patterns to determine bureau and other features
     const patterns = identifyDocumentPatterns(extractedText);
-    console.log('Document patterns identified:', patterns);
+    devDiagnostics.log('Document patterns identified:', patterns);
     
     // Parse the basic credit report structure
     let parsedReport = await parseCreditReport(extractedText);
-    console.log('Basic report parsing complete:', parsedReport?.bureau);
+    devDiagnostics.log('Basic report parsing complete:', parsedReport?.bureau);
     
     if (!parsedReport) {
-      console.error('Failed to parse credit report');
+      devDiagnostics.error('Failed to parse credit report');
       toast.error('Unable to parse the credit report');
       return null;
     }
@@ -393,14 +394,14 @@ export const parsePDFContent = async (extractedText: string, useEnhanced: boolea
     
     // Always ensure we have account summaries, no matter what
     if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
-      console.log('No account summaries found, creating default ones');
+      devDiagnostics.log('No account summaries found, creating default ones');
       parsedReport.accountSummaries = createDefaultAccountSummaries();
     }
     
-    console.log('Enhanced parsing complete!');
+    devDiagnostics.log('Enhanced parsing complete!');
     return parsedReport;
   } catch (error) {
-    console.error('Error parsing PDF content:', error);
+    devDiagnostics.error('Error parsing PDF content:', error);
     toast.error('There was an error processing the PDF content');
     return null;
   }

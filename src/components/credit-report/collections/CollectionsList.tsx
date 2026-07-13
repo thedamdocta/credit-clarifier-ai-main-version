@@ -7,9 +7,10 @@ import CollectionsDataDebug from "./CollectionsDataDebug";
 interface CollectionsListProps {
   collections: Collection[];
   showDebugInfo: boolean;
+  sourceSessionId?: string | null;
 }
 
-const CollectionsList: React.FC<CollectionsListProps> = ({ collections, showDebugInfo }) => {
+const CollectionsList: React.FC<CollectionsListProps> = ({ collections, showDebugInfo, sourceSessionId }) => {
   if (collections.length === 0) {
     return (
       <div className="p-8 text-center">
@@ -26,7 +27,7 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ collections, showDebu
         <CollectionItem 
           key={`collection-${index}`} 
           collection={collection} 
-          index={index}
+          sourceSessionId={sourceSessionId}
         />
       ))}
     </div>

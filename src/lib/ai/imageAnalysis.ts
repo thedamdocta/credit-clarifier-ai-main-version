@@ -4,6 +4,7 @@
  */
 import { toast } from "sonner";
 import Tesseract from 'tesseract.js';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Analyze image quality and provide diagnostic feedback
@@ -76,7 +77,7 @@ export async function analyzeImageQuality(imageUrl: string): Promise<{
       
       await worker.terminate();
     } catch (error) {
-      console.error("Error in OCR quality check:", error);
+      devDiagnostics.error("Error in OCR quality check:", error);
       diagnostics.push("❌ Failed to analyze text detectability");
     }
     
@@ -89,7 +90,7 @@ export async function analyzeImageQuality(imageUrl: string): Promise<{
       diagnostics
     };
   } catch (error) {
-    console.error("Error analyzing image quality:", error);
+    devDiagnostics.error("Error analyzing image quality:", error);
     return {
       qualityScore: 0,
       isGoodForOcr: false,
@@ -211,7 +212,7 @@ export async function detectTableExtractionIssues(imageUrl: string): Promise<str
     
     return issues;
   } catch (error) {
-    console.error("Error detecting table extraction issues:", error);
+    devDiagnostics.error("Error detecting table extraction issues:", error);
     return ["Failed to analyze table extraction issues"];
   }
 }
@@ -289,10 +290,10 @@ export async function multiEngineOcrAnalysis(imageUrl: string): Promise<string |
     const tableScore = scoreTableDetection(tableText) * 0.9 + tableConfidence * 0.1;
     const digitScore = scoreTableDetection(digitText) * 0.5 + digitConfidence * 0.5;
     
-    console.log("OCR Analysis Scores:");
-    console.log(`- Default: ${defaultScore.toFixed(2)} (confidence: ${defaultConfidence.toFixed(1)}%)`);
-    console.log(`- Table: ${tableScore.toFixed(2)} (confidence: ${tableConfidence.toFixed(1)}%)`);
-    console.log(`- Digit: ${digitScore.toFixed(2)} (confidence: ${digitConfidence.toFixed(1)}%)`);
+    devDiagnostics.log("OCR Analysis Scores:");
+    devDiagnostics.log(`- Default: ${defaultScore.toFixed(2)} (confidence: ${defaultConfidence.toFixed(1)}%)`);
+    devDiagnostics.log(`- Table: ${tableScore.toFixed(2)} (confidence: ${tableConfidence.toFixed(1)}%)`);
+    devDiagnostics.log(`- Digit: ${digitScore.toFixed(2)} (confidence: ${digitConfidence.toFixed(1)}%)`);
     
     // Return the best result
     if (tableScore > defaultScore && tableScore > digitScore) {
@@ -303,7 +304,7 @@ export async function multiEngineOcrAnalysis(imageUrl: string): Promise<string |
       return digitText;
     }
   } catch (error) {
-    console.error("Error in multi-engine OCR analysis:", error);
+    devDiagnostics.error("Error in multi-engine OCR analysis:", error);
     return null;
   }
 }

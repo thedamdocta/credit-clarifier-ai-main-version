@@ -1,5 +1,6 @@
 import { extractEntities } from './textAnalysis';
 import { extractNameWithAI } from './personalInfoExtraction';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 // Enhanced SSN extraction using NLP
 export const extractSSNWithAI = async (text: string): Promise<string | undefined> => {
@@ -26,7 +27,7 @@ export const extractSSNWithAI = async (text: string): Promise<string | undefined
     
     return undefined;
   } catch (error) {
-    console.error('Error extracting SSN with AI:', error);
+    devDiagnostics.error('Error extracting SSN with AI:', error);
     return undefined;
   }
 };
@@ -57,7 +58,7 @@ export const identifyBureauWithAI = async (text: string): Promise<'Equifax' | 'E
     
     return 'Unknown';
   } catch (error) {
-    console.error('Error identifying bureau with AI:', error);
+    devDiagnostics.error('Error identifying bureau with AI:', error);
     return 'Unknown';
   }
 };

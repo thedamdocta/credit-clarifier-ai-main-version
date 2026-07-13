@@ -1,0 +1,11 @@
+requests>=2.31.0
+# Optional PageIndex integration dependencies (fallback is heuristic tree if missing):
+openai>=1.40.0
+tiktoken>=0.7.0
+PyPDF2>=3.0.1
+PyMuPDF>=1.24.0
+PyYAML>=6.0.1
+Pillow>=10.0.0
+# Dispute letter generation (dispute_letter_generator.py)
+python-docx>=1.1.0
+reportlab>=4.0.0

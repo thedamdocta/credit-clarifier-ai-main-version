@@ -1,5 +1,6 @@
 import { AccountSummary } from "../../types/creditReport";
 import { parsingLogger } from "@/utils/parsingLogger";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 import { 
   formatAccountValue, 
   extractCellContent, 
@@ -9,7 +10,7 @@ import {
 } from "@/utils/formatters/accountValueFormatters";
 
 export const extractEquifaxAccountSummaries = async (text: string): Promise<AccountSummary[]> => {
-  console.log("Starting account summary extraction with isolated row processing");
+  devDiagnostics.log("Starting account summary extraction with isolated row processing");
   parsingLogger.logEvent("Starting equifax account summary extraction with isolated row approach");
   
   // Define the empty account summaries structure 
@@ -25,37 +26,37 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     // Extract the credit account table section specifically from the text
     const tableSection = extractCreditAccountTableSection(text);
     if (!tableSection) {
-      console.log("No credit account summary table found in the text");
+      devDiagnostics.log("No credit account summary table found in the text");
       parsingLogger.logEvent("No credit account summary table found in the text");
       return accountSummaries;
     }
     
-    console.log("Found credit account table section, length:", tableSection.length);
-    console.log("Table section preview:", tableSection.substring(0, 300)); // Log a preview of the table section
+    devDiagnostics.log("Found credit account table section, length:", tableSection.length);
+    devDiagnostics.log("Table section preview:", tableSection.substring(0, 300)); // Log a preview of the table section
     
     // Split the table into lines and filter out empty lines
     const lines = tableSection.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    console.log("Table section lines:", lines.length);
+    devDiagnostics.log("Table section lines:", lines.length);
     
     // Find the header line to understand column positions
     const headerLine = findHeaderLine(lines);
     
     if (!headerLine) {
-      console.log("Could not find header line for account summary table");
+      devDiagnostics.log("Could not find header line for account summary table");
       return accountSummaries;
     }
     
-    console.log("Found header line:", headerLine);
+    devDiagnostics.log("Found header line:", headerLine);
     
     // Get columns positions from the header line
     const columns = extractColumnPositions(headerLine);
     
     if (!columns || Object.keys(columns).length < 7) {
-      console.log("Could not extract enough columns from the header line");
+      devDiagnostics.log("Could not extract enough columns from the header line");
       return accountSummaries;
     }
     
-    console.log("Extracted column positions:", columns);
+    devDiagnostics.log("Extracted column positions:", columns);
     
     // Process each account type individually by finding their specific lines
     // Each cell is processed independently
@@ -65,12 +66,12 @@ export const extractEquifaxAccountSummaries = async (text: string): Promise<Acco
     processAccountType('Other', lines, accountSummaries, columns);
     processAccountType('Total', lines, accountSummaries, columns);
     
-    console.log("Account summaries extracted with isolated approach:", accountSummaries.length);
-    console.log("Account summaries:", accountSummaries);
+    devDiagnostics.log("Account summaries extracted with isolated approach:", accountSummaries.length);
+    devDiagnostics.log("Account summaries:", accountSummaries);
     parsingLogger.logEvent("Completed account summary extraction", { count: accountSummaries.length });
     return accountSummaries;
   } catch (error) {
-    console.error("Error extracting account summaries:", error);
+    devDiagnostics.error("Error extracting account summaries:", error);
     parsingLogger.logEvent("Error extracting account summaries", { error: String(error) });
     return accountSummaries; // Return empty structure on error
   }
@@ -86,7 +87,7 @@ function extractCreditAccountTableSection(text: string): string | null {
   
   if (creditAccountsMatch) {
     const headerIndex = creditAccountsMatch.index || 0;
-    console.log(`Found "Credit Accounts" header at position ${headerIndex}`);
+    devDiagnostics.log(`Found "Credit Accounts" header at position ${headerIndex}`);
     
     // Get a more focused section around the Credit Accounts header
     const sectionStart = Math.max(0, headerIndex - 100); // Include some context before
@@ -98,7 +99,7 @@ function extractCreditAccountTableSection(text: string): string | null {
     const headerMatch = focusedText.match(accountTypeHeaderPattern);
     
     if (headerMatch) {
-      console.log("Found account type header row");
+      devDiagnostics.log("Found account type header row");
       
       // Get the text from the header to the end of the table
       const accountTypeHeaderIndex = sectionStart + (headerMatch.index || 0);
@@ -109,15 +110,15 @@ function extractCreditAccountTableSection(text: string): string | null {
       const tableEndMatch = endSearchText.match(tableEndPattern);
       
       if (tableEndMatch && tableEndMatch.index) {
-        console.log(`Found table end at position ${tableEndMatch.index} from header`);
+        devDiagnostics.log(`Found table end at position ${tableEndMatch.index} from header`);
         return text.slice(accountTypeHeaderIndex, accountTypeHeaderIndex + tableEndMatch.index);
       } else {
         // If we can't find a clear end, just take a reasonable chunk
-        console.log("No clear table end found, using fixed length");
+        devDiagnostics.log("No clear table end found, using fixed length");
         return text.slice(accountTypeHeaderIndex, accountTypeHeaderIndex + 3000); 
       }
     } else {
-      console.log("No account type header row found after Credit Accounts header");
+      devDiagnostics.log("No account type header row found after Credit Accounts header");
       
       // If we can't find the header row, take a chunk after "Credit Accounts"
       return text.slice(headerIndex, headerIndex + 3000);
@@ -132,7 +133,7 @@ function extractCreditAccountTableSection(text: string): string | null {
  * Fallback method to extract table section
  */
 function extractTableSectionFallback(text: string): string | null {
-  console.log("Using fallback method to find credit accounts table");
+  devDiagnostics.log("Using fallback method to find credit accounts table");
   
   // Look for the account type header row with various patterns
   const headerPatterns = [
@@ -145,7 +146,7 @@ function extractTableSectionFallback(text: string): string | null {
     const headerMatch = text.match(pattern);
     
     if (headerMatch) {
-      console.log(`Found table using pattern: ${pattern}`);
+      devDiagnostics.log(`Found table using pattern: ${pattern}`);
       
       // Get the text from the header to the end of the table
       const headerIndex = headerMatch.index || 0;
@@ -161,7 +162,7 @@ function extractTableSectionFallback(text: string): string | null {
     }
   }
   
-  console.log("No credit accounts table found with fallback method");
+  devDiagnostics.log("No credit accounts table found with fallback method");
   return null;
 }
 
@@ -180,7 +181,7 @@ function findHeaderLine(lines: string[]): string | null {
   for (const pattern of headerPatterns) {
     for (const line of lines) {
       if (pattern.test(line)) {
-        console.log(`Found header line matching pattern: ${line}`);
+        devDiagnostics.log(`Found header line matching pattern: ${line}`);
         return line;
       }
     }
@@ -190,7 +191,7 @@ function findHeaderLine(lines: string[]): string | null {
   for (const line of lines) {
     if ((line.toLowerCase().includes("account type") || line.toLowerCase().includes("revolving")) && 
         (line.toLowerCase().includes("open") || line.toLowerCase().includes("balance"))) {
-      console.log(`Found potential header line: ${line}`);
+      devDiagnostics.log(`Found potential header line: ${line}`);
       return line;
     }
   }
@@ -239,7 +240,7 @@ function processAccountType(
   accountSummaries: AccountSummary[],
   columns: Record<string, number>
 ): void {
-  console.log(`Processing ${accountType} account line`);
+  devDiagnostics.log(`Processing ${accountType} account line`);
   
   // Find the line that specifically contains this account type as a word
   const accountLine = lines.find(line => {
@@ -253,11 +254,11 @@ function processAccountType(
   });
   
   if (!accountLine) {
-    console.log(`No line found for ${accountType}`);
+    devDiagnostics.log(`No line found for ${accountType}`);
     return;
   }
   
-  console.log(`Found line for ${accountType}:`, accountLine);
+  devDiagnostics.log(`Found line for ${accountType}:`, accountLine);
   
   // Find this account type in our summary array
   const accountSummary = accountSummaries.find(summary => summary.accountType === accountType);
@@ -266,7 +267,7 @@ function processAccountType(
   // Process the account line - each cell is treated independently
   processAccountLineWithColumnAwareness(accountLine, accountSummary, columns);
   
-  console.log(`${accountType} row after processing:`, accountSummary);
+  devDiagnostics.log(`${accountType} row after processing:`, accountSummary);
 }
 
 /**
@@ -307,11 +308,11 @@ function processAccountLineWithColumnAwareness(
     const cellContent = extractCellContent(line, startPos, endPos);
     
     // Log explicitly what we found for debugging
-    console.log(`[${accountSummary.accountType}] Cell ${key}: "${cellContent}"`);
+    devDiagnostics.log(`[${accountSummary.accountType}] Cell ${key}: "${cellContent}"`);
     
     // If cell is empty, leave as null (which will render as 'x')
     if (!cellContent) {
-      console.log(`[${accountSummary.accountType}] Cell ${key} is empty, keeping as null`);
+      devDiagnostics.log(`[${accountSummary.accountType}] Cell ${key} is empty, keeping as null`);
       continue;
     }
     
@@ -320,7 +321,7 @@ function processAccountLineWithColumnAwareness(
       if (key === 'open' || key === 'withBalance') {
         // Store as string "0", not numeric 0
         accountSummary[key] = "0";
-        console.log(`[${accountSummary.accountType}] Set ${key} to string "0"`, accountSummary[key]);
+        devDiagnostics.log(`[${accountSummary.accountType}] Set ${key} to string "0"`, accountSummary[key]);
         continue;
       }
     }
@@ -331,7 +332,7 @@ function processAccountLineWithColumnAwareness(
       if (numericValue !== null) {
         // Ensure we're storing string values, not numbers
         accountSummary[key] = String(numericValue);
-        console.log(`[${accountSummary.accountType}] Set ${key} to extracted value`, accountSummary[key]);
+        devDiagnostics.log(`[${accountSummary.accountType}] Set ${key} to extracted value`, accountSummary[key]);
       }
     } else if (key === 'totalBalance' || key === 'available' || key === 'creditLimit' || key === 'payment') {
       const dollarValue = extractDollarValue(cellContent);
@@ -346,7 +347,7 @@ function processAccountLineWithColumnAwareness(
     }
   }
   
-  console.log(`Processed values for ${accountSummary.accountType}:`, {
+  devDiagnostics.log(`Processed values for ${accountSummary.accountType}:`, {
     open: accountSummary.open,
     withBalance: accountSummary.withBalance,
     totalBalance: accountSummary.totalBalance,

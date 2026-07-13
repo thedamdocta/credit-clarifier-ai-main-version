@@ -1,0 +1,27 @@
+{
+  "id": "equifax_old_v1",
+  "name": "Equifax Old Format (AnnualCreditReport)",
+  "sectionAnchors": {
+    "reportConfirmationDetails": ["confirmation number", "consumer name", "report date"],
+    "personalInformation": ["personal information", "date of birth", "social security"],
+    "summary": ["credit file status", "average account age", "length of credit history"],
+    "creditAccountsSummary": ["credit accounts", "account type", "revolving", "mortgage", "installment", "debt-to-credit"],
+    "otherItemsSummary": ["other items", "inquiries", "public records", "collections", "consumer statements"],
+    "accounts": ["account number", "payment history", "date opened", "creditor classification"],
+    "collections": ["collection", "collection agency", "original creditor", "date assigned"],
+    "inquiries": ["hard inquiries", "soft inquiries", "inquiry date", "subscriber"]
+  },
+  "retrieval": {
+    "includeNeighbors": true
+  },
+  "requiredComponents": [
+    "reportConfirmationDetails",
+    "personalInformation",
+    "summary",
+    "creditAccountsSummary",
+    "otherItemsSummary",
+    "accounts",
+    "collections",
+    "inquiries"
+  ]
+}

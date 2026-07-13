@@ -1,69 +1,56 @@
-# Welcome to your Lovable project
+# 3 Bureau Extractor (Equifax V1 Revamp)
 
-## Project info
+This repo now uses a backend-first extraction pipeline for old Equifax (AnnualCreditReport format):
+- Node API orchestrator (`/api/sessions/*`)
+- Python worker (dual text + image ingestion)
+- Local model routing through Ollama (`gpt-oss:20b`)
+- Fail-closed component validation
 
-**URL**: https://lovable.dev/projects/64cb6e07-0717-47dd-8f58-667652f0e1f2
+## Run locally
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/64cb6e07-0717-47dd-8f58-667652f0e1f2) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. Install Node dependencies:
+```bash
+npm install
 ```
 
-**Edit a file directly in GitHub**
+2. Ensure local runtime tools are available:
+- `ollama` running at `http://127.0.0.1:11434`
+- `pdftotext`, `pdftoppm` (Poppler)
+- `tesseract`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. Optional Python dependencies for enhanced PageIndex integration:
+```bash
+python3 -m pip install -r python_worker/requirements.txt
+```
 
-**Use GitHub Codespaces**
+4. Start frontend + API together:
+```bash
+npm run dev:full
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Frontend: `http://127.0.0.1:8080`  
+API: `http://127.0.0.1:8787`
 
-## What technologies are used for this project?
+## Environment variables
 
-This project is built with .
+- `OLLAMA_BASE_URL` (default `http://127.0.0.1:11434`)
+- `OLLAMA_MODEL` (default `gpt-oss:20b`)
+- `REPORT_RETENTION_SECONDS` (default `0`, delete-on-read behavior)
+- `REPORT_PROFILE_DEFAULT` (default `equifax_old_v1`)
+- `MAX_PDF_PAGES` (default `240`)
+- `MAX_UPLOAD_BYTES` (default `41943040`)
+- `PAGEINDEX_ROOT` (default `../PageIndex`)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## API endpoints
 
-## How can I deploy this project?
+- `POST /api/sessions`
+- `POST /api/sessions/:sessionId/upload`
+- `POST /api/sessions/:sessionId/process`
+- `GET /api/sessions/:sessionId/result`
+- `DELETE /api/sessions/:sessionId`
 
-Simply open [Lovable](https://lovable.dev/projects/64cb6e07-0717-47dd-8f58-667652f0e1f2) and click on Share -> Publish.
+## Notes
 
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+- Equifax extraction is limited to the 8 scoped components for V1.
+- Equifax UI now renders backend contract data only (no client-side re-extraction loops).
+- Fail-closed rules mark components as `failed` when required integrity checks are not met.

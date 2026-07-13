@@ -1,93 +1,123 @@
-
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { processPDFDocument } from "@/utils/pdf";
+import { processCreditReportPdfWithSessionApi, SessionProgressUpdate } from "@/lib/api/equifaxSessionClient";
+
+const EXTRACTION_PROGRESS_MAX = 70;
 
 interface UsePDFUploadProps {
-  onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
+  onPDFUploaded: (
+    file: File,
+    text: string,
+    parsedReport?: any,
+    options?: { onProgress?: (update: SessionProgressUpdate) => void },
+  ) => Promise<void> | void;
   useAI: boolean;
   onError?: (error: Error | null) => void;
   onProcessingStart?: () => void;
   onProcessingComplete?: () => void;
 }
 
-export const usePDFUpload = ({ 
-  onPDFUploaded, 
-  useAI, 
-  onError, 
-  onProcessingStart, 
-  onProcessingComplete 
+export const usePDFUpload = ({
+  onPDFUploaded,
+  useAI,
+  onError,
+  onProcessingStart,
+  onProcessingComplete,
 }: UsePDFUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingComplete, setProcessingComplete] = useState(false);
+  const [currentStage, setCurrentStage] = useState<string>("Waiting for upload...");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const reviewProgressTimerRef = useRef<number | null>(null);
 
-  const processPDF = (file: File) => {
-    // Reset any previous errors and states
+  const stopReviewProgressTimer = () => {
+    if (reviewProgressTimerRef.current !== null) {
+      window.clearInterval(reviewProgressTimerRef.current);
+      reviewProgressTimerRef.current = null;
+    }
+  };
+
+  const syncProgress = (update: SessionProgressUpdate) => {
+    const normalizedProgress = Math.max(Math.min(Math.round(update.progress), 100), 0);
+    setUploadProgress((current) => Math.max(current, normalizedProgress));
+    setCurrentStage(update.stage);
+
+    const reviewingHighlightLocalization = /reviewing highlight localization/i.test(update.stage);
+    if (reviewingHighlightLocalization && normalizedProgress >= 94 && normalizedProgress < 99) {
+      if (reviewProgressTimerRef.current === null) {
+        reviewProgressTimerRef.current = window.setInterval(() => {
+          setUploadProgress((current) => {
+            if (current >= 99) {
+              stopReviewProgressTimer();
+              return current;
+            }
+            return Math.min(current + 1, 99);
+          });
+        }, 1400);
+      }
+      return;
+    }
+
+    if (normalizedProgress >= 99 || !reviewingHighlightLocalization) {
+      stopReviewProgressTimer();
+    }
+  };
+
+  const processPDF = async (file: File) => {
+    stopReviewProgressTimer();
     setProcessingError(null);
     setProcessingComplete(false);
     setUploadProgress(0);
-    
-    // Notify that processing has started
+    setCurrentFile(file);
+    setCurrentStage("Creating secure processing session...");
+
     if (onProcessingStart) {
       onProcessingStart();
     }
-    
-    // Process the PDF file with focus on text extraction for the main content
-    // and enable improved table detection specifically for the credit accounts table
+
     try {
-      processPDFDocument(file, useAI, {
-        setCurrentFile,
-        setUploadProgress,
-        onPDFUploaded: (file, text, parsedReport) => {
-          console.log("PDF processing complete, setting data");
-          
-          // Mark data as ready but don't mark processing as complete yet
-          // The actual navigation and completion will be handled by the
-          // progress tracking system when extraction is fully done
-          onPDFUploaded(file, text, parsedReport);
-        },
-        useImageExtraction: true, // Enable image extraction for table detection
-        targetTable: "Credit Accounts", // Specifically target the Credit Accounts table
-        onError: (error) => {
-          console.error("PDF processing error:", error);
-          const errorMessage = error?.message || "Failed to process the PDF file. Please try again.";
-          setProcessingError(errorMessage);
-          setProcessingComplete(true);
-          
-          if (onError) onError(error);
-          // On error, processing is also complete
-          if (onProcessingComplete) {
-            setTimeout(() => {
-              onProcessingComplete();
-            }, 500);
-          }
-        },
-        // Pass the completion callback to the progress handling system
-        onCompleteCallback: () => {
-          console.log("All PDF processing including extraction is complete");
-          setProcessingComplete(true);
-          if (onProcessingComplete) {
-            onProcessingComplete();
-          }
-        }
+      const { report } = await processCreditReportPdfWithSessionApi(file, (update) => {
+        const scaledProgress = Math.min(
+          EXTRACTION_PROGRESS_MAX,
+          Math.round((Math.max(Math.min(update.progress, 100), 0) / 100) * EXTRACTION_PROGRESS_MAX),
+        );
+        syncProgress({ progress: scaledProgress, stage: update.stage });
       });
-    } catch (error) {
-      const typedError = error as Error;
-      console.error("Exception during PDF processing:", typedError);
-      setProcessingError(typedError.message || "An unexpected error occurred");
+
+      if (!useAI) {
+        // The revamp is backend-only; keeping this branch prevents API drift with existing prop shape.
+      }
+
+      setUploadProgress((current) => Math.max(current, 72));
+      setCurrentStage("Preparing report workspace...");
+
+      await onPDFUploaded(file, report.rawText || "", report, {
+        onProgress: (update) => {
+          syncProgress(update);
+        },
+      });
+
+      stopReviewProgressTimer();
+      setUploadProgress(100);
+      setCurrentStage("Workspace ready.");
       setProcessingComplete(true);
-      
-      if (onError) onError(typedError);
-      setUploadProgress(0);
-      // On exception, processing is also complete
+
       if (onProcessingComplete) {
-        setTimeout(() => {
-          onProcessingComplete();
-        }, 500);
+        onProcessingComplete();
+      }
+    } catch (error) {
+      stopReviewProgressTimer();
+      const typedError = error as Error;
+      const message = typedError.message || "Failed to process the PDF file. Please try again.";
+      setProcessingError(message);
+      setProcessingComplete(true);
+      setCurrentStage("Processing blocked.");
+
+      if (onError) {
+        onError(typedError);
       }
     }
   };
@@ -109,7 +139,7 @@ export const usePDFUpload = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       if (file.type === "application/pdf") {
-        processPDF(file);
+        void processPDF(file);
       } else {
         toast.error("Please upload a PDF file.");
       }
@@ -117,13 +147,21 @@ export const usePDFUpload = ({
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      processPDF(e.target.files[0]);
+    const input = e.target;
+    const selectedFile = input.files?.[0] ?? null;
+
+    // Reset immediately so selecting the same PDF again still triggers onChange.
+    input.value = "";
+
+    if (selectedFile) {
+      void processPDF(selectedFile);
     }
   };
 
   const triggerFileInput = () => {
     if (fileInputRef.current) {
+      // Clear stale selection so repeated uploads of the same file work.
+      fileInputRef.current.value = "";
       fileInputRef.current.click();
     }
   };
@@ -139,6 +177,7 @@ export const usePDFUpload = ({
     handleFileInputChange,
     triggerFileInput,
     processingError,
-    processingComplete
+    processingComplete,
+    currentStage,
   };
 };

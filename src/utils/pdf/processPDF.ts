@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { extractTextFromPDF, setCurrentPDFData, setExtractedReportData } from "./extractText";
 import { parsePDFContent } from "./parseExtractedText";
 import { setupProgressTracking, ProgressCallbacks } from "./progressHandling";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 interface PDFProcessingCallbacks extends ProgressCallbacks {
   onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
@@ -45,10 +46,10 @@ export const processPDFDocument = async (
   
   try {
     setCurrentFile(file);
-    console.log(`Processing PDF document with file: ${file.name}, targeting table: ${targetTable}`);
+    devDiagnostics.log(`Processing PDF document with file: ${file.name}, targeting table: ${targetTable}`);
     
     const uniqueReportId = setCurrentPDFData(file, { targetTable });
-    console.log(`Set unique report ID: ${uniqueReportId}`);
+    devDiagnostics.log(`Set unique report ID: ${uniqueReportId}`);
     
     const { 
       clearProgressTracking, 
@@ -64,13 +65,13 @@ export const processPDFDocument = async (
     
     try {
       const pdfLoadingTimeout = setTimeout(() => {
-        console.warn("PDF.js loading is taking longer than expected");
+        devDiagnostics.warn("PDF.js loading is taking longer than expected");
         toast.warning("PDF library is loading slowly. Please be patient.");
       }, 3000);
       
       const pdfjsModule = await Promise.race([
         import("pdfjs-dist").catch(error => {
-          console.error("Error loading pdfjs-dist package:", error);
+          devDiagnostics.error("Error loading pdfjs-dist package:", error);
           throw new Error("Failed to load PDF processing library. Please check your network connection and try again.");
         }),
         new Promise<never>((_, reject) => 
@@ -94,16 +95,16 @@ export const processPDFDocument = async (
       for (const workerUrl of workerUrls) {
         try {
           pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-          console.log(`Using PDF.js worker from: ${workerUrl}`);
+          devDiagnostics.log(`Using PDF.js worker from: ${workerUrl}`);
           workerSet = true;
           break;
         } catch (workerError) {
-          console.warn(`Failed to set worker from ${workerUrl}:`, workerError);
+          devDiagnostics.warn(`Failed to set worker from ${workerUrl}:`, workerError);
         }
       }
       
       if (!workerSet) {
-        console.error("Could not set PDF.js worker from any source");
+        devDiagnostics.error("Could not set PDF.js worker from any source");
         throw new Error("Failed to load PDF processing components");
       }
       
@@ -114,7 +115,7 @@ export const processPDFDocument = async (
           const typedarray = new Uint8Array(this.result as ArrayBuffer);
           
           try {
-            console.log("Loading PDF document from array buffer");
+            devDiagnostics.log("Loading PDF document from array buffer");
             const loadPdfPromise = pdfjsLib.getDocument({ data: typedarray }).promise;
             
             const pdf = await Promise.race([
@@ -125,11 +126,11 @@ export const processPDFDocument = async (
             ]);
             
             const numPages = pdf.numPages;
-            console.log(`PDF loaded with ${numPages} pages`);
+            devDiagnostics.log(`PDF loaded with ${numPages} pages`);
             updateProgress(15);
             
             const extractedText = await extractTextFromPDF(pdf);
-            console.log("Successfully extracted text from PDF, length:", extractedText.length);
+            devDiagnostics.log("Successfully extracted text from PDF, length:", extractedText.length);
             updateProgressStage('initialExtraction');
             
             try {
@@ -155,11 +156,11 @@ export const processPDFDocument = async (
                 
                 try {
                   if (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0) {
-                    console.log("No account summaries found in initial parsing, attempting additional extraction");
+                    devDiagnostics.log("No account summaries found in initial parsing, attempting additional extraction");
                     
                     const { extractEquifaxAccountSummaries } = await import("@/lib/parsers/equifax/equifaxAccountSummary");
                     if (parsedReport.bureau === 'Equifax') {
-                      console.log("Extracting Equifax account summaries");
+                      devDiagnostics.log("Extracting Equifax account summaries");
                       const accountSummaries = await extractEquifaxAccountSummaries(extractedText);
                       if (accountSummaries && accountSummaries.length > 0) {
                         parsedReport.accountSummaries = accountSummaries;
@@ -173,13 +174,13 @@ export const processPDFDocument = async (
                     try {
                       if (parsedReport.bureau === 'Equifax' && 
                           (!parsedReport.accountSummaries || parsedReport.accountSummaries.length === 0)) {
-                        console.log("Final attempt at extracting account data");
+                        devDiagnostics.log("Final attempt at extracting account data");
                         
                         const { extractEquifaxAccountSummaries } = await import("@/lib/parsers/equifax/equifaxAccountSummary");
                         const accountSummaries = await extractEquifaxAccountSummaries(extractedText);
                         if (accountSummaries && accountSummaries.length > 0) {
                           parsedReport.accountSummaries = accountSummaries;
-                          console.log("Successfully extracted account data in final attempt");
+                          devDiagnostics.log("Successfully extracted account data in final attempt");
                         }
                       }
                       
@@ -188,12 +189,12 @@ export const processPDFDocument = async (
                         toast.success("PDF successfully processed!");
                       }, 1500);
                     } catch (extractionError) {
-                      console.error("Additional extraction error:", extractionError);
+                      devDiagnostics.error("Additional extraction error:", extractionError);
                       completeProgressTracking();
                     }
                   }, 2000);
                 } catch (extractionError) {
-                  console.error("Additional extraction error:", extractionError);
+                  devDiagnostics.error("Additional extraction error:", extractionError);
                   completeProgressTracking();
                 }
               } else {
@@ -204,7 +205,7 @@ export const processPDFDocument = async (
                 }, 2000);
               }
             } catch (error) {
-              console.error("Error parsing PDF content:", error);
+              devDiagnostics.error("Error parsing PDF content:", error);
               updateProgressStage('finalProcessing');
               
               setTimeout(() => {
@@ -213,13 +214,13 @@ export const processPDFDocument = async (
               }, 2000);
             }
           } catch (error) {
-            console.error("Error processing PDF:", error);
+            devDiagnostics.error("Error processing PDF:", error);
             toast.error("Failed to process PDF. Please try another file.");
             clearProgressTracking();
             if (onError) onError(error instanceof Error ? error : new Error("PDF processing failed"));
           }
         } catch (error) {
-          console.error("Error in FileReader onload handler:", error);
+          devDiagnostics.error("Error in FileReader onload handler:", error);
           handleProgressError(error);
           if (onError) onError(error instanceof Error ? error : new Error("Error processing PDF content"));
         }
@@ -234,7 +235,7 @@ export const processPDFDocument = async (
 
       fileReader.readAsArrayBuffer(file);
     } catch (error) {
-      console.error("Error loading PDF library:", error);
+      devDiagnostics.error("Error loading PDF library:", error);
       
       if (!pdfJsLoadingWarned) {
         toast.error("Failed to load PDF processing library. Please try refreshing the page or using a different browser.");
@@ -261,7 +262,7 @@ export const processPDFDocument = async (
       }, 1500);
     }
   } catch (error) {
-    console.error("Error in PDF processing:", error);
+    devDiagnostics.error("Error in PDF processing:", error);
     toast.error("An error occurred while processing the PDF.");
     callbacks.setUploadProgress(0);
     if (onError) onError(error instanceof Error ? error : new Error("PDF processing failed"));

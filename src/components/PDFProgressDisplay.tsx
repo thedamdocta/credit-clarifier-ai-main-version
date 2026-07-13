@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { File, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ interface PDFProgressDisplayProps {
   error?: string | null;
   isProcessing?: boolean;
   processingMessage?: string;
+  showSuccessState?: boolean;
 }
 
 const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
@@ -17,8 +17,35 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
   progress,
   error,
   isProcessing,
-  processingMessage
+  processingMessage,
+  showSuccessState = false,
 }) => {
+  const [displayProgress, setDisplayProgress] = useState(progress);
+
+  useEffect(() => {
+    const target = Math.max(0, Math.min(progress, 100));
+    if (Math.abs(target - displayProgress) < 0.2) {
+      setDisplayProgress(target);
+      return;
+    }
+
+    let animationFrame = 0;
+    const animate = () => {
+      setDisplayProgress((current) => {
+        const delta = target - current;
+        if (Math.abs(delta) < 0.2) {
+          return target;
+        }
+        const next = current + delta * 0.16;
+        return delta > 0 ? Math.min(next, target) : Math.max(next, target);
+      });
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+
+    animationFrame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [displayProgress, progress]);
+
   const handleReloadPage = () => {
     window.location.reload();
   };
@@ -79,12 +106,12 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
                 {getMessage()}
               </span>
               <span className="text-sm font-medium text-credit-blue">
-                {Math.round(progress)}%
+                {Math.round(displayProgress)}%
               </span>
             </div>
             <div className="relative h-6 w-full bg-slate-100 rounded-full overflow-hidden">
               <Progress 
-                value={progress} 
+                value={displayProgress} 
                 className="h-full absolute top-0 left-0 shadow-sm"
               />
             </div>
@@ -97,9 +124,9 @@ const PDFProgressDisplay: React.FC<PDFProgressDisplayProps> = ({
             </div>
           )}
           
-          {progress >= 100 && (
+          {showSuccessState && displayProgress >= 100 && (
             <div className="text-sm text-center text-credit-blue font-medium mt-3 p-2 bg-blue-50 border border-blue-100 rounded-md">
-              Analysis complete! Preparing your report...
+              Analysis complete! Your report workspace is ready.
             </div>
           )}
         </>

@@ -1,32 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePDFUpload } from "@/hooks/usePDFUpload";
 import PDFUploadPlaceholder from "./PDFUploadPlaceholder";
 import PDFProgressDisplay from "./PDFProgressDisplay";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { canUseOpenAI } from "@/lib/ai/openai/openaiService";
+import { AlertCircle } from "lucide-react";
 
 interface PDFUploaderProps {
-  onPDFUploaded: (file: File, text: string, parsedReport?: any) => void;
+  onPDFUploaded: (
+    file: File,
+    text: string,
+    parsedReport?: any,
+    options?: { onProgress?: (update: { progress: number; stage: string }) => void },
+  ) => Promise<void> | void;
   isProcessing: boolean;
   setIsProcessing: (processing: boolean) => void;
   onProcessingComplete: () => void;
 }
 
-const PDFUploader: React.FC<PDFUploaderProps> = ({ 
-  onPDFUploaded, 
+const PDFUploader: React.FC<PDFUploaderProps> = ({
+  onPDFUploaded,
   isProcessing,
   setIsProcessing,
-  onProcessingComplete
+  onProcessingComplete,
 }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [readyToNavigate, setReadyToNavigate] = useState(false);
   const [processingMessage, setProcessingMessage] = useState<string | undefined>(undefined);
-  const [extractionStarted, setExtractionStarted] = useState(false);
-  const [keepShowingProgress, setKeepShowingProgress] = useState(false);
-  
+
   const {
     isDragging,
     uploadProgress,
@@ -36,130 +36,76 @@ const PDFUploader: React.FC<PDFUploaderProps> = ({
     handleDragLeave,
     handleDrop,
     handleFileInputChange,
-    triggerFileInput,
     processingError,
-    processingComplete
-  } = usePDFUpload({ 
-    onPDFUploaded: (file, text, parsedReport) => {
-      console.log("PDF processing completed, preparing data before navigation");
-      onPDFUploaded(file, text, parsedReport);
-      
-      // Mark that extraction has started, but don't navigate yet
-      setExtractionStarted(true);
-      
-      // Show progress until we're ready to navigate
-      setKeepShowingProgress(true);
-      
-      // Only set readyToNavigate after a suitable delay to allow account extraction to happen
-      setTimeout(() => {
-        setReadyToNavigate(true);
-        setProcessingMessage("Finalizing account data extraction...");
-      }, 2000);
+    currentStage,
+  } = usePDFUpload({
+    onPDFUploaded: async (file, text, parsedReport, options) => {
+      await onPDFUploaded(file, text, parsedReport, options);
     },
     useAI: true,
     onProcessingStart: () => {
-      setReadyToNavigate(false);
-      setExtractionStarted(false);
+      setLoadError(null);
+      setProcessingMessage(undefined);
       setIsProcessing(true);
-      setProcessingMessage(undefined); // Reset message to use default based on progress
-      setKeepShowingProgress(false);
     },
     onProcessingComplete: () => {
-      console.log("All processing complete including table extraction");
-      
-      // Keep showing progress for a bit longer even after processing is complete
-      setKeepShowingProgress(true);
-      
-      // Only navigate if extraction has started and we're ready
-      if (extractionStarted) {
-        // Add a small delay before navigation to ensure all data is loaded
-        setTimeout(() => {
-          console.log("Navigation delay completed, triggering navigation");
-          setKeepShowingProgress(false);
-          onProcessingComplete();
-        }, 1500);
-      } else {
-        console.log("Extraction hasn't started yet, delaying navigation");
-        // If extraction hasn't started yet, wait for it
-        setReadyToNavigate(true);
-      }
+      setIsProcessing(false);
+      setProcessingMessage("Workspace ready.");
+      onProcessingComplete();
     },
     onError: (error) => {
-      console.error("PDF processing error:", error);
       setLoadError(error?.message || "Failed to process the PDF file. Please try again.");
+      setProcessingMessage("Processing blocked.");
       setIsProcessing(false);
-      setKeepShowingProgress(false);
-    }
+    },
   });
 
-  // Effect to adjust processing message based on progress
-  useEffect(() => {
-    if (uploadProgress >= 85 && uploadProgress < 95) {
-      setProcessingMessage("Extracting credit account details...");
-    } else if (uploadProgress >= 95 && uploadProgress < 100) {
-      setProcessingMessage("Finalizing data extraction...");
-    } else if (uploadProgress >= 100) {
-      setProcessingMessage("Processing complete!");
-      
-      // If we've reached 100% and we're ready to navigate, trigger navigation after a delay
-      if (readyToNavigate && processingComplete && extractionStarted) {
-        console.log("Upload progress 100%, ready to navigate, processing complete - triggering navigation");
-        setTimeout(() => {
-          if (keepShowingProgress) {
-            setKeepShowingProgress(false);
-            onProcessingComplete();
-          }
-        }, 1000);
-      }
-    }
-  }, [uploadProgress, readyToNavigate, processingComplete, onProcessingComplete, extractionStarted, keepShowingProgress]);
+  const showSuccessState = !loadError && !processingError && !isProcessing && processingMessage === "Workspace ready.";
 
   return (
     <div className="w-full max-w-3xl mx-auto">
-      {loadError && (
+      {(loadError || processingError) && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Processing PDF</AlertTitle>
           <AlertDescription>
-            {loadError}
-            <div className="mt-2 text-sm">
-              This might be due to a network issue or a problem with the PDF library.
-              Please try refreshing the page and uploading the file again.
-            </div>
+            {loadError || processingError}
           </AlertDescription>
         </Alert>
       )}
-      
+
       <div
         className={cn(
-          "pdf-drop-area flex flex-col items-center justify-center",
+          "pdf-drop-area relative flex flex-col items-center justify-center overflow-hidden",
           isDragging && "active",
-          loadError && "border-red-300"
+          (loadError || processingError) && "border-red-300"
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileInputChange}
-          accept=".pdf"
-          className="hidden"
-          disabled={isProcessing}
-        />
-        
-        {(currentFile && (uploadProgress > 0 || keepShowingProgress)) ? (
-          <PDFProgressDisplay 
-            file={currentFile} 
+        {!currentFile && !isProcessing && (
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileInputChange}
+            accept=".pdf,application/pdf"
+            aria-label="Upload credit report PDF"
+            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+          />
+        )}
+
+        {currentFile && (isProcessing || uploadProgress > 0) ? (
+          <PDFProgressDisplay
+            file={currentFile}
             progress={uploadProgress}
-            error={processingError}
+            error={processingError || loadError}
             isProcessing={isProcessing}
-            processingMessage={processingMessage}
+            processingMessage={processingMessage ?? currentStage}
+            showSuccessState={showSuccessState}
           />
         ) : (
-          <PDFUploadPlaceholder 
-            triggerFileInput={triggerFileInput} 
+          <PDFUploadPlaceholder
             isProcessing={isProcessing}
           />
         )}

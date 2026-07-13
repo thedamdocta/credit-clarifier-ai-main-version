@@ -20,12 +20,12 @@ const ReportSummaryContent: React.FC<ReportSummaryContentProps> = ({ report }) =
         
         <ReportSummaryRow 
           label="Credit File Status" 
-          value={report.creditFileStatus || "No fraud indicator on file"} 
+          value={report.creditFileStatus || null} 
         />
         
         <ReportSummaryRow 
           label="Alert Contacts" 
-          value={report.alertContacts || "0 Records Found"} 
+          value={report.alertContacts || null} 
           highlighted={true}
         />
         
@@ -42,7 +42,7 @@ const ReportSummaryContent: React.FC<ReportSummaryContentProps> = ({ report }) =
         
         <ReportSummaryRow 
           label="Accounts with Negative Information" 
-          value={report.accountsWithNegativeInfo || "0"} 
+          value={report.accountsWithNegativeInfo ?? null} 
         />
         
         <ReportSummaryRow 

@@ -14,6 +14,8 @@ import TableImageDisplay from "./accounts/TableImageDisplay";
 import AccountDataAlerts from "./accounts/AccountDataAlerts";
 import AccountDataDebug from "./accounts/AccountDataDebug";
 import { extractTableFromImage, convertTableToAccountSummaries } from "@/lib/ai/tableExtraction";
+import { useReportWorkspace } from "@/features/workspace/ReportWorkspaceContext";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 interface EnhancedCreditAccountsProps {
   report: CreditReport;
@@ -21,6 +23,7 @@ interface EnhancedCreditAccountsProps {
 
 const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report }) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const { advancedUiEnabled } = useReportWorkspace();
   const [isProcessing, setIsProcessing] = useState(false);
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
   const [extractionFailed, setExtractionFailed] = useState(false);
@@ -33,10 +36,16 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
   const requiredAccountTypes = ['Revolving', 'Mortgage', 'Installment', 'Other', 'Total'];
 
   useEffect(() => {
+    if (!advancedUiEnabled) {
+      setShowDebugInfo(false);
+    }
+  }, [advancedUiEnabled]);
+
+  useEffect(() => {
     if (report && report.reportId) {
       resetCurrentReportImage();
       
-      console.log('New report detected, resetting extraction state:', report.reportId);
+      devDiagnostics.log('New report detected, resetting extraction state:', report.reportId);
       
       setAccountSummaries([]);
       setAttemptedExtraction(false);
@@ -46,7 +55,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       setTableImageUrl(null);
       setInitialAccountDataFound(false);
 
-      console.log('Auto-triggering extraction for new report on component mount');
+      devDiagnostics.log('Auto-triggering extraction for new report on component mount');
       
       if (report.accountSummaries && report.accountSummaries.length > 0) {
         const hasRealData = report.accountSummaries.some(summary => 
@@ -55,12 +64,12 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
         
         if (hasRealData) {
-          console.log('Report already has real account data, using it');
+          devDiagnostics.log('Report already has real account data, using it');
           handleDataExtracted(report.accountSummaries, false, false);
           setInitialAccountDataFound(true);
           return;
         } else {
-          console.log('Report has account summaries but no real data, will attempt extraction');
+          devDiagnostics.log('Report has account summaries but no real data, will attempt extraction');
         }
       }
       
@@ -78,14 +87,14 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     async function loadTableImage() {
       if (report && !tableImageUrl) {
         try {
-          console.log('Attempting to extract table image for debug display');
+          devDiagnostics.log('Attempting to extract table image for debug display');
           const imageUrl = await extractCreditAccountsTableImage(report);
           if (imageUrl) {
-            console.log('Successfully extracted table image for debug display');
+            devDiagnostics.log('Successfully extracted table image for debug display');
             setTableImageUrl(imageUrl);
           }
         } catch (error) {
-          console.error('Error extracting table image for debug:', error);
+          devDiagnostics.error('Error extracting table image for debug:', error);
         }
       }
     }
@@ -99,7 +108,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     failed: boolean
   ) => {
     // Log all the summaries for debugging
-    console.log('Setting account summaries:', summaries);
+    devDiagnostics.log('Setting account summaries:', summaries);
     
     // Check if we have real data
     const hasRealData = summaries.some(summary => 
@@ -108,12 +117,12 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
     
     if (hasRealData) {
-      console.log("Data has real values, using extracted data");
+      devDiagnostics.log("Data has real values, using extracted data");
       setAccountSummaries(summaries);
       setUsingSampleData(isSampleData);
       setExtractionFailed(failed);
     } else {
-      console.log("Data has no real values, keeping extraction failed state");
+      devDiagnostics.log("Data has no real values, keeping extraction failed state");
       setExtractionFailed(true);
     }
     
@@ -141,7 +150,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
     
     // Try handling the extraction directly with the image if available
     if (tableImageUrl && forceManual) {
-      console.log("Using table image for direct extraction");
+      devDiagnostics.log("Using table image for direct extraction");
       extractDataFromImage(tableImageUrl);
       return;
     }
@@ -150,17 +159,17 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
       if (typeof module.handleEnhancedExtraction === 'function') {
         module.handleEnhancedExtraction(extractorProps, forceManual);
       } else {
-        console.log("Using AccountDataExtractor component method");
+        devDiagnostics.log("Using AccountDataExtractor component method");
         const extractorComponent = <AccountDataExtractor {...extractorProps} />;
         if (extractorComponent && typeof extractorComponent.type.handleEnhancedExtraction === 'function') {
           extractorComponent.type.handleEnhancedExtraction(extractorProps, forceManual);
         } else {
-          console.error("Could not access extraction method");
+          devDiagnostics.error("Could not access extraction method");
           setIsProcessing(false);
         }
       }
     }).catch(err => {
-      console.error("Failed to import AccountDataExtractor:", err);
+      devDiagnostics.error("Failed to import AccountDataExtractor:", err);
       setIsProcessing(false);
     });
   };
@@ -183,21 +192,21 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
           (summary.totalBalance && summary.totalBalance !== "$0" && summary.totalBalance !== "0"));
         
         if (hasRealData) {
-          console.log("Successfully extracted data from image directly");
+          devDiagnostics.log("Successfully extracted data from image directly");
           handleDataExtracted(extractedSummaries, false, false);
           toast.success("Successfully extracted data from image");
         } else {
-          console.error("No meaningful data in extracted result");
+          devDiagnostics.error("No meaningful data in extracted result");
           toast.error("No meaningful data could be extracted");
           setIsProcessing(false);
         }
       } else {
-        console.error("Failed to extract table data");
+        devDiagnostics.error("Failed to extract table data");
         toast.error("Failed to extract data from image");
         setIsProcessing(false);
       }
     } catch (error) {
-      console.error("Error extracting data from image:", error);
+      devDiagnostics.error("Error extracting data from image:", error);
       toast.error("Error extracting data from image");
       setIsProcessing(false);
     }
@@ -250,7 +259,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         
         <TableImageDisplay 
           imageUrl={tableImageUrl} 
-          showDebugInfo={showDebugInfo}
+          showDebugInfo={advancedUiEnabled && showDebugInfo}
           onDataExtracted={(summaries) => {
             if (summaries && summaries.length > 0) {
               handleDataExtracted(summaries, false, false);
@@ -259,7 +268,7 @@ const EnhancedCreditAccounts: React.FC<EnhancedCreditAccountsProps> = ({ report 
         />
         
         <AccountDataDebug
-          showDebugInfo={showDebugInfo}
+          showDebugInfo={advancedUiEnabled && showDebugInfo}
           report={report}
           extractionAttempts={extractionAttempts}
           usingSampleData={usingSampleData}

@@ -1,6 +1,6 @@
 
-import React from "react";
-import { Account } from "@/lib/types/creditReport";
+import React, { useMemo } from "react";
+import { Account, MonthlyHistoryEntry } from "@/lib/types/creditReport";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -10,45 +10,95 @@ interface AccountHistoryProps {
 }
 
 const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo }) => {
-  // Use placeholder rows instead of actual years
-  const placeholderRows = [1, 2, 3]; // Updated to three rows as requested
-  
-  // Data categories to display as separate tables
-  const dataCategories = [
-    { title: "Balance", key: "balance" },
-    { title: "Scheduled Payment", key: "scheduledPayment" },
-    { title: "Actual Payment", key: "actualPayment" },
-    { title: "Credit Limit", key: "creditLimit" },
-    { title: "Amount Past Due", key: "amountPastDue" },
-    { title: "Activity Designator", key: "activityDesignator" }
+  type HistoryField = keyof Pick<
+    Account,
+    | "balanceHistory"
+    | "scheduledPaymentHistory"
+    | "actualPaymentHistory"
+    | "creditLimitHistory"
+    | "amountPastDueHistory"
+    | "activityDesignatorHistory"
+  >;
+
+  const historyConfigs: { title: string; field: HistoryField }[] = [
+    { title: "Balance History", field: "balanceHistory" },
+    { title: "Scheduled Payment History", field: "scheduledPaymentHistory" },
+    { title: "Actual Payment History", field: "actualPaymentHistory" },
+    { title: "Credit Limit History", field: "creditLimitHistory" },
+    { title: "Amount Past Due History", field: "amountPastDueHistory" },
+    { title: "Activity Designator History", field: "activityDesignatorHistory" }
   ];
 
-  // Months for table headers
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthKeys: (keyof MonthlyHistoryEntry)[] = [
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec"
+  ];
 
-  // Function to render a single history table for a data category
-  const renderHistoryTable = (category: { title: string, key: string }) => {
+  const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const placeholderRow: MonthlyHistoryEntry = useMemo(
+    () => ({
+      year: "-",
+      jan: "-",
+      feb: "-",
+      mar: "-",
+      apr: "-",
+      may: "-",
+      jun: "-",
+      jul: "-",
+      aug: "-",
+      sep: "-",
+      oct: "-",
+      nov: "-",
+      dec: "-"
+    }),
+    []
+  );
+
+  const placeholderRows: MonthlyHistoryEntry[] = useMemo(
+    () => [placeholderRow, { ...placeholderRow }, { ...placeholderRow }],
+    [placeholderRow]
+  );
+
+  const renderHistoryTable = (config: { title: string; field: HistoryField }) => {
+    const historyEntries = (account[config.field] as MonthlyHistoryEntry[] | undefined) ?? [];
+    const rows = historyEntries.length > 0 ? historyEntries : placeholderRows;
+
     return (
-      <Card key={category.key} className="mb-6 border border-gray-200">
+      <Card key={config.field} className="mb-6 border border-gray-200">
         <CardHeader className="py-3">
-          <CardTitle className="text-md font-medium">{category.title} History</CardTitle>
+          <CardTitle className="text-md font-medium">{config.title}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-20">Year</TableHead>
-                {months.map(month => (
-                  <TableHead key={month}>{month}</TableHead>
+                {monthLabels.map((label) => (
+                  <TableHead key={label}>{label}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {placeholderRows.map(rowIndex => (
+              {rows.map((row, rowIndex) => (
                 <TableRow key={rowIndex}>
-                  <TableCell className="font-medium">-</TableCell>
-                  {months.map(month => (
-                    <TableCell key={`row-${rowIndex}-${month}`}>-</TableCell>
+                  <TableCell className="font-medium">{row.year || "-"}</TableCell>
+                  {monthKeys.map((monthKey, monthIndex) => (
+                    <TableCell key={`${rowIndex}-${monthKey}-${monthIndex}`}>
+                      {(row[monthKey] as string | undefined) && row[monthKey]?.toString().trim() !== ""
+                        ? row[monthKey]
+                        : "-"}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))}
@@ -59,49 +109,10 @@ const AccountHistory: React.FC<AccountHistoryProps> = ({ account, showDebugInfo 
     );
   };
 
-  // Render Comment table separately as it has a different structure (2x2)
-  const renderCommentTable = () => {
-    return (
-      <Card className="mb-6 border border-gray-200">
-        <CardHeader className="py-3">
-          <CardTitle className="text-md font-medium">Comments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Comment</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {account.comments && account.comments.length > 0 ? (
-                account.comments.map((comment, i) => (
-                  <TableRow key={i}>
-                    <TableCell>-</TableCell>
-                    <TableCell>{comment}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center text-muted-foreground">No comments available</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    );
-  };
-
   return (
     <div className="space-y-4">
-      {/* Render main data tables */}
-      {dataCategories.map(category => renderHistoryTable(category))}
-      
-      {/* Render comments table */}
-      {renderCommentTable()}
-      
+      {historyConfigs.map((config) => renderHistoryTable(config))}
+
       {showDebugInfo && (
         <div className="mt-4 p-4 bg-muted/50 rounded-md border border-dashed">
           <h4 className="text-sm font-medium mb-2">Debug Information</h4>

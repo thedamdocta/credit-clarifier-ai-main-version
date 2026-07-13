@@ -25,12 +25,10 @@ const CreditReportHeader: React.FC<CreditReportHeaderProps> = ({ report }) => {
   };
 
   const handleDownloadPDF = () => {
-    console.log("Downloading PDF report");
     // In a real implementation, this would generate and download a PDF summary
   };
 
   const handleShareReport = () => {
-    console.log("Share report dialog");
     // In a real implementation, this would open a share dialog
   };
 

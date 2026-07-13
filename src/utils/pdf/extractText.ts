@@ -9,10 +9,12 @@ let currentPdfData: {
   extractedText?: string;
   tableImageUrl?: string; 
   targetTable?: string; // Add targetTable to the interface
+  pageTextOffsets?: Array<{ page: number; start: number; end: number }>;
 } = {};
 
 // Import the function for PDF to image conversion
 import { convertPDFPageToImage } from './pdfToImage';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 // Cache for extracted report data - prevents overriding with sample data
 let extractedReportData: any = null;
@@ -39,6 +41,10 @@ export const getExtractedReportData = () => {
   return extractedReportData;
 };
 
+export const getCurrentPdfDocument = () => currentPdfData.pdfDocument;
+
+export const getCurrentPdfPageOffsets = () => currentPdfData.pageTextOffsets ?? [];
+
 // Reset the current report image
 export const resetCurrentReportImage = () => {
   if (currentPdfData && currentPdfData.tableImageUrl) {
@@ -55,15 +61,23 @@ export const extractTextFromPDF = async (pdfDocument: any): Promise<string> => {
   try {
     // Store reference to the PDF document for use in other functions
     currentPdfData.pdfDocument = pdfDocument;
+    currentPdfData.pageTextOffsets = [];
     
     const numPages = pdfDocument.numPages;
     let fullText = "";
     
     for (let i = 1; i <= numPages; i++) {
+      const pageStart = fullText.length;
       const page = await pdfDocument.getPage(i);
       const textContent = await page.getTextContent();
       const pageText = textContent.items.map((item: any) => item.str).join(" ");
       fullText += pageText + " ";
+      const pageEnd = fullText.length;
+      currentPdfData.pageTextOffsets?.push({
+        page: i,
+        start: pageStart,
+        end: pageEnd
+      });
     }
     
     // Store the extracted text for later use
@@ -72,7 +86,7 @@ export const extractTextFromPDF = async (pdfDocument: any): Promise<string> => {
     // Return the full text
     return fullText;
   } catch (error) {
-    console.error("Error extracting text from PDF:", error);
+    devDiagnostics.error("Error extracting text from PDF:", error);
     return "";
   }
 };
@@ -83,17 +97,17 @@ export const extractTextFromPDF = async (pdfDocument: any): Promise<string> => {
  */
 export const extractCreditAccountsTableImage = async (report: any): Promise<string | null> => {
   try {
-    console.log("Attempting to extract credit accounts table image");
+    devDiagnostics.log("Attempting to extract credit accounts table image");
     
     // If we already have a table image URL cached, return it
     if (currentPdfData.tableImageUrl) {
-      console.log("Using cached table image URL");
+      devDiagnostics.log("Using cached table image URL");
       return currentPdfData.tableImageUrl;
     }
     
     // If no PDF document is available, we can't extract an image
     if (!currentPdfData.pdfDocument) {
-      console.error("No PDF document available for image extraction");
+      devDiagnostics.error("No PDF document available for image extraction");
       return null;
     }
     
@@ -128,7 +142,7 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
         
         // Explicitly check for "Credit Accounts" header
         if (pageText.includes("credit accounts")) {
-          console.log(`Found "Credit Accounts" header on page ${i}`);
+          devDiagnostics.log(`Found "Credit Accounts" header on page ${i}`);
           
           // Count occurrences of other table keywords to confirm it's the right table
           let score = 100; // Give high base score for "Credit Accounts" heading
@@ -151,7 +165,7 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
             score += 75; // Almost definitely the right table
           }
           
-          console.log(`Page ${i} score for credit accounts table: ${score}`);
+          devDiagnostics.log(`Page ${i} score for credit accounts table: ${score}`);
           
           // If this page has the highest score, use it
           if (score > highestScore) {
@@ -160,13 +174,13 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
           }
         }
       } catch (error) {
-        console.error(`Error analyzing page ${i}:`, error);
+        devDiagnostics.error(`Error analyzing page ${i}:`, error);
       }
     }
     
     // If we didn't find a page with "Credit Accounts", fall back to keyword scoring
     if (creditAccountsPage === -1) {
-      console.log("No page with explicit 'Credit Accounts' header found, falling back to keyword analysis");
+      devDiagnostics.log("No page with explicit 'Credit Accounts' header found, falling back to keyword analysis");
       
       // Process each page to find the one with the account table
       for (let i = 1; i <= numPages; i++) {
@@ -201,7 +215,7 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
             score += 25; // Very strong indicator of the account table
           }
           
-          console.log(`Page ${i} score for credit account table detection: ${score}`);
+          devDiagnostics.log(`Page ${i} score for credit account table detection: ${score}`);
           
           // Update best page if this one has a higher score
           if (score > highestScore) {
@@ -209,16 +223,16 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
             creditAccountsPage = i;
           }
         } catch (error) {
-          console.error(`Error processing page ${i} for table detection:`, error);
+          devDiagnostics.error(`Error processing page ${i} for table detection:`, error);
         }
       }
     }
     
-    console.log(`Best page for credit account table: ${creditAccountsPage} with score ${highestScore}`);
+    devDiagnostics.log(`Best page for credit account table: ${creditAccountsPage} with score ${highestScore}`);
     
     // If no good page was found, return null
     if (creditAccountsPage === -1 || highestScore < 10) {
-      console.log("No good page found for credit account table extraction");
+      devDiagnostics.log("No good page found for credit account table extraction");
       return null;
     }
     
@@ -227,22 +241,22 @@ export const extractCreditAccountsTableImage = async (report: any): Promise<stri
       const pageImage = await convertPDFPageToImage(pdfDocument, creditAccountsPage);
       
       if (!pageImage) {
-        console.error("Failed to convert page to image for table extraction");
+        devDiagnostics.error("Failed to convert page to image for table extraction");
         return null;
       }
       
-      console.log(`Successfully extracted image for page ${creditAccountsPage}`);
+      devDiagnostics.log(`Successfully extracted image for page ${creditAccountsPage}`);
       
       // Store the image URL in the current PDF data
       currentPdfData.tableImageUrl = pageImage;
       
       return pageImage;
     } catch (error) {
-      console.error("Error extracting table image:", error);
+      devDiagnostics.error("Error extracting table image:", error);
       return null;
     }
   } catch (error) {
-    console.error("Error extracting credit accounts table image:", error);
+    devDiagnostics.error("Error extracting credit accounts table image:", error);
     return null;
   }
 };

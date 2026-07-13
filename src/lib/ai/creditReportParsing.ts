@@ -3,15 +3,16 @@ import { CreditReport } from '../types/creditReport';
 import { identifyBureauWithAI } from './entityExtraction';
 import { extractPersonalInfoWithAI } from './personalInfoExtraction';
 import { extractEntities } from './textAnalysis';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 // AI-first approach for credit report parsing
 export const parseWithAI = async (text: string): Promise<Partial<CreditReport>> => {
   try {
-    console.log("Beginning AI-first parsing of credit report...");
+    devDiagnostics.log("Beginning AI-first parsing of credit report...");
     
     // Identify the credit bureau
     const bureau = await identifyBureauWithAI(text);
-    console.log(`AI identified bureau: ${bureau}`);
+    devDiagnostics.log(`AI identified bureau: ${bureau}`);
     
     // Extract report date (using regex as dates are better handled this way)
     const datePatterns = [
@@ -32,7 +33,7 @@ export const parseWithAI = async (text: string): Promise<Partial<CreditReport>> 
     
     // Extract personal information using AI
     const personalInfo = await extractPersonalInfoWithAI(text);
-    console.log("AI extracted personal info");
+    devDiagnostics.log("AI extracted personal info");
     
     // Return partial report with AI-extracted information
     return {
@@ -42,7 +43,7 @@ export const parseWithAI = async (text: string): Promise<Partial<CreditReport>> 
       rawText: text
     };
   } catch (error) {
-    console.error("Error in AI-first parsing:", error);
+    devDiagnostics.error("Error in AI-first parsing:", error);
     return {
       bureau: 'Unknown',
       reportDate: new Date().toLocaleDateString(),
@@ -97,7 +98,7 @@ export const enhanceCreditReportWithAI = async (text: string, partialReport: any
     
     return enhancedReport;
   } catch (error) {
-    console.error('Error enhancing credit report with AI:', error);
+    devDiagnostics.error('Error enhancing credit report with AI:', error);
     return partialReport;
   }
 };

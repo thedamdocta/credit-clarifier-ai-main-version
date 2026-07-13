@@ -1,0 +1,16 @@
+{
+  "pageWidthInches": 8.5,
+  "pageHeightInches": 11,
+  "marginInches": 1,
+  "backgroundColor": "#eef2f7",
+  "pageColor": "#ffffff",
+  "borderColor": "#cbd5e1",
+  "textColor": "#111827",
+  "fontFamily": "\"Times New Roman\", Georgia, serif",
+  "fontSizePt": 12,
+  "lineHeight": 1,
+  "paragraphSpaceAfterPt": 12,
+  "blockSpaceAfterPt": 12,
+  "accountHeadingSpaceAfterPt": 0,
+  "pageShadow": "0 10px 30px rgba(15,23,42,0.12)"
+}

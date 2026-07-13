@@ -1,50 +1,112 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Account } from "@/lib/types/creditReport";
-import { formatDollarAmount } from "@/utils/formatters/accountValueFormatters";
+import {
+  formatDollarAmount,
+  humanizeExtractedText,
+  isNotReportedValue,
+} from "@/utils/formatters/accountValueFormatters";
 
 interface AccountDetailsProps {
   account: Account;
   showDebugInfo: boolean;
 }
 
+const hasOwnField = (value: unknown, key: string) =>
+  Boolean(value && typeof value === "object" && !Array.isArray(value) && Object.prototype.hasOwnProperty.call(value, key));
+
+const MissingFieldValue: React.FC = () => <span className="text-sm font-medium text-red-600">Missing</span>;
+
 const AccountDetails: React.FC<AccountDetailsProps> = ({ account, showDebugInfo }) => {
-  // Function to safely get value or return "Not reported"
-  const getValue = (value: any): string => {
-    if (value === undefined || value === null || value === '') {
+  const normalizeValue = (value?: string | null): string => {
+    if (!value) return "Not reported";
+    const trimmed = humanizeExtractedText(value).trim();
+    if (trimmed.length === 0 || trimmed.toLowerCase() === "not reported") {
       return "Not reported";
     }
-    return String(value);
+    return trimmed;
   };
 
-  // Account details fields with their labels and values
-  const detailFields = [
-    { label: "High Credit", value: "Not reported" },
-    { label: "Credit Limit", value: "Not reported" },
-    { label: "Terms Frequency", value: "Not reported" },
-    { label: "Balance", value: account.balance && account.balance !== "" ? formatDollarAmount(account.balance) : "Not reported" },
-    { label: "Amount Past Due", value: "Not reported" },
-    { label: "Actual Payment Amount", value: "Not reported" },
-    { label: "Date of Last Activity", value: "Not reported" },
-    { label: "Months Reviewed", value: "Not reported" },
-    { label: "Activity Designator", value: "Not reported" },
-    { label: "Deferred Payment Start Date", value: "Not reported" },
-    { label: "Payment Responsibility", value: "Not reported" },
-    { label: "Account Type", value: account.accountType && account.accountType !== "" ? account.accountType : "Not reported" },
-    { label: "Term Duration", value: "Not reported" },
-    { label: "Date Opened", value: account.openDate && account.openDate !== "" ? account.openDate : "Not reported" },
-    { label: "Date Reported", value: "Not reported" },
-    { label: "Date of Last Payment", value: "Not reported" },
-    { label: "Scheduled Payment Amount", value: "Not reported" },
-    { label: "Delinquency First Reported", value: "Not reported" },
-    { label: "Creditor Classification", value: "Not reported" },
-    { label: "Charge Off Amount", value: "Not reported" },
-    { label: "Balloon Payment Date", value: "Not reported" },
-    { label: "Balloon Payment Amount", value: "Not reported" },
-    { label: "Loan Type", value: "Not reported" },
-    { label: "Date Closed", value: "Not reported" },
-    { label: "Date of First Delinquency", value: "Not reported" },
-  ];
+  const normalizeCurrency = (value?: string | null): string => {
+    const normalized = normalizeValue(value);
+    if (normalized === "Not reported") {
+      return normalized;
+    }
+    return formatDollarAmount(normalized);
+  };
+
+  const detailFields = useMemo(
+    () => [
+      { label: "Account Type", value: normalizeValue(account.accountType) },
+      { label: "Account Category", value: normalizeValue(account.accountCategory) },
+      { label: "Account Ownership", value: normalizeValue(account.accountOwnership) },
+      { label: "Account Status", value: normalizeValue(account.accountStatus ?? account.status) },
+      { label: "High Credit", value: normalizeCurrency(account.highCredit) },
+      { label: "Credit Limit", value: normalizeCurrency(account.creditLimit) },
+      { label: "Current Balance", value: normalizeCurrency(account.currentBalance ?? account.balance) },
+      { label: "Amount Past Due", value: normalizeCurrency(account.amountPastDue) },
+      { label: "Charge Off Amount", value: normalizeCurrency(account.chargeOffAmount) },
+      { label: "Actual Payment Amount", value: normalizeCurrency(account.actualPaymentAmount) },
+      { label: "Scheduled Payment Amount", value: normalizeCurrency(account.scheduledPaymentAmount) },
+      { label: "Payment Amount", value: normalizeCurrency(account.paymentAmount) },
+      { label: "Balloon Payment Amount", value: normalizeCurrency(account.balloonPaymentAmount) },
+      { label: "Credit Type", value: normalizeValue(account.creditType) },
+      { label: "Loan Type", value: normalizeValue(account.loanType) },
+      { label: "Terms Frequency", value: normalizeValue(account.termsFrequency) },
+      { label: "Term Duration", value: normalizeValue(account.termDuration) },
+      { label: "Months Reviewed", value: normalizeValue(account.monthsReviewed) },
+      { label: "Payment Responsibility", value: normalizeValue(account.paymentResponsibility ?? account.responsibility) },
+      { label: "Activity Designator", value: normalizeValue(account.activityDesignator) },
+      { label: "Deferred Payment Start Date", value: normalizeValue(account.deferredPaymentStartDate) },
+      { label: "Balloon Payment Date", value: normalizeValue(account.balloonPaymentDate) },
+      { label: "Date Opened", value: normalizeValue(account.dateOpened ?? account.openDate) },
+      { label: "Date Closed", value: normalizeValue(account.dateClosed) },
+      { label: "Date Reported", value: normalizeValue(account.dateReported) },
+      { label: "Last Payment Date", value: normalizeValue(account.lastPaymentDate) },
+      { label: "Date of Last Activity", value: normalizeValue(account.dateOfLastActivity) },
+      { label: "Date of First Delinquency", value: normalizeValue(account.dateOfFirstDelinquency) },
+      { label: "Delinquency First Reported", value: normalizeValue(account.delinquencyFirstReported) },
+      { label: "Creditor Classification", value: normalizeValue(account.creditorClassification) }
+    ],
+    [
+      account.accountType,
+      account.accountCategory,
+      account.accountOwnership,
+      account.status,
+      account.highCredit,
+      account.creditLimit,
+      account.currentBalance,
+      account.balance,
+      account.amountPastDue,
+      account.chargeOffAmount,
+      account.actualPaymentAmount,
+      account.scheduledPaymentAmount,
+      account.paymentAmount,
+      account.balloonPaymentAmount,
+      account.creditType,
+      account.loanType,
+      account.termsFrequency,
+      account.termDuration,
+      account.monthsReviewed,
+      account.paymentResponsibility,
+      account.responsibility,
+      account.activityDesignator,
+      account.deferredPaymentStartDate,
+      account.balloonPaymentDate,
+      account.dateOpened,
+      account.openDate,
+      account.dateClosed,
+      account.dateReported,
+      account.lastPaymentDate,
+      account.dateOfLastActivity,
+      account.dateOfFirstDelinquency,
+      account.delinquencyFirstReported,
+      account.creditorClassification,
+      account.accountStatus
+    ]
+  );
+
+  const hasCurrentBalanceField = hasOwnField(account, "currentBalance") || hasOwnField(account, "balance");
 
   return (
     <div className="space-y-4">
@@ -55,7 +117,19 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ account, showDebugInfo 
             className="bg-background p-3 rounded-md border"
           >
             <div className="text-xs text-muted-foreground mb-1">{field.label}</div>
-            <div className="text-sm font-medium">{field.value}</div>
+            {field.label === "Current Balance" && !hasCurrentBalanceField ? (
+              <MissingFieldValue />
+            ) : (
+              <div
+                className={
+                  isNotReportedValue(field.value)
+                    ? "text-sm font-normal text-slate-400"
+                    : "text-sm font-medium"
+                }
+              >
+                {field.value}
+              </div>
+            )}
           </div>
         ))}
       </div>

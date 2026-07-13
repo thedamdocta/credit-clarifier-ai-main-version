@@ -4,6 +4,7 @@ import { CardTitle, CardDescription } from "@/components/ui/card";
 import { CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Bug } from "lucide-react";
+import { useReportWorkspace } from "@/features/workspace/ReportWorkspaceContext";
 
 interface CreditAccountsHeaderProps {
   showDebugInfo: boolean;
@@ -14,6 +15,8 @@ const CreditAccountsHeader: React.FC<CreditAccountsHeaderProps> = ({
   showDebugInfo, 
   toggleDebug 
 }) => {
+  const { advancedUiEnabled } = useReportWorkspace();
+
   return (
     <>
       <div>
@@ -23,15 +26,17 @@ const CreditAccountsHeader: React.FC<CreditAccountsHeaderProps> = ({
         </CardTitle>
         <CardDescription>Summary of your credit accounts</CardDescription>
       </div>
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={toggleDebug}
-        className="flex items-center text-xs"
-      >
-        <Bug className="h-3 w-3 mr-1" />
-        {showDebugInfo ? "Hide Debug" : "Show Debug"}
-      </Button>
+      {advancedUiEnabled ? (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={toggleDebug}
+          className="flex items-center text-xs"
+        >
+          <Bug className="h-3 w-3 mr-1" />
+          {showDebugInfo ? "Hide Debug" : "Show Debug"}
+        </Button>
+      ) : null}
     </>
   );
 };

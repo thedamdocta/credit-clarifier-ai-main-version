@@ -57,17 +57,11 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ creditReport, isProcess
     setIsSending(true);
 
     try {
-      // In a real app, this would be a secure call to your backend
-      // which would then forward the data to the webhook URL
-      console.log("Sending data to webhook:", outboundWebhookUrl);
-      console.log("Credit report data:", creditReport);
-
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       toast.success("Data sent to webhook successfully!");
     } catch (error) {
-      console.error("Error sending webhook:", error);
       toast.error("Failed to send data to webhook");
     } finally {
       setIsSending(false);

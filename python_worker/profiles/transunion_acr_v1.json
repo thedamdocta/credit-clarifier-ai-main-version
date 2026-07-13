@@ -1,0 +1,23 @@
+{
+  "id": "transunion_acr_v1",
+  "name": "TransUnion AnnualCreditReport Landscape Layout",
+  "sectionAnchors": {
+    "reportOverview": ["personal credit report for", "file number", "date created"],
+    "personalInformation": ["personal information", "addresses", "phone numbers", "employers"],
+    "adverseAccounts": ["accounts with adverse information", "account information", "payment history"],
+    "satisfactoryAccounts": ["satisfactory accounts", "account information", "payment history"],
+    "inquiries": ["inquiries", "requested on", "location"],
+    "accountReviewInquiries": ["account review inquiries", "requested on", "location"]
+  },
+  "retrieval": {
+    "includeNeighbors": false
+  },
+  "requiredComponents": [
+    "reportOverview",
+    "personalInformation",
+    "adverseAccounts",
+    "satisfactoryAccounts",
+    "inquiries",
+    "accountReviewInquiries"
+  ]
+}

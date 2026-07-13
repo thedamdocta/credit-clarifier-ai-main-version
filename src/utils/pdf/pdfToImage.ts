@@ -1,3 +1,4 @@
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Utility for converting PDF pages to images for better text extraction
@@ -28,7 +29,7 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     });
     
     if (!context) {
-      console.error("Could not create canvas context");
+      devDiagnostics.error("Could not create canvas context");
       return null;
     }
     
@@ -50,7 +51,7 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     };
     
     await page.render(renderContext).promise;
-    console.log(`Rendered page ${pageNum} to canvas with dimensions ${canvas.width}x${canvas.height}`);
+    devDiagnostics.log(`Rendered page ${pageNum} to canvas with dimensions ${canvas.width}x${canvas.height}`);
     
     // Apply enhanced image processing for better OCR
     enhanceImageForOCR(context, canvas.width, canvas.height);
@@ -60,11 +61,11 @@ export async function convertPDFPageToImage(pdf: any, pageNum: number): Promise<
     
     // Add logging for image size to help with debugging
     const dataSizeKB = Math.round(imageData.length / 1024);
-    console.log(`Generated image for page ${pageNum} with size ${dataSizeKB}KB`);
+    devDiagnostics.log(`Generated image for page ${pageNum} with size ${dataSizeKB}KB`);
     
     return imageData;
   } catch (error) {
-    console.error(`Error converting page ${pageNum} to image:`, error);
+    devDiagnostics.error(`Error converting page ${pageNum} to image:`, error);
     return null;
   }
 }
@@ -115,9 +116,9 @@ function enhanceImageForOCR(
     // Put the modified data back
     context.putImageData(imageData, 0, 0);
     
-    console.log("Applied enhanced image processing for better OCR");
+    devDiagnostics.log("Applied enhanced image processing for better OCR");
   } catch (error) {
-    console.error("Error applying image enhancement:", error);
+    devDiagnostics.error("Error applying image enhancement:", error);
     // Continue with original image if enhancement fails
   }
 }
@@ -149,7 +150,7 @@ export async function extractRegionFromPDFPage(
     const ctx = canvas.getContext('2d');
     
     if (!ctx) {
-      console.error("Could not create canvas context for region extraction");
+      devDiagnostics.error("Could not create canvas context for region extraction");
       return null;
     }
     
@@ -174,7 +175,7 @@ export async function extractRegionFromPDFPage(
     // Convert the region to a data URL
     return canvas.toDataURL('image/png', 1.0);
   } catch (error) {
-    console.error(`Error extracting region from page ${pageNum}:`, error);
+    devDiagnostics.error(`Error extracting region from page ${pageNum}:`, error);
     return null;
   }
 }

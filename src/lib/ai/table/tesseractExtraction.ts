@@ -2,6 +2,7 @@ import Tesseract from 'tesseract.js';
 import { toast } from "sonner";
 import { ExtractedTableData } from './types';
 import { calculateCreditAccountsTableScore } from '../tableDetection';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Enhanced table detection and extraction using Tesseract.js
@@ -13,17 +14,17 @@ export async function extractTableWithTesseract(
   targetTableName: string = "Credit Accounts"
 ): Promise<ExtractedTableData | null> {
   try {
-    console.log(`Starting Tesseract extraction for "${targetTableName}" table from image:`, imageUrl);
+    devDiagnostics.log(`Starting Tesseract extraction for "${targetTableName}" table from image:`, imageUrl);
     
     // Handle empty image URL case
     if (!imageUrl) {
-      console.error('No image URL provided for Tesseract extraction');
+      devDiagnostics.error('No image URL provided for Tesseract extraction');
       return null;
     }
     
     // Validate image URL format
     if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/') && !imageUrl.startsWith('data:')) {
-      console.error('Invalid image URL format:', imageUrl);
+      devDiagnostics.error('Invalid image URL format:', imageUrl);
       return null;
     }
     
@@ -35,18 +36,18 @@ export async function extractTableWithTesseract(
     await new Promise((resolve, reject) => {
       image.onload = resolve;
       image.onerror = () => {
-        console.error('Failed to load image for Tesseract');
+        devDiagnostics.error('Failed to load image for Tesseract');
         reject(new Error('Failed to load image'));
       };
       image.src = imageUrl;
     }).catch(err => {
-      console.error('Image loading error:', err);
+      devDiagnostics.error('Image loading error:', err);
       throw new Error('Failed to load image');
     });
     
     // Initialize Tesseract with optimized settings for table structure detection
     const worker = await Tesseract.createWorker({
-      logger: m => console.log(`Tesseract progress: ${m.progress} - ${m.status}`),
+      logger: m => devDiagnostics.log(`Tesseract progress: ${m.progress} - ${m.status}`),
     });
     
     // Configure Tesseract for better table detection
@@ -65,29 +66,29 @@ export async function extractTableWithTesseract(
     try {
       // First attempt with URL
       result = await worker.recognize(imageUrl);
-      console.log('Recognition successful with URL');
+      devDiagnostics.log('Recognition successful with URL');
     } catch (urlError) {
-      console.warn('Failed to recognize with URL, trying with Image object:', urlError);
+      devDiagnostics.warn('Failed to recognize with URL, trying with Image object:', urlError);
       try {
         // Second attempt with Image object
         result = await worker.recognize(image);
-        console.log('Recognition successful with Image object');
+        devDiagnostics.log('Recognition successful with Image object');
       } catch (imgError) {
-        console.error('Both recognition attempts failed:', imgError);
+        devDiagnostics.error('Both recognition attempts failed:', imgError);
         await worker.terminate();
         throw imgError;
       }
     }
     
-    console.log('Tesseract confidence:', result.data.confidence);
+    devDiagnostics.log('Tesseract confidence:', result.data.confidence);
     
     // Log a sample of the recognized text for debugging
     const previewText = result.data.text.substring(0, 200) + '...';
-    console.log('Tesseract recognized text sample:', previewText);
+    devDiagnostics.log('Tesseract recognized text sample:', previewText);
     
     // Calculate score to determine if this is the Credit Accounts table
     const tableScore = calculateCreditAccountsTableScore(result.data.text);
-    console.log(`Table match score for "${targetTableName}": ${tableScore.toFixed(2)}`);
+    devDiagnostics.log(`Table match score for "${targetTableName}": ${tableScore.toFixed(2)}`);
     
     // Check specifically if the text contains credit account table keywords
     const textLower = result.data.text.toLowerCase();
@@ -99,16 +100,16 @@ export async function extractTableWithTesseract(
     const isLikelyTargetTable = tableScore > 0.5 || (hasTableKeywords && textLower.includes('account type'));
     
     if (!isLikelyTargetTable) {
-      console.log(`This is likely NOT the "${targetTableName}" table (score: ${tableScore.toFixed(2)})`);
+      devDiagnostics.log(`This is likely NOT the "${targetTableName}" table (score: ${tableScore.toFixed(2)})`);
       
       // If it's clearly not the target table, return null to try with another image
       if (tableScore < 0.3) {
-        console.log(`Rejecting image as unlikely to contain "${targetTableName}" table`);
+        devDiagnostics.log(`Rejecting image as unlikely to contain "${targetTableName}" table`);
         await worker.terminate();
         return null;
       }
     } else {
-      console.log(`This is likely the "${targetTableName}" table (score: ${tableScore.toFixed(2)})`);
+      devDiagnostics.log(`This is likely the "${targetTableName}" table (score: ${tableScore.toFixed(2)})`);
     }
     
     // Extract tabular data using Tesseract's block structure detection
@@ -124,7 +125,7 @@ export async function extractTableWithTesseract(
     await worker.terminate();
     return tableData;
   } catch (error) {
-    console.error('Error in Tesseract table extraction:', error);
+    devDiagnostics.error('Error in Tesseract table extraction:', error);
     return null;
   }
 }
@@ -136,56 +137,56 @@ export async function extractTableWithTesseract(
 function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableData | null {
   try {
     // Log the raw OCR result for debugging
-    console.log('Processing OCR result to extract table structure');
+    devDiagnostics.log('Processing OCR result to extract table structure');
     
     // Get the lines content for positional analysis
     const lines = ocrResult.lines || [];
     if (lines.length === 0) {
-      console.log('No lines found in OCR result');
+      devDiagnostics.log('No lines found in OCR result');
       return null;
     }
     
-    console.log(`Found ${lines.length} lines in OCR result`);
+    devDiagnostics.log(`Found ${lines.length} lines in OCR result`);
     
     // First try to find any line that looks like account table data
     const accountTypeRegex = /^(revolving|mortgage|installment|other|total)\s+\d+/i;
     const hasAccountTypeLines = lines.some(line => accountTypeRegex.test(line.text.trim()));
     
     if (!hasAccountTypeLines) {
-      console.log('No lines matching account type pattern found');
+      devDiagnostics.log('No lines matching account type pattern found');
       // Continue with column detection, we might still find a table structure
     } else {
-      console.log('Found lines matching account type pattern');
+      devDiagnostics.log('Found lines matching account type pattern');
     }
     
     // Detect column boundaries based on word positions
     const columns = detectColumns(lines);
     if (columns.length < 3) {
-      console.log('Not enough columns detected, need at least 3');
+      devDiagnostics.log('Not enough columns detected, need at least 3');
       return createDefaultTableStructure(lines);
     }
     
-    console.log(`Detected ${columns.length} columns at positions:`, columns);
+    devDiagnostics.log(`Detected ${columns.length} columns at positions:`, columns);
     
     // Find header row
     const headerRowIndex = findHeaderRow(lines);
     if (headerRowIndex === -1) {
-      console.log('Could not find header row, using default headers');
+      devDiagnostics.log('Could not find header row, using default headers');
       return createDefaultTableStructure(lines);
     }
     
-    console.log(`Found header row at index ${headerRowIndex}: "${lines[headerRowIndex].text}"`);
+    devDiagnostics.log(`Found header row at index ${headerRowIndex}: "${lines[headerRowIndex].text}"`);
     
     // Extract headers and data rows based on positions
     const headers = extractHeadersFromRow(lines[headerRowIndex], columns);
     const dataRows = extractDataRows(lines, headerRowIndex + 1, columns);
     
-    console.log('Extracted table structure with headers:', headers);
-    console.log('Found data rows:', dataRows.length);
+    devDiagnostics.log('Extracted table structure with headers:', headers);
+    devDiagnostics.log('Found data rows:', dataRows.length);
     
     // If no data rows were found but we have headers, still try to extract account type rows
     if (dataRows.length === 0) {
-      console.log('No data rows found but headers exist, trying to extract account type rows directly');
+      devDiagnostics.log('No data rows found but headers exist, trying to extract account type rows directly');
       const accountTypeRows = extractAccountTypeRows(lines, headers);
       if (accountTypeRows.length > 0) {
         return {
@@ -208,7 +209,7 @@ function extractTableFromOCRResult(ocrResult: Tesseract.Page): ExtractedTableDat
     // Fallback to default structure if extraction failed
     return createDefaultTableStructure(lines);
   } catch (error) {
-    console.error('Error extracting table from OCR result:', error);
+    devDiagnostics.error('Error extracting table from OCR result:', error);
     return null;
   }
 }
@@ -258,7 +259,7 @@ function extractAccountTypeRows(lines: Tesseract.Line[], headers: string[]): str
  */
 function createDefaultTableStructure(lines: Tesseract.Line[]): ExtractedTableData | null {
   try {
-    console.log('Creating default table structure');
+    devDiagnostics.log('Creating default table structure');
     
     // Default headers for credit account tables
     const headers = [
@@ -276,14 +277,14 @@ function createDefaultTableStructure(lines: Tesseract.Line[]): ExtractedTableDat
       
       if (matchingType) {
         // Found a line with an account type keyword
-        console.log(`Found line with account type "${matchingType}": ${line.text}`);
+        devDiagnostics.log(`Found line with account type "${matchingType}": ${line.text}`);
         
         // Create a data row with the account type and extract any numeric values
         const row = [matchingType.charAt(0).toUpperCase() + matchingType.slice(1)];
         
         // Extract numbers from the line
         const numberMatches = line.text.match(/\$?[\d,]+(\.\d+)?%?/g) || [];
-        console.log(`Found ${numberMatches.length} number matches:`, numberMatches);
+        devDiagnostics.log(`Found ${numberMatches.length} number matches:`, numberMatches);
         
         // Fill the row with the extracted numbers, padding with empty strings if needed
         for (let i = 0; i < headers.length - 1; i++) {
@@ -296,7 +297,7 @@ function createDefaultTableStructure(lines: Tesseract.Line[]): ExtractedTableDat
     
     // If we found at least one data row, return the table structure
     if (dataRows.length > 0) {
-      console.log('Created default table structure with', dataRows.length, 'rows');
+      devDiagnostics.log('Created default table structure with', dataRows.length, 'rows');
       return {
         headers,
         rows: dataRows,
@@ -304,10 +305,10 @@ function createDefaultTableStructure(lines: Tesseract.Line[]): ExtractedTableDat
       };
     }
     
-    console.log('Could not create default table structure, no account type lines found');
+    devDiagnostics.log('Could not create default table structure, no account type lines found');
     return null;
   } catch (error) {
-    console.error('Error creating default table structure:', error);
+    devDiagnostics.error('Error creating default table structure:', error);
     return null;
   }
 }
@@ -424,7 +425,7 @@ function extractHeadersFromRow(headerLine: Tesseract.Line, columnBoundaries: num
   
   // If we didn't find enough headers, use defaults
   if (cleanedHeaders.filter(h => h).length < 4) {
-    console.log('Not enough headers found, using defaults');
+    devDiagnostics.log('Not enough headers found, using defaults');
     return defaultHeaders;
   }
   

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { trainParser } from '@/lib/ai/table/valueParser';
 import { AccountSummary } from '@/lib/types/creditReport';
 import { toast } from 'sonner';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Custom hook to manage training examples for the OCR parser
@@ -21,10 +22,10 @@ export const useTrainingExamples = () => {
         const parsed = JSON.parse(storedExamples);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setExamples(parsed);
-          console.log(`Loaded ${parsed.length} persisted training examples`);
+          devDiagnostics.log(`Loaded ${parsed.length} persisted training examples`);
         }
       } catch (e) {
-        console.error('Failed to parse stored training examples', e);
+        devDiagnostics.error('Failed to parse stored training examples', e);
       }
     }
   }, []);
@@ -48,7 +49,7 @@ export const useTrainingExamples = () => {
       );
       
       if (validExamples.length === 0) {
-        console.log('No valid training examples found');
+        devDiagnostics.log('No valid training examples found');
         if (showToast) {
           toast.warning('No valid training data found in this example');
         }
@@ -56,7 +57,7 @@ export const useTrainingExamples = () => {
         return;
       }
       
-      console.log(`Adding ${validExamples.length} valid training examples`);
+      devDiagnostics.log(`Adding ${validExamples.length} valid training examples`);
       
       // Update state to include new examples
       setExamples(prev => {
@@ -85,12 +86,12 @@ export const useTrainingExamples = () => {
       trainParser(validExamples);
       setTrainedAt(new Date());
       
-      console.log('Training complete');
+      devDiagnostics.log('Training complete');
       if (showToast) {
         toast.success(`Successfully trained with ${validExamples.length} examples`);
       }
     } catch (error) {
-      console.error('Error adding training examples:', error);
+      devDiagnostics.error('Error adding training examples:', error);
       if (showToast) {
         toast.error('Error training the OCR system');
       }

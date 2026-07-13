@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+
+# --- consumer data & runtime artifacts: NEVER commit (real credit reports / PII) ---
+tmp/
+output/
+public/verification/
+.playwright-cli/
+vite.config.ts.timestamp-*
+.env

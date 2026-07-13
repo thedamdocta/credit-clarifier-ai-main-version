@@ -1,3 +1,4 @@
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Image preprocessing utilities for OCR enhancement
@@ -10,11 +11,11 @@
  */
 export async function preprocessImageForOCR(imageUrl: string): Promise<string | null> {
   try {
-    console.log('Image preprocessing requested - using direct passthrough:', imageUrl);
+    devDiagnostics.log('Image preprocessing requested - using direct passthrough:', imageUrl);
     
     // Check if we have a valid image URL
     if (!imageUrl || typeof imageUrl !== 'string') {
-      console.error('Invalid image URL provided:', imageUrl);
+      devDiagnostics.error('Invalid image URL provided:', imageUrl);
       return null;
     }
     
@@ -23,13 +24,13 @@ export async function preprocessImageForOCR(imageUrl: string): Promise<string | 
       `${imageUrl}&cacheBust=${Date.now()}` : 
       `${imageUrl}?cacheBust=${Date.now()}`;
     
-    console.log('Using cache-busted image URL:', cacheBustUrl);
+    devDiagnostics.log('Using cache-busted image URL:', cacheBustUrl);
     
     // Return the original image URL without any modifications
     // Just add a cache-busting parameter
     return cacheBustUrl;
   } catch (error) {
-    console.error('Error in image preprocessing:', error);
+    devDiagnostics.error('Error in image preprocessing:', error);
     return null;
   }
 }
@@ -51,7 +52,7 @@ export async function getImageDimensions(imageUrl: string): Promise<{width: numb
         });
       };
       img.onerror = (e) => {
-        console.error('Failed to load image for dimension calculation:', e);
+        devDiagnostics.error('Failed to load image for dimension calculation:', e);
         reject(null);
       };
       
@@ -63,7 +64,7 @@ export async function getImageDimensions(imageUrl: string): Promise<{width: numb
       img.src = cacheBustUrl;
     });
   } catch (error) {
-    console.error('Error getting image dimensions:', error);
+    devDiagnostics.error('Error getting image dimensions:', error);
     return null;
   }
 }

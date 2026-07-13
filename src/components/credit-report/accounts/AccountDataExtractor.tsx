@@ -6,6 +6,7 @@ import { extractCreditAccountsTableImage, resetCurrentReportImage, getExtractedR
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
 import { extractTableWithOpenAI, canUseOpenAI } from "@/lib/ai/openai/openaiService";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 interface AccountDataExtractorProps {
   report: CreditReport;
@@ -28,14 +29,14 @@ export const handleEnhancedExtraction = async (
     if (forceManualExtraction) {
       toast.info("Extracting account data...");
     }
-    console.log("Starting enhanced extraction process for report:", report?.reportId);
+    devDiagnostics.log("Starting enhanced extraction process for report:", report?.reportId);
     
     // Check if we already have valid data in the report
     if (report.accountSummaries && report.accountSummaries.length > 0) {
       const existingDataHasValues = hasRealData(report.accountSummaries);
       
       if (existingDataHasValues) {
-        console.log("Using existing account data from report:", report.accountSummaries);
+        devDiagnostics.log("Using existing account data from report:", report.accountSummaries);
         createOrderedAccountSummaries(report.accountSummaries, onDataExtracted, requiredAccountTypes, false);
         setIsProcessing(false);
         if (forceManualExtraction) {
@@ -50,19 +51,19 @@ export const handleEnhancedExtraction = async (
       const newTableImageUrl = await extractCreditAccountsTableImage(report);
       
       if (newTableImageUrl) {
-        console.log("Using table image URL for extraction:", newTableImageUrl);
+        devDiagnostics.log("Using table image URL for extraction:", newTableImageUrl);
 
         // For regular image URLs (not data: URLs), proceed with OpenAI extraction
         if (!newTableImageUrl.startsWith('data:')) {
           // First try OpenAI extraction if available (highest quality results)
           if (canUseOpenAI()) {
-            console.log("Attempting extraction with OpenAI");
+            devDiagnostics.log("Attempting extraction with OpenAI");
             
             try {
               const openAIResults = await extractTableWithOpenAI(newTableImageUrl);
               
               if (openAIResults && openAIResults.length > 0 && hasRealData(openAIResults)) {
-                console.log("Successfully extracted data with OpenAI:", openAIResults);
+                devDiagnostics.log("Successfully extracted data with OpenAI:", openAIResults);
                 if (forceManualExtraction) {
                   toast.success("Successfully extracted account data with AI");
                 }
@@ -71,15 +72,15 @@ export const handleEnhancedExtraction = async (
                 setIsProcessing(false);
                 return;
               } else {
-                console.log("OpenAI extraction failed or returned no real data, falling back to local extraction");
+                devDiagnostics.log("OpenAI extraction failed or returned no real data, falling back to local extraction");
               }
             } catch (error) {
-              console.error("Error during OpenAI extraction:", error);
+              devDiagnostics.error("Error during OpenAI extraction:", error);
               toast.error("OpenAI extraction failed. Trying alternative method...");
             }
           }
         } else {
-          console.error("Cannot use data URL directly with OpenAI API. Need to convert it first.");
+          devDiagnostics.info("Skipping remote extraction for data URLs in local-only mode.");
         }
         
         // Fall back to local table extraction
@@ -87,12 +88,12 @@ export const handleEnhancedExtraction = async (
           const tableData = await extractTableFromImage(newTableImageUrl);
           
           if (tableData && tableData.rows && tableData.rows.length > 0) {
-            console.log("Extracted table data:", tableData);
+            devDiagnostics.log("Extracted table data:", tableData);
             
             const extractedSummaries = convertTableToAccountSummaries(tableData);
             
             if (extractedSummaries.length > 0 && hasRealData(extractedSummaries)) {
-              console.log('Successfully extracted account summaries:', extractedSummaries);
+              devDiagnostics.log('Successfully extracted account summaries:', extractedSummaries);
               if (forceManualExtraction) {
                 toast.success("Successfully extracted account data");
               }
@@ -103,18 +104,18 @@ export const handleEnhancedExtraction = async (
             }
           }
         } catch (error) {
-          console.error("Error during local table extraction:", error);
+          devDiagnostics.error("Error during local table extraction:", error);
         }
       } else {
-        console.error("Could not extract table image from report");
+        devDiagnostics.error("Could not extract table image from report");
         toast.error("Could not extract table image from report");
       }
     } catch (imageError) {
-      console.error("Error extracting table image:", imageError);
+      devDiagnostics.error("Error extracting table image:", imageError);
       toast.error("Error extracting table image from report");
     }
     
-    console.log("Image extraction failed, attempting text-based extraction");
+    devDiagnostics.log("Image extraction failed, attempting text-based extraction");
     
     if (report.rawText && report.rawText.length > 0) {
       const tablePattern = /\b(account\s+type|revolving|mortgage|installment|total).+(\d+)\s+(\d+)\s+\$?([\d,]+)/i;
@@ -125,7 +126,7 @@ export const handleEnhancedExtraction = async (
         
         if (report.accountSummaries && report.accountSummaries.length > 0) {
           if (hasRealData(report.accountSummaries)) {
-            console.log("Using account summaries from report text:", report.accountSummaries);
+            devDiagnostics.log("Using account summaries from report text:", report.accountSummaries);
             createOrderedAccountSummaries(report.accountSummaries, onDataExtracted, requiredAccountTypes, false);
             setIsProcessing(false);
             if (forceManualExtraction) {
@@ -139,7 +140,7 @@ export const handleEnhancedExtraction = async (
     
     const cachedData = getExtractedReportData();
     if (cachedData && cachedData.accountSummaries && hasRealData(cachedData.accountSummaries)) {
-      console.log("Using account summaries from cached data");
+      devDiagnostics.log("Using account summaries from cached data");
       createOrderedAccountSummaries(cachedData.accountSummaries, onDataExtracted, requiredAccountTypes, false);
       setIsProcessing(false);
       if (forceManualExtraction) {
@@ -148,7 +149,7 @@ export const handleEnhancedExtraction = async (
       return;
     }
     
-    console.log("No account data available - extraction failed");
+    devDiagnostics.log("No account data available - extraction failed");
     
     // Return empty data with extraction failed flag
     const emptyData = createEmptyAccountSummaries(requiredAccountTypes);
@@ -160,7 +161,7 @@ export const handleEnhancedExtraction = async (
     
     setIsProcessing(false);
   } catch (error) {
-    console.error("Error during extraction:", error);
+    devDiagnostics.error("Error during extraction:", error);
     if (forceManualExtraction) {
       toast.error("Error during data extraction");
     }

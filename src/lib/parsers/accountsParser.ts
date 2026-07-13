@@ -1,16 +1,17 @@
 
 import { Account } from "../types/creditReport";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 export const extractAccounts = (text: string): Account[] => {
   const accounts: Account[] = [];
   
   // Log the start of account extraction for debugging
-  console.log("Starting account extraction from text");
+  devDiagnostics.log("Starting account extraction from text");
   
   const accountSections = text.split(/(?:account|credit card|loan|mortgage)s?:?\s*#?\d+/i);
   
   // Log how many potential account sections were found
-  console.log(`Found ${accountSections.length - 1} potential account sections`);
+  devDiagnostics.log(`Found ${accountSections.length - 1} potential account sections`);
   
   accountSections.slice(1).forEach((section, index) => {
     let accountName = '';
@@ -21,7 +22,7 @@ export const extractAccounts = (text: string): Account[] => {
     }
     
     if (!accountName) {
-      console.log(`Section ${index + 1}: No account name found, skipping`);
+      devDiagnostics.log(`Section ${index + 1}: No account name found, skipping`);
       return;
     }
     
@@ -71,11 +72,11 @@ export const extractAccounts = (text: string): Account[] => {
     };
     
     // Log each successfully extracted account
-    console.log(`Extracted account: ${account.accountName} (${account.accountType})`);
+    devDiagnostics.log(`Extracted account: ${account.accountName} (${account.accountType})`);
     
     accounts.push(account);
   });
   
-  console.log(`Total accounts extracted: ${accounts.length}`);
+  devDiagnostics.log(`Total accounts extracted: ${accounts.length}`);
   return accounts;
 };

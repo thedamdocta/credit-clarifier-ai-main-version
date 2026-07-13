@@ -1,3 +1,4 @@
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 /**
  * Value parsing utilities for table extraction
@@ -37,7 +38,7 @@ export function addTrainingExample(raw: string, type: 'currency' | 'percentage' 
   // Don't add duplicates
   if (!trainingExamples.some(ex => ex.raw === raw && ex.corrected === corrected)) {
     trainingExamples.push({ raw, type, corrected });
-    console.log(`Added training example: ${raw} → ${corrected} (${type})`);
+    devDiagnostics.log(`Added training example: ${raw} → ${corrected} (${type})`);
   }
 }
 
@@ -51,7 +52,7 @@ export function learnFromExamples(examples: {raw: string, corrected: string, typ
       addTrainingExample(ex.raw, ex.type as 'currency' | 'percentage' | 'numeric', ex.corrected);
     }
   });
-  console.log(`Learned from ${examples.length} examples`);
+  devDiagnostics.log(`Learned from ${examples.length} examples`);
 }
 
 /**
@@ -71,7 +72,7 @@ export function parseNumericValue(value: any): string | null {
   );
   
   if (matchingExample) {
-    console.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
+    devDiagnostics.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
     return matchingExample.corrected;
   }
   
@@ -134,7 +135,7 @@ export function parseCurrencyValue(value: any): string | null {
   );
   
   if (matchingExample) {
-    console.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
+    devDiagnostics.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
     return matchingExample.corrected;
   }
   
@@ -209,7 +210,7 @@ export function parsePercentageValue(value: any): string | null {
   );
   
   if (matchingExample) {
-    console.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
+    devDiagnostics.log(`Using training example match for ${strValue} → ${matchingExample.corrected}`);
     return matchingExample.corrected;
   }
   
@@ -429,7 +430,7 @@ export function trainParser(examples: Array<{
   debtToCredit?: string | null,
   payment?: string | null
 }>) {
-  console.log(`Training parser with ${examples.length} examples`);
+  devDiagnostics.log(`Training parser with ${examples.length} examples`);
   
   try {
     examples.forEach(example => {
@@ -474,8 +475,8 @@ export function trainParser(examples: Array<{
       }
     });
     
-    console.log(`Training complete. ${trainingExamples.length} patterns learned.`);
+    devDiagnostics.log(`Training complete. ${trainingExamples.length} patterns learned.`);
   } catch (error) {
-    console.error("Error while training parser:", error);
+    devDiagnostics.error("Error while training parser:", error);
   }
 }

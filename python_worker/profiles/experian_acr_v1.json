@@ -1,0 +1,23 @@
+{
+  "id": "experian_acr_v1",
+  "name": "Experian AnnualCreditReport Print Layout",
+  "sectionAnchors": {
+    "reportOverview": ["prepared for", "date generated", "report number", "at a glance"],
+    "personalInformation": ["personal information", "names", "addresses", "year of birth", "phone numbers", "employers"],
+    "accounts": ["accounts", "account info", "payment history", "balance histories", "contact info"],
+    "publicRecords": ["public records", "no public records reported"],
+    "hardInquiries": ["hard inquiries", "inquired on"],
+    "softInquiries": ["soft inquiries", "inquired on"]
+  },
+  "retrieval": {
+    "includeNeighbors": true
+  },
+  "requiredComponents": [
+    "reportOverview",
+    "personalInformation",
+    "accounts",
+    "publicRecords",
+    "hardInquiries",
+    "softInquiries"
+  ]
+}

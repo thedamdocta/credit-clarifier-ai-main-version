@@ -1,0 +1,10 @@
+node_modules
+dist
+tmp
+logs
+output
+.vercel
+.git
+*.md
+src
+public

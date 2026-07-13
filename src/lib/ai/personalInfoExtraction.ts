@@ -1,6 +1,7 @@
 import { extractEntities } from './textAnalysis';
 import { extractSSNWithAI } from './entityExtraction';
 import { PersonalInfo } from '../types/creditReport';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 // AI-first approach to extract personal information
 export const extractPersonalInfoWithAI = async (text: string): Promise<PersonalInfo> => {
@@ -110,7 +111,7 @@ export const extractPersonalInfoWithAI = async (text: string): Promise<PersonalI
       employmentHistory
     };
   } catch (error) {
-    console.error('Error extracting personal info with AI:', error);
+    devDiagnostics.error('Error extracting personal info with AI:', error);
     
     // Fall back to basic extraction
     const name = text.match(/name:?\s*([A-Za-z\s\.,]+)/i)?.[1]?.trim() || 'Not Found';
@@ -167,7 +168,7 @@ export const extractNameWithAI = async (text: string): Promise<string> => {
     
     return 'Not Found';
   } catch (error) {
-    console.error('Error extracting name with AI:', error);
+    devDiagnostics.error('Error extracting name with AI:', error);
     return 'Not Found';
   }
 };

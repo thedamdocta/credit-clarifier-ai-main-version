@@ -1,5 +1,6 @@
 
 import { CreditReport } from "../types/creditReport";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 export const identifyBureau = (text: string): CreditReport['bureau'] => {
   const lowerText = text.toLowerCase();
@@ -10,16 +11,16 @@ export const identifyBureau = (text: string): CreditReport['bureau'] => {
     lowerText.includes('report confirmation') && lowerText.includes('confirmation number') ||
     lowerText.includes('report date') && lowerText.includes('credit file status')
   ) {
-    console.log("Bureau identified as Equifax");
+    devDiagnostics.log("Bureau identified as Equifax");
     return 'Equifax';
   } else if (lowerText.includes('experian')) {
-    console.log("Bureau identified as Experian");
+    devDiagnostics.log("Bureau identified as Experian");
     return 'Experian';
   } else if (lowerText.includes('transunion')) {
-    console.log("Bureau identified as TransUnion");
+    devDiagnostics.log("Bureau identified as TransUnion");
     return 'TransUnion';
   }
   
-  console.log("Bureau couldn't be identified, marking as Unknown");
+  devDiagnostics.log("Bureau couldn't be identified, marking as Unknown");
   return 'Unknown';
 };

@@ -3,6 +3,7 @@ import React from "react";
 import { Database } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useReportWorkspace } from "@/features/workspace/ReportWorkspaceContext";
 
 interface CollectionsHeaderProps {
   showDebugInfo: boolean;
@@ -13,6 +14,8 @@ const CollectionsHeader: React.FC<CollectionsHeaderProps> = ({
   showDebugInfo, 
   toggleDebug 
 }) => {
+  const { advancedUiEnabled } = useReportWorkspace();
+
   return (
     <div className="flex items-center gap-2">
       <Database className="h-6 w-6" />
@@ -22,15 +25,17 @@ const CollectionsHeader: React.FC<CollectionsHeaderProps> = ({
           Collection accounts on your credit report
         </p>
       </div>
-      <div className="ml-4 flex items-center space-x-2">
-        <Switch
-          id="debug-mode"
-          checked={showDebugInfo}
-          onCheckedChange={toggleDebug}
-          className="scale-75"
-        />
-        <Label htmlFor="debug-mode" className="text-xs">Show Debug</Label>
-      </div>
+      {advancedUiEnabled ? (
+        <div className="ml-4 flex items-center space-x-2">
+          <Switch
+            id="debug-mode"
+            checked={showDebugInfo}
+            onCheckedChange={toggleDebug}
+            className="scale-75"
+          />
+          <Label htmlFor="debug-mode" className="text-xs">Show Debug</Label>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -1,0 +1,8 @@
+node_modules
+tmp
+logs
+output
+dist
+.vercel
+src
+public

@@ -1,0 +1,72 @@
+task: Highlighter fixes — per-account evidence crops + full-report highlight accuracy
+lane: dispute evidence generation (dispute_evidence_generator.py)
+page: n/a — code fixes + verification loop against existing draft
+done:
+  - Session 21 (Fable 5): Bugs A, D, B FIXED and VERIFIED (harness + browser/raster, per-fix gates)
+  - Bug A: exportGrade = per-box quality property (EXPORT_GRADE_BOX_SOURCES + provenance check);
+    resolutionMode "quality"; canonical Experian branch untouched; TU "layout:" ids stay excluded
+  - Bug D: Word.pdf_box carried from PDF word extraction through search_anchor -> every text
+    match has exact PDF-point geometry; 73/73 -> both views share literal rects (0 mismatches)
+  - Bug B: same-rect merge; generic cross-table month resolver (both comparison sides -> own
+    table cell/gap); label-anchored scalar citations w/ blank-region synthesis (inferred_blank);
+    prose rejection + value-agreement scoring; gap honesty guard (pre-range months suppressed);
+    value-search spec cleanup. HARNESS: 15/15 OK, 0 uncovered, 0 dups, 58/58 pdfBox, 15/15 export.
+  - Visual verification: p10 (pennymac cells exact), p16 (prose fix, balance row, no fictional
+    gaps), p17 (Mar 2022 grid cell), p18 (blank bars over Actual/Scheduled Payment + Date Closed
+    empty regions — operator's missing-info mandate WORKING), p32 (bankruptcy status + Date Reported)
+status: SESSION 21 COMPLETE — highlighter (4 bugs) + DISPUTE ENGINE UNLOCK, all verified.
+  Highlighter: quality export gate, pdfBox everywhere, semantic placement + blank-region
+  synthesis, header-context crops, identity boxes suppressed from report PDF.
+  ENGINE (15→30 reasons): buildAccountViews generic arm now prefers mapper-enriched
+  report.accounts (paymentHistoryYears from accountHistoryEvidence) over raw components —
+  the whole cell-based cross-table family had been silently no-oping on empty cells for
+  EQ-old. All new detections face-verified; 1 false positive removed
+  (closed_account_final_month, ally). Generic monthly resolver handles month-labeled
+  comparison sides. E2E: draft 332631f6 (30 reasons) through production server →
+  30/30 exportable, highlighted PDF, grids visually verified. tsc clean both changes.
+next (future sessions):
+  1. Step 2 rule: coverage-span (grid activity in years money tables never cover —
+     ally 2021 vs Balance starting 2023); needs operator's presentation decision
+  2. npm run build so served dist/ carries the engine fix (Vite dev already does)
+  3. equifax_new_v1 anchoring lane (zero accountHistoryEvidence in all surveyed sessions)
+  4. Extend index.mjs validator revocation to 'quality' bundles (currently canonical-only)
+  5. TU layout-cell visual verification session
+  6. Cosmetic: dedupe payment_activity monthlyComparisons; closed-account variant of
+     recent_payment_missing rule
+artifacts-addendum:
+  - engine harness: scratchpad engine-harness/ (esbuild bundle + run.mjs; see FINDINGS.md)
+  - test draft 332631f6-8028-4536-9236-9057e83b23ca (30 reasons, current-good demo)
+  - May draft 9d549854 now STALE vs engine (15 reasons incl. 1 known false positive)
+  - MULTI-REPORT SWEEP: tmp/diagnostics/highlighter-s21/sweep/ — 12/12 distinct EQ-old
+    reports pass (686 reasons total, 100% exportable, 0 crashes, geometry perfect on
+    deep-checked REF-D/REF-EQOLD-B). Follow-up: vocabulary additions for issue types the
+    REF-EQOLD-A report never exercised (dateOfFirstDelinquency, monthsReviewed, comments) +
+    slide-cap review for dense bundles + attorney review pass before letters ship.
+  - OTHER BUREAUS SWEPT: Experian 12/12 detection healthy + sample 34/34 exportable
+    (15 canonical + 19 quality-lifted); TU 9/9 detection healthy, sample 16/31 exportable
+    (layout: cells gated by design, TU visual session pending); EQ-NEW: cell family 0/4
+    reports — extractor emits no history evidence for new format, REAL LANE.
+  - BUG FIXED (found by Experian deep harness): B4 blank-region image/pdf fallback
+    divergence → sliver pdfBoxes; pdfBox now derived from final image rect. Experian
+    mismatches 7→0, EQ regression clean.
+artifacts:
+  - tmp/diagnostics/highlighter-s21/FINDINGS.md  <- full per-fix log (READ FIRST on resume)
+  - tmp/diagnostics/highlighter-s21/harness.py   <- ground-truth cross-check (draft vs manifest)
+  - runs: baseline (evidence-manifest.json), runA/, runD/, runB/, runB2/ (current good)
+  - regen command: python3 server/dispute_evidence_generator.py <draft.json> --source-pdf
+    <ses>/uploads/REF-EQOLD-A.pdf --images-dir <ses>/ingestion/images --output-dir
+    <out> --result-json <ses>/outputs/result.json --session-id ce7241de-... --highlighted-pdf-path
+    <out>/highlighted-report.pdf   (ses=tmp/backend-sessions/ce7241de-b9ba-4db1-a85e-82582a5afbb8)
+observations-for-operator:
+  - p17 face shows 'CO' at Mar 2022 payment history while reason engine cited 'blank' —
+    dispute-layer/extraction data question, placement correct regardless (extraction untouched)
+  - UI cannot load old draft 9d549854 after server restart (in-memory requestKey map) — final
+    acceptance will create a fresh draft via API; do NOT trigger UI evidence regen on old drafts
+    (it deletes CLI-produced highlighted-report.pdf, index.mjs:885-887)
+context:
+  generator: server/dispute_evidence_generator.py (was 3225 lines, now ~3500 with fixes)
+  api server: running in background (node server/index.mjs, port 8787, task bo9edvkog)
+  mission (operator): crops and full-report highlights are two views of the SAME detections —
+    never divergent; highlight what is on the face INCLUDING missing/blank information;
+    both sides of cross-table conflicts marked in their own tables
+updated: 2026-07-12 (Session 21 END — highlighter + engine + ALL-BUREAU CERTIFICATION complete; see docs/highlight-certification.md)

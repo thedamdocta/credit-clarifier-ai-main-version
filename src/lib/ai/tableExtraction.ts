@@ -2,23 +2,24 @@ import { ExtractedTableData, FormattedTableData } from "./table/types";
 import { extractTableWithOpenAI, canUseOpenAI } from "./openai/openaiService";
 import { AccountSummary } from "../types/creditReport";
 import { toast } from "sonner";
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 // Extract table data from an image
 export async function extractTableFromImage(imageUrl: string): Promise<ExtractedTableData | null> {
   try {
-    console.log("Attempting to extract table from image:", imageUrl);
+    devDiagnostics.log("Attempting to extract table from image:", imageUrl);
     
     // First try OpenAI extraction if available
     if (canUseOpenAI()) {
-      console.log("OpenAI API is available, attempting AI-based extraction");
+      devDiagnostics.log("OpenAI API is available, attempting AI-based extraction");
       try {
         const openAIResults = await extractTableWithOpenAI(imageUrl);
         
         if (openAIResults && openAIResults.length > 0) {
-          console.log("Successfully extracted table with OpenAI");
+          devDiagnostics.log("Successfully extracted table with OpenAI");
           
           // Log the data for debugging
-          console.log("Extracted table data:", {
+          devDiagnostics.log("Extracted table data:", {
             headers: ["Account Type", "Open", "With Balance", "Total Balance", "Available", "Credit Limit", "Debt-to-Credit", "Payment"],
             rows: openAIResults.map(account => [
               account.accountType,
@@ -59,21 +60,21 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
               isTargetTable: true
             };
           } else {
-            console.log("OpenAI extraction returned data but with no real values");
+            devDiagnostics.log("OpenAI extraction returned data but with no real values");
           }
         } else {
-          console.log("OpenAI extraction returned no data or empty results");
+          devDiagnostics.log("OpenAI extraction returned no data or empty results");
         }
       } catch (error) {
-        console.error("Error extracting data with OpenAI:", error);
+        devDiagnostics.error("Error extracting data with OpenAI:", error);
         toast.error("Failed to extract data with AI. Please try again or upload a clearer image.");
       }
     } else {
-      console.log("OpenAI API is not available for extraction");
+      devDiagnostics.log("OpenAI API is not available for extraction");
     }
     
     // Fall back to basic recognition
-    console.log("Falling back to basic table extraction");
+    devDiagnostics.log("Falling back to basic table extraction");
     
     // Create empty table data structure for fallback
     return {
@@ -84,7 +85,7 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
       isTargetTable: true
     };
   } catch (error) {
-    console.error("Error extracting table from image:", error);
+    devDiagnostics.error("Error extracting table from image:", error);
     return null;
   }
 }
@@ -93,12 +94,12 @@ export async function extractTableFromImage(imageUrl: string): Promise<Extracted
 export function convertTableToAccountSummaries(tableData: ExtractedTableData): AccountSummary[] {
   try {
     if (!tableData || !tableData.rows || tableData.rows.length === 0) {
-      console.error("No table data to convert to account summaries");
+      devDiagnostics.error("No table data to convert to account summaries");
       // Return empty account summaries for required types
       return createEmptyAccountSummaries();
     }
     
-    console.log("Converting table data to account summaries:", tableData);
+    devDiagnostics.log("Converting table data to account summaries:", tableData);
     
     // Get header indices for mapping
     const headers = tableData.headers.map(h => h.toLowerCase().trim());
@@ -152,7 +153,7 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
       });
     });
     
-    console.log("Generated account summaries:", accountSummaries);
+    devDiagnostics.log("Generated account summaries:", accountSummaries);
     
     // If we didn't find all the required account types, add empty ones
     const result = ensureAllRequiredAccountTypes(accountSummaries);
@@ -165,12 +166,12 @@ export function convertTableToAccountSummaries(tableData: ExtractedTableData): A
     );
     
     if (!hasRealValues) {
-      console.log("Extracted data had no meaningful values - extraction failed");
+      devDiagnostics.log("Extracted data had no meaningful values - extraction failed");
     }
     
     return result;
   } catch (error) {
-    console.error("Error converting table data to account summaries:", error);
+    devDiagnostics.error("Error converting table data to account summaries:", error);
     return createEmptyAccountSummaries();
   }
 }

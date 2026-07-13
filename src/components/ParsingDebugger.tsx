@@ -12,9 +12,10 @@ import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRo
 
 interface ParsingDebuggerProps {
   isVisible?: boolean;
+  renderFloatingTrigger?: boolean;
 }
 
-const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
+const ParsingDebugger = ({ isVisible = false, renderFloatingTrigger = true }: ParsingDebuggerProps) => {
   const [logs, setLogs] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(isVisible);
@@ -81,6 +82,17 @@ const ParsingDebugger = ({ isVisible = false }: ParsingDebuggerProps) => {
   };
   
   if (!isOpen) {
+    if (!renderFloatingTrigger) {
+      return (
+        <div className="flex justify-start">
+          <Button variant="outline" size="sm" onClick={() => setIsOpen(true)}>
+            <Bug className="h-4 w-4 mr-2" />
+            Open Debugger
+          </Button>
+        </div>
+      );
+    }
+
     return (
       <Button
         variant="outline"

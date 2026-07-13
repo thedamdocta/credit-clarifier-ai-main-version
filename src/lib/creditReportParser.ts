@@ -9,6 +9,7 @@ import { extractCreditScores } from './parsers/creditScoreParser';
 import { extractAccounts } from './parsers/accountsParser';
 import { parseEquifaxReport } from './parsers/equifax/equifaxParser';
 import { parsingLogger } from '@/utils/parsingLogger';
+import { devDiagnostics } from "@/lib/security/devDiagnostics";
 
 export * from './types/creditReport';
 
@@ -20,12 +21,12 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
     // Identify bureau first to determine parsing approach
     const bureau = identifyBureau(text);
     parsingLogger.logBureauIdentification(bureau, 'traditional');
-    console.log(`Identified bureau: ${bureau}`);
+    devDiagnostics.log(`Identified bureau: ${bureau}`);
     
     // If AI-first approach is enabled, try that first
     if (useAIFirst) {
       try {
-        console.log("Using AI-first approach for parsing credit report...");
+        devDiagnostics.log("Using AI-first approach for parsing credit report...");
         
         // Get initial AI parsing results
         const aiResults = await parseWithAI(text);
@@ -78,12 +79,12 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
         parsingLogger.trackReport(combinedReport);
         
         parsingLogger.completeParsing();
-        console.log("AI-first parsing complete");
+        devDiagnostics.log("AI-first parsing complete");
         return combinedReport;
       } catch (error) {
         parsingLogger.logError('ai-parsing', error);
-        console.error("Error in AI-first parsing approach:", error);
-        console.log("Falling back to traditional parsing...");
+        devDiagnostics.error("Error in AI-first parsing approach:", error);
+        devDiagnostics.log("Falling back to traditional parsing...");
       }
     }
     
@@ -132,13 +133,13 @@ export const parseCreditReport = async (text: string, useAIFirst = true): Promis
       return enhancedReport;
     } catch (error) {
       parsingLogger.logError('report-enhancement', error);
-      console.error("Error enhancing report with AI:", error);
+      devDiagnostics.error("Error enhancing report with AI:", error);
       parsingLogger.completeParsing();
       return initialReport;
     }
   } catch (error) {
     parsingLogger.logError('parsing', error);
-    console.error("Critical error in credit report parsing:", error);
+    devDiagnostics.error("Critical error in credit report parsing:", error);
     parsingLogger.completeParsing();
     
     // Return a minimal report with error information

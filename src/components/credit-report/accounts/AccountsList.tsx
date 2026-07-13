@@ -5,10 +5,10 @@ import AccountItem from "./AccountItem";
 
 interface AccountsListProps {
   accounts: Account[];
-  showDebugInfo: boolean;
+  sourceSessionId?: string | null;
 }
 
-const AccountsList: React.FC<AccountsListProps> = ({ accounts, showDebugInfo }) => {
+const AccountsList: React.FC<AccountsListProps> = ({ accounts, sourceSessionId }) => {
   if (!accounts || accounts.length === 0) {
     return (
       <div className="text-center p-8 border rounded-md">
@@ -21,9 +21,9 @@ const AccountsList: React.FC<AccountsListProps> = ({ accounts, showDebugInfo }) 
     <div className="space-y-6">
       {accounts.map((account, index) => (
         <AccountItem 
-          key={`account-${account.accountNumber || index}`} 
-          account={account} 
-          showDebugInfo={showDebugInfo}
+          key={`account-${account.accountName || "unknown"}-${account.accountNumber || "unknown"}-${index}`} 
+          account={account}
+          sourceSessionId={sourceSessionId}
         />
       ))}
     </div>
