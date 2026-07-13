@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ChevronDown, ChevronRight, FileEdit, FileImage, FileOutput, FileSearch, FileText, Layers3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, Download, FileEdit, FileImage, FileOutput, FileSearch, FileText, Layers3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { CreditReport } from "@/lib/types/creditReport";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,36 @@ import { DisputeReasonEvidencePanel } from "./DisputeReasonEvidencePanel";
 import DisputeLetterPreviewFrame from "./DisputeLetterPreviewFrame";
 import RichTextEditor from "./RichTextEditor";
 import { buildDisputeDraftSyncKey, hashDisputeDraftRequestKey } from "../bootstrap";
+
+// Saves an artifact through the SYSTEM save dialog (operator request: the
+// user chooses where each file lands). The picker must open on a fresh user
+// gesture, so it is requested BEFORE fetching the bytes; browsers without
+// showSaveFilePicker (e.g. Safari) fall back to a standard download.
+const saveArtifactToDisk = async (url: string, suggestedName: string): Promise<"saved" | "cancelled" | "fallback"> => {
+  const picker = (window as unknown as { showSaveFilePicker?: (options: { suggestedName: string }) => Promise<any> }).showSaveFilePicker;
+  if (picker) {
+    try {
+      const handle = await picker.call(window, { suggestedName });
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Download failed (${response.status})`);
+      const blob = await response.blob();
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return "saved";
+    } catch (error) {
+      if ((error as DOMException)?.name === "AbortError") return "cancelled";
+      // any picker/stream failure degrades to a plain browser download
+    }
+  }
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = suggestedName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  return "fallback";
+};
 
 type WorkflowStep = "reasons" | "intake" | "sections" | "full-letter" | "evidence" | "preview";
 
@@ -243,6 +273,22 @@ const isHydratedEvidenceReady = (draft?: DisputeLetterDraft | null) => {
   });
 };
 
+// Human heading for an exhibits-manifest entityKey (client-side mirror of the
+// server's formatting — account keys are "NAME::number"; indicator keys carry
+// internal '::' tokens that must never display raw).
+const formatExhibitEntity = (entityKey?: string | null, fallback?: string | null) => {
+  const parts = String(entityKey ?? "").split("::").filter(Boolean);
+  if (!parts.length) return fallback || "Report-level dispute";
+  const kind = parts[0].toLowerCase();
+  if (kind === "consumer_information_indicator") {
+    const descriptor = parts[1] && !/^\d+$/.test(parts[1]) ? parts[1] : "";
+    return descriptor ? `Consumer Information Indicator — ${descriptor}` : "Consumer Information Indicator";
+  }
+  if (kind === "public_record") return "Public Record";
+  if (kind === "report") return "Credit Report (report-level)";
+  return parts[0].toUpperCase();
+};
+
 const collectGroupSourcePages = (group: AccountRuleCatalogGroup) =>
   Array.from(new Set(group.categories.flatMap((category) => category.entries.flatMap((entry) => entry.sourcePages)))).sort((left, right) => left - right);
 
@@ -298,6 +344,22 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
   });
   const [exhibitNumbering, setExhibitNumbering] = useState<"numeric" | "alpha">("numeric");
   const syncedEvidenceDraftId = useRef<string | null>(null);
+  // Accounts-covered summary for the memorandum preview (operator: "preview
+  // and approve what accounts are on the memorandum").
+  const memorandumCoverage = useMemo(() => {
+    const exhibits = draft?.exhibitsManifest?.exhibits;
+    if (!Array.isArray(exhibits) || !exhibits.length) {
+      return [] as { label: string; exhibits: string[] }[];
+    }
+    const groups = new Map<string, string[]>();
+    for (const exhibit of exhibits) {
+      const entity = formatExhibitEntity(exhibit.entityKey, exhibit.issueLabel);
+      const list = groups.get(entity) ?? [];
+      list.push(String(exhibit.exhibit));
+      groups.set(entity, list);
+    }
+    return [...groups.entries()].map(([label, exhibits]) => ({ label, exhibits }));
+  }, [draft?.exhibitsManifest]);
   useEffect(() => {
     if (!draft || syncedEvidenceDraftId.current === draft.id) return;
     syncedEvidenceDraftId.current = draft.id;
@@ -717,6 +779,14 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleArtifactSave = async (url: string | null | undefined, suggestedName: string) => {
+    if (!url) return;
+    const result = await saveArtifactToDisk(url, suggestedName);
+    if (result === "saved") {
+      toast({ title: "Saved", description: suggestedName });
     }
   };
 
@@ -2135,48 +2205,72 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                   </Button>
                   <Button onClick={() => void exportDraft()} disabled={isSaving}>Generate Documents</Button>
                   {draft.renderState.docxUrl && (
-                    <Button asChild variant="outline">
-                      <a href={draft.renderState.docxUrl} target="_blank" rel="noreferrer">Letter DOCX</a>
+                    <Button variant="outline" onClick={() => void handleArtifactSave(draft.renderState.docxUrl, "dispute-letter.docx")}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Letter DOCX
                     </Button>
                   )}
                   {draft.renderState.pdfUrl && (
-                    <Button asChild variant="outline">
-                      <a href={draft.renderState.pdfUrl} target="_blank" rel="noreferrer">Letter PDF</a>
+                    <Button variant="outline" onClick={() => void handleArtifactSave(draft.renderState.pdfUrl, "dispute-letter.pdf")}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Letter PDF
                     </Button>
                   )}
                   {draft.renderState.memorandumDocxUrl && (
-                    <Button asChild variant="outline">
-                      <a href={draft.renderState.memorandumDocxUrl} target="_blank" rel="noreferrer">Memorandum DOCX</a>
+                    <Button variant="outline" onClick={() => void handleArtifactSave(draft.renderState.memorandumDocxUrl, "evidence-memorandum.docx")}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Memorandum DOCX
                     </Button>
                   )}
                   {draft.renderState.memorandumPdfUrl && (
-                    <Button asChild variant="outline">
-                      <a href={draft.renderState.memorandumPdfUrl} target="_blank" rel="noreferrer">Memorandum PDF</a>
+                    <Button variant="outline" onClick={() => void handleArtifactSave(draft.renderState.memorandumPdfUrl, "evidence-memorandum.pdf")}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Memorandum PDF
                     </Button>
                   )}
                   {draft.renderState.highlightedReportPdfUrl && (
-                    <Button asChild variant="outline">
-                      <a href={draft.renderState.highlightedReportPdfUrl} target="_blank" rel="noreferrer">Highlighted Report</a>
+                    <Button variant="outline" onClick={() => void handleArtifactSave(draft.renderState.highlightedReportPdfUrl, "highlighted-report.pdf")}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Highlighted Report
                     </Button>
                   )}
-                </div>
-                {(draft.renderState.docxPath || draft.renderState.pdfPath) && (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    <p className="font-medium text-slate-900">Generated artifact paths</p>
-                    {draft.renderState.docxPath && <p className="mt-2 break-all">DOCX: {draft.renderState.docxPath}</p>}
-                    {draft.renderState.pdfPath && <p className="break-all">PDF: {draft.renderState.pdfPath}</p>}
-                  </div>
-                )}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  <p className="font-medium text-slate-900">Print layout preview</p>
-                  <p className="mt-2">
-                    This preview is paginated as {DISPUTE_LETTER_LAYOUT.pageWidthInches}&times;{DISPUTE_LETTER_LAYOUT.pageHeightInches} inch letter pages
-                    with {DISPUTE_LETTER_LAYOUT.marginInches} inch margins so operators can review spacing before export.
-                  </p>
                 </div>
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                   <DisputeLetterPreviewFrame srcDoc={draft.renderState.previewHtml} />
                 </div>
+                {evidenceSelection.memorandum && !draft.renderState.memorandumPdfUrl && (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
+                    Generate Documents to preview the evidence memorandum here before approving it.
+                  </div>
+                )}
+                {draft.renderState.memorandumPdfUrl && (
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    <div className="border-b border-slate-100 p-5">
+                      <p className="font-medium text-slate-900">Memorandum preview</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Review and approve exactly what mails — this preview is the generated document itself.
+                      </p>
+                      {memorandumCoverage.length > 0 && (
+                        <div className="mt-4 space-y-1.5">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Accounts covered</p>
+                          {memorandumCoverage.map((entry) => (
+                            <p key={entry.label} className="text-sm text-slate-700">
+                              <span className="font-medium">{entry.label}</span>
+                              <span className="text-slate-400">
+                                {" "}— Exhibit{entry.exhibits.length > 1 ? "s" : ""} {entry.exhibits.join(", ")}
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <iframe
+                      title="Evidence memorandum preview"
+                      src={draft.renderState.memorandumPdfUrl}
+                      className="h-[36rem] w-full"
+                    />
+                  </div>
+                )}
                 <div className="flex justify-start">
                   <Button variant="outline" onClick={() => setActiveStep("evidence")}>Back to Highlighted Report</Button>
                 </div>

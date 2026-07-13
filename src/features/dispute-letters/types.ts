@@ -235,6 +235,31 @@ export interface DisputeLetterSection {
   reasonIds?: string[];
 }
 
+export interface DisputeExhibitManifestSlide {
+  file: string;
+  pageNumber: number;
+  label?: string | null;
+  widthPx?: number;
+  heightPx?: number;
+}
+
+export interface DisputeExhibitManifestEntry {
+  exhibit: string;
+  reasonId: string;
+  issueType?: string;
+  issueLabel?: string | null;
+  entityKey?: string | null;
+  sourcePages?: number[];
+  slides: DisputeExhibitManifestSlide[];
+}
+
+export interface DisputeExhibitsManifest {
+  numberingStyle: "numeric" | "alpha";
+  exhibitCount: number;
+  exhibits: DisputeExhibitManifestEntry[];
+  warnings?: string[];
+}
+
 export interface DisputeEvidenceOptions {
   inlineExhibits: boolean;
   memorandum: boolean;
@@ -379,6 +404,7 @@ export interface DisputeLetterDraft {
   renderState: DisputeLetterRenderState;
   evidenceManifest?: DisputeEvidenceManifest | null;
   evidenceOptions?: DisputeEvidenceOptions | null;
+  exhibitsManifest?: DisputeExhibitsManifest | null;
   letterMode?: "inline" | "memorandum" | null;
   exhibitNumbering?: "numeric" | "alpha" | null;
   fullDocumentHtml: string;
