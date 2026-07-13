@@ -100,4 +100,9 @@ crops at print resolution (300 DPI source images).
 
 ## Status
 
-- 2026-07-13: Scope approved by operator (decisions above). Implementation not started.
+- 2026-07-13: Scope approved by operator (decisions above).
+- 2026-07-13: Phase 1 (exhibit renderer + numbering map) DONE — panel-reviewed, 18741e5.
+- 2026-07-13: Phase 2 (Memorandum DOCX+PDF) + Phase 4 (report chips) DONE — panel-reviewed
+  (QC FAIL on an EXTRACTION-layer data bug, escalated to operator; all builder-layer findings
+  fixed and verified), 498877f. Phases 3 (letter modes), 5 (server/UI), 6 (certification)
+  pending.
