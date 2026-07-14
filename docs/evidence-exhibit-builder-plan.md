@@ -115,3 +115,24 @@ crops at print resolution (300 DPI source images).
   class warns at export) — add one? (2) must letter exhibits meet the highlighted-report
   validator bar (ties to parked vision-validator activation)? Phases 5 (server/UI toggles —
   chips-numbering F9 already threaded), 6 (certification exhibit gate) pending.
+- 2026-07-13 (Session 23, later): Phase 5 DONE + panel-certified. Operator's final model:
+  letter always ships; user selects ANY combination of three evidence outputs (inline
+  screenshots / memorandum / highlighted report) + numbering 123/ABC. Server: evidence-
+  package export API with one coherent evidence run feeding all outputs, supersede-on-new-
+  manifest universal (incl. memorandum on every evidence path), per-draft export
+  serialization. UI: Evidence Package panel, system-save-dialog downloads, MEMORANDUM
+  PREVIEW ("Accounts covered" summary + embedded generated PDF — approve-what-mails),
+  artifact-path/print-layout boxes removed (operator order). Panel: audit PASS-W-F (all
+  fixed), testing 121/124 (only failures = pre-fix confirmations, fixed + live re-verified
+  3/3), QC PASS 7/7 with 0 visual defects. Open design nuance for operator: pre-export
+  checkbox stickiness across reload. NEXT: operator-priority responsiveness sweep (Step 6,
+  tmp/diagnostics/step6-responsiveness/defects.md), then Phase 6.
+- 2026-07-13 (Session 23, close): Step 6 DONE — responsiveness sweep clean (6 routes + 6
+  workflow steps × 5 widths, two numeric gates + visual, zero defects) and exhibit-crop
+  polish finalized (edge-snapping: pad-inflated merged intervals, cross-axis fixpoint,
+  protected-window expand-only; panel-audited, twice-hardened). Final QC: 59/59 exhibit
+  PNGs, 0 defects, pixel-level edge audit. Certify 40/40 with harness quality unchanged.
+  Also: reason-engine open-month correction (no missing-payment dispute may target the
+  account's opening month) — twin-run over 335 sessions, zero collateral. NEXT BUILD
+  QUEUED (operator priority): dispute strategy profiles / demotion layer — see
+  `dispute-strategy-profiles-plan.md`. Phase 6 (certification exhibit gate) remains.
