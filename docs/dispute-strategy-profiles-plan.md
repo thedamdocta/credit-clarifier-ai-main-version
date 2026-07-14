@@ -141,3 +141,56 @@ data. This demotion layer is the seed of that system.
 - Deferred nice-to-haves (QC): group chip reads "1 ready" for demoted-only
   groups; badge could read "included manually" post-override; 390px badge
   stack alignment (pre-existing shared pattern).
+
+## Experian missing-months investigation — RESOLVED to a design decision (Session 23)
+
+Traced end-to-end (read-only audit; no code changed). The 8/122 trigger rate
+has THREE stacked causes:
+
+1. **Stale extraction vintage (94/122 sessions).** The Experian worker only
+   began emitting `paymentHistoryGapSlots` (in `_historyEvidence`) with the
+   March-12 extraction feature. Every session extracted before then has NO
+   gap-slot data, so the provenance-gated rule cannot fire. Not a code bug —
+   old data. (Clean vintage split verified across all 122 sessions.)
+2. **Slot-source distribution.** Modern extractions emit two slot kinds:
+   `layout_blank_slot` — the bureau PRINTED its no-data marker "X" in the
+   grid; exact bbox captured (highlightable) — the overwhelming majority
+   (e.g. 144/147, 511/511) — and `projected_gap_slot` — no cell laid out at
+   all; the worker geometrically projects where it would be — rare (3/147,
+   often 0).
+3. **The engine's Experian-only "Phase-One provenance" gate**
+   (`isProjectedMissingHistoryCell`) counts ONLY `projected_gap_slot`.
+   Combined with (2), Experian missing-months almost never triggers even on
+   fresh extractions.
+
+**The asymmetry:** "x" is in the engine's EMPTY_HISTORY_TOKENS, so on
+TransUnion/Equifax an "X" month inside the reported span triggers the dispute
+with no provenance requirement. On Experian, the SAME evidence — with BETTER
+provenance (exact bbox of the printed X) — is excluded.
+
+**Why the gate may be deliberate:** a printed "X" is the bureau *honestly
+disclosing* that the furnisher reported nothing (arguably furnisher-
+completeness material), whereas a cell absent from the layout is the report
+itself failing to show the month (a disclosure defect). Coherent legal
+distinction — operator ruling required.
+
+**Gate-script verdict:** the local-only generalization script can NEVER pass
+on its current inputs under current semantics: input 1 (fixtures/experian/
+report.json) is a mapped report carrying no `_historyEvidence` at all
+(pre-feature; needs regeneration from a fresh extraction); inputs 2-3 are
+March-11 pre-feature extractions; input 4 (March-12) carries only
+layout_blank_slot cells. Script + fixture need refreshing under whichever
+gate semantics the operator chooses.
+
+**Operator decision (parked):**
+- Option A — keep projected-only gate: Experian mm stays rare by design;
+  retire/re-scope the gate script's expectation; regenerate fixture.
+- Option B (recommended) — accept `layout_blank_slot` too: restores
+  cross-bureau consistency; every detected month carries an exhibit-able
+  bbox; the class is already DEMOTED (detected-but-unchecked), so letters
+  are unaffected by default while attorneys gain visibility — and the
+  future dispute-search must be able to FIND these months. Requires the
+  standard rigor: backup tag, twin-run, certify, panel.
+- Option C — new issueType for printed-X months (furnisher non-reporting
+  disclosure class), keeping projected-only for mm: richest legal model,
+  larger build.
