@@ -1,4 +1,5 @@
 import type { Account, ConsumerInformationIndicator, CreditReport, PublicRecord } from "@/lib/types/creditReport";
+import { getStrategyDemotion } from "./strategyProfile";
 import {
   AccountRuleCatalogGroup,
   AccountPosture,
@@ -3832,6 +3833,20 @@ const deriveReasonDefaults = (
       isAttorneyEscalation,
     };
   }
+  // Strategy demotion: the reason stays fully detected and reviewable, but
+  // arrives unchecked — and therefore unhighlighted and out of the letter —
+  // unless the attorney deliberately re-checks it. Placed after the explicit
+  // branch (persisted selections are never rewritten) and after attorney
+  // escalation (deliberate escalations outrank profile policy).
+  if (getStrategyDemotion(reason.issueType)) {
+    return {
+      category,
+      defaultSelected: false,
+      selectionBasis: "strategy_demoted",
+      selected: typeof reason.selected === "boolean" ? reason.selected : false,
+      isAttorneyEscalation,
+    };
+  }
   if (reason.entityType === "account") {
     const posture = postureByEntityKey.get(reason.entityKey) ?? "negative";
     const defaultSelected = category === "legal_public_record" || posture === "negative";
@@ -6633,28 +6648,31 @@ const statusLabelSortRank: Record<DisputeRuleStatus, number> = {
 
 const severitySortRank = { high: 0, medium: 1, low: 2 } as const;
 
-const buildSelectionState = (status: DisputeRuleStatus, posture: AccountPosture, category: DisputeReasonCategory) => {
+const buildSelectionState = (status: DisputeRuleStatus, posture: AccountPosture, category: DisputeReasonCategory, issueType?: string) => {
   const legalReviewCategory = category === "legal_public_record";
-  const selectionBasis = legalReviewCategory
+  const postureBasis = legalReviewCategory
     ? "explicit"
     : posture === "negative"
       ? "negative_account"
       : "positive_account";
   if (status !== "triggered") {
+    // Rules that never fired carry their posture basis — the demoted basis
+    // is a statement about a DETECTED dispute, not a parked rule.
     return {
       selectable: false,
       selected: false,
       defaultSelected: false,
-      selectionBasis,
+      selectionBasis: postureBasis,
     };
   }
 
-  const defaultSelected = legalReviewCategory || posture === "negative";
+  const demoted = issueType ? Boolean(getStrategyDemotion(issueType)) : false;
+  const defaultSelected = demoted ? false : legalReviewCategory || posture === "negative";
   return {
     selectable: true,
     selected: defaultSelected,
     defaultSelected,
-    selectionBasis,
+    selectionBasis: demoted ? "strategy_demoted" : postureBasis,
   };
 };
 
@@ -7051,7 +7069,7 @@ const aggregateTriggeredEvaluation = (
   const supportingFields = uniqueStrings(reasons.flatMap((reason) => reason.supportingFields));
   const evidenceRefs = dedupeEvidenceRefs(reasons.flatMap((reason) => reason.evidenceRefs ?? []));
   const sourcePages = normalizePages(reasons.flatMap((reason) => reason.sourcePages));
-  const selectionState = buildSelectionState("triggered", posture, definition.category);
+  const selectionState = buildSelectionState("triggered", posture, definition.category, definition.issueType);
 
   return {
     key: `${definition.issueType}:${reasons[0]?.entityKey ?? "account"}`,
@@ -7079,7 +7097,7 @@ const buildPassiveEvaluation = (
   posture: AccountPosture,
   account: ReasonAccountView,
 ): DisputeRuleEvaluation => {
-  const selectionState = buildSelectionState(status, posture, definition.category);
+  const selectionState = buildSelectionState(status, posture, definition.category, definition.issueType);
   const context = buildEvaluationContext(definition, account);
   const statusPrefix =
     status === "not_triggered"

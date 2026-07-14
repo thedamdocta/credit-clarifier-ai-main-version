@@ -1,0 +1,22 @@
+{
+  "name": "default",
+  "description": "Default dispute strategy profile. Detection is never affected: demoted classes stay fully detected and reviewable, but arrive unchecked and therefore unhighlighted and out of the letter unless deliberately re-checked. Rationale: lead with disputes provable from the face of the report; classes whose proof lives in discovery make weak reinvestigation disputes.",
+  "demotions": {
+    "missing_payment_history": {
+      "claimBasis": "1681g",
+      "rationale": "File-disclosure claim: absent history on the consumer copy does not prove the file or what is furnished to lenders is wrong. Proof requires ACDV/furnished-data discovery, so this is weak as a reinvestigation dispute."
+    },
+    "payment_history_missing_months": {
+      "claimBasis": "1681g",
+      "rationale": "File-disclosure claim: blank months on the consumer copy do not prove the file is incomplete. Proof requires ACDV/furnished-data discovery, so this is weak as a reinvestigation dispute."
+    },
+    "payment_history_incomplete_since_open_date": {
+      "claimBasis": "1681g",
+      "rationale": "File-disclosure claim: history missing since the opened date is provable only against the actual file via ACDV/furnished-data discovery, so this is weak as a reinvestigation dispute."
+    },
+    "missing_account_number": {
+      "claimBasis": "1681g",
+      "rationale": "Account-identifier detail on the consumer copy is a disclosure question; no ruling supports it as a face-of-report inaccuracy, and proof requires file-level discovery."
+    }
+  }
+}

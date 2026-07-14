@@ -197,9 +197,17 @@ buildAccountViews(report)  → line 3736
 
 Each normalizes bureau-specific format into `ReasonAccountView` with unified fields, history cells, and analysis.
 
-## Default Selection Logic (line 6508)
+## Default Selection Logic
 
 ```
+Strategy demotion (checked FIRST for triggered rules, after persisted
+selections and attorney escalations):
+  If issueType is listed in strategyProfile.json demotions:
+    → selectionBasis = "strategy_demoted"
+    → defaultSelected = false, selected = false, selectable = true
+    (detected and reviewable, but out of the letter/exhibits/memorandum
+     unless the attorney re-checks it — a deliberate manual promotion)
+
 For legal/public record items:
   → defaultSelected = true if triggered
 
@@ -211,6 +219,19 @@ For account reasons:
     → selectionBasis = "positive_account"
     → defaultSelected = false
 ```
+
+### Strategy profile (demotion layer)
+
+`src/features/dispute-letters/strategyProfile.json` is DATA, not code: it lists
+demoted `issueType`s, each with a statutory tag (`claimBasis`, e.g. `1681g`)
+and a rationale shown in the Reasons UI. Detection is never affected — demoted
+rules still evaluate, still appear triggered in the catalog, and remain
+selectable. Precedence in `deriveReasonDefaults`: persisted draft selections >
+attorney escalation > strategy demotion > account posture. Persisted
+selections are never rewritten, so old drafts keep their choices. Rules that
+did NOT trigger keep their posture basis (the demoted basis is a statement
+about a detected dispute, not a parked rule). Rationale and background:
+`docs/dispute-strategy-profiles-plan.md`.
 
 ## Severity & Sort Order
 

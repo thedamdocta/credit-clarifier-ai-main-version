@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronDown, ChevronRight, Download, FileEdit, FileImage, FileOutput, FileSearch, FileText, Layers3, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { CreditReport } from "@/lib/types/creditReport";
+import { getStrategyDemotion } from "@/features/dispute-letters/strategyProfile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,7 +136,22 @@ const formatPageList = (pages: number[]) => (pages.length ? pages.join(", ") : "
 
 const humanizeEntityType = (value: string) => value.replace(/_/g, " ");
 const humanizeReasonCategory = (value?: string) => (value ? value.replace(/_/g, " ") : "uncategorized");
-const humanizeSelectionBasis = (value?: string) => (value ? value.replace(/_/g, " ") : "");
+const humanizeSelectionBasis = (value?: string) =>
+  value === "strategy_demoted" ? "demoted by strategy" : value ? value.replace(/_/g, " ") : "";
+
+const StrategyDemotionNote = ({ issueType, selected }: { issueType: string; selected?: boolean }) => {
+  const demotion = getStrategyDemotion(issueType);
+  if (!demotion) {
+    return null;
+  }
+  return (
+    <p className="mt-3 rounded-md border border-dashed border-slate-300 bg-white/70 px-3 py-2 text-xs leading-5 text-slate-700">
+      <span className="mr-2 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-slate-700">§ {demotion.claimBasis}</span>
+      Detected but not recommended under the current strategy: {demotion.rationale}{" "}
+      {selected ? "Manually included in this letter." : "Check the box to include it anyway."}
+    </p>
+  );
+};
 const describeNonAccountGroupSubject = (entityType: string) => {
   switch (entityType) {
     case "public_record":
@@ -1084,7 +1100,8 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                     refreshReasonCatalog(false);
                     toast({
                       title: "Reasons re-evaluated",
-                      description: "The dispute rule catalog was regenerated from the current report data and reset to its default selections.",
+                      description:
+                        "The dispute rule catalog was regenerated from the current report data and reset to its default selections. Manual changes — including re-checked strategy-demoted reasons — were cleared.",
                     });
                   }}
                 >
@@ -1341,7 +1358,14 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                       } satisfies DisputeReason);
 
                                     return (
-                                      <div key={entry.key} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+                                      <div
+                                        key={entry.key}
+                                        className={
+                                          entry.selectionBasis === "strategy_demoted" && !entry.selected
+                                            ? "rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-5 opacity-90"
+                                            : "rounded-lg border border-slate-200 bg-slate-50 p-5"
+                                        }
+                                      >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                           <div className="flex items-start gap-3">
                                             <Checkbox
@@ -1365,6 +1389,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                             {entry.selectionBasis && <p>{humanizeSelectionBasis(entry.selectionBasis)}</p>}
                                           </div>
                                         </div>
+                                        {entry.selectionBasis === "strategy_demoted" && <StrategyDemotionNote issueType={entry.issueType} selected={entry.selected} />}
 
                                         {entry.status === "triggered" ? (
                                           <>
@@ -1709,7 +1734,14 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                             </p>
                           </div>
                           {group.reasons.map((reason) => (
-                            <div key={reason.id} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+                            <div
+                              key={reason.id}
+                              className={
+                                reason.selectionBasis === "strategy_demoted" && !reason.selected
+                                  ? "rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-5 opacity-90"
+                                  : "rounded-lg border border-slate-200 bg-slate-50 p-5"
+                              }
+                            >
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="flex items-start gap-3">
                                   <Checkbox
@@ -1735,6 +1767,7 @@ export default function DisputeLetterWorkflow({ report }: { report: CreditReport
                                   {reason.selectionBasis && <p>{humanizeSelectionBasis(reason.selectionBasis)}</p>}
                                 </div>
                               </div>
+                              {reason.selectionBasis === "strategy_demoted" && <StrategyDemotionNote issueType={reason.issueType} selected={reason.selected} />}
                               <div className="mt-5 grid gap-5 md:grid-cols-2">
                                 <div className="space-y-2">
                                   <Label htmlFor={`summary-${reason.id}`}>Reason summary</Label>

@@ -107,3 +107,37 @@ Detection untouched ⇒ cheap certification:
    flags strategy fit ("found, but 1681g-class: requires ACDV discovery").
 Detection stays deterministic; AI translates and retrieves; strategy is
 data. This demotion layer is the seed of that system.
+
+## Status
+
+- 2026-07-13 (Session 23): v1 SHIPPED, panel-certified. Mechanism exactly as
+  settled: strategyProfile.json (data) demotes the 4 v1 issueTypes;
+  deriveReasonDefaults precedence persisted > escalation > demotion > posture;
+  buildSelectionState stamps strategy_demoted on triggered rules only.
+  UI: dashed/subdued unchecked cards with § claim-basis footnote (slate-700
+  after QC contrast finding), wording switches to "Manually included in this
+  letter." when re-checked; re-evaluate toast discloses that manual changes
+  reset. Verification: twin-run 335 sessions — detection catalogs IDENTICAL
+  335/335, all 6,796 demoted entries in exact intended state, letter-feed
+  deltas exclusively the 4 demoted classes (3,965), non-demoted rows
+  deep-identical; tracked gates green (rule matrix + demotion-aware fixtures
+  incl. DOCX/PDF export, PYTHON_EXECUTABLE=conda python for reportlab); tsc +
+  vite build clean; live browser E2E (defaults, re-check, revert, existing
+  draft untouched). Panel: audit 1 HIGH (fixture gate demotion-aware — fixed)
+  + 2 MED (checked-state wording, re-evaluate disclosure — fixed) + LOWs
+  (triggered-only basis stamping, living doc — fixed); testing 11/11 + 4
+  groups PASS; QC PASS (contrast must-fix applied).
+- KNOWN SEPARATE ISSUE (predates this work, proven): the LOCAL-ONLY gate
+  script assert_experian_payment_history_generalization.mjs fails its
+  "missing months span" assertion with the CURRENT data set on EVERY engine
+  version back to the Session-21 snapshot (verified via historical bundles;
+  mapper unchanged since S21). Experian sessions trigger
+  payment_history_missing_months in only 8/122 (other bureaus: 77/83, 61/63,
+  44/52) — either the Experian provable-gap provenance gate is intentionally
+  strict and the script's expectation is stale, or provable gap slots
+  regressed at data level. Needs its own investigation. NOT demotion-related
+  (detection identity proven) and NOT caused by tonight's open-month fix
+  (pre-openmonth bundle reproduces it).
+- Deferred nice-to-haves (QC): group chip reads "1 ready" for demoted-only
+  groups; badge could read "included manually" post-override; 390px badge
+  stack alignment (pre-existing shared pattern).

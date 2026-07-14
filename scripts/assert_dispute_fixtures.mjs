@@ -10,6 +10,7 @@ import {
   generateDisputeReasons,
   generateNonAccountReasons,
 } from "../src/features/dispute-letters/reasonEngine.ts";
+import { getStrategyDemotion } from "../src/features/dispute-letters/strategyProfile.ts";
 import { buildDisputeLetterDraft } from "../server/disputeLetterBuilder.mjs";
 import { mapWorkerResultToCreditReport } from "../server/resultMapper.mjs";
 
@@ -38,10 +39,20 @@ for (const fixtureId of FIXTURE_IDS) {
     assert.equal(entryCount, ACCOUNT_RULE_DEFINITION_COUNT, `${fixtureId}:${group.entityKey} should expose the full rule catalog`);
 
     const triggeredEntries = group.categories.flatMap((category) => category.entries).filter((entry) => entry.status === "triggered");
+    // Strategy-demoted classes stay detected but arrive default-unchecked
+    // (still selectable) regardless of account posture.
+    const demotedEntries = triggeredEntries.filter((entry) => getStrategyDemotion(entry.issueType));
+    for (const entry of demotedEntries) {
+      assert.ok(
+        !entry.selected && entry.defaultSelected === false && entry.selectable && entry.selectionBasis === "strategy_demoted",
+        `${fixtureId}:${group.entityKey}:${entry.ruleId} demoted rule should be detected, unselected, selectable, and strategy_demoted`,
+      );
+    }
+    const promotableEntries = triggeredEntries.filter((entry) => !getStrategyDemotion(entry.issueType));
     if (group.accountPosture === "negative") {
-      assert.ok(triggeredEntries.every((entry) => entry.selected), `${fixtureId}:${group.entityKey} negative account should default-select available rules`);
+      assert.ok(promotableEntries.every((entry) => entry.selected), `${fixtureId}:${group.entityKey} negative account should default-select available rules`);
     } else {
-      assert.ok(triggeredEntries.every((entry) => !entry.selected), `${fixtureId}:${group.entityKey} positive account should default-unselect available rules`);
+      assert.ok(promotableEntries.every((entry) => !entry.selected), `${fixtureId}:${group.entityKey} positive account should default-unselect available rules`);
     }
 
     for (const entry of triggeredEntries) {

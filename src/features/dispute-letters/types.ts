@@ -18,6 +18,7 @@ export type DisputeSelectionBasis =
   | "positive_account"
   | "non_account_default"
   | "attorney_escalation"
+  | "strategy_demoted"
   | "explicit";
 
 export type AccountPosture = "negative" | "positive";
