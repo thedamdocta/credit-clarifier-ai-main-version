@@ -456,24 +456,43 @@ def snap_crop_to_text_lines(
     right = left + float(crop["width"])
     bottom = top + float(crop["height"])
 
+    if not words:
+        left = max(0.0, min(left, page_width - 1.0))
+        top = max(0.0, min(top, page_height - 1.0))
+        right = max(left + 1.0, min(right, page_width))
+        bottom = max(top + 1.0, min(bottom, page_height))
+        return {
+            "x": int(round(left)),
+            "y": int(round(top)),
+            "width": int(round(right - left)),
+            "height": int(round(bottom - top)),
+        }
+
     # The rects this crop exists to show — contraction may never cross them.
-    p_left, p_top, p_right, p_bottom = right, bottom, left, top
-    for rect in protected or []:
-        p_left = min(p_left, float(rect["x"]))
-        p_top = min(p_top, float(rect["y"]))
-        p_right = max(p_right, float(rect["x"]) + float(rect["width"]))
-        p_bottom = max(p_bottom, float(rect["y"]) + float(rect["height"]))
-    has_protected = bool(protected)
+    # Without highlight rects we cannot know which part of the window is
+    # evidence, so the entire original window becomes the protected region
+    # (contraction disabled, expansion still allowed).
+    if protected:
+        p_left, p_top, p_right, p_bottom = right, bottom, left, top
+        for rect in protected:
+            p_left = min(p_left, float(rect["x"]))
+            p_top = min(p_top, float(rect["y"]))
+            p_right = max(p_right, float(rect["x"]) + float(rect["width"]))
+            p_bottom = max(p_bottom, float(rect["y"]) + float(rect["height"]))
+    else:
+        p_left, p_top, p_right, p_bottom = left, top, right, bottom
 
     # Per-word nudging oscillates when a label column interleaves with value
-    # columns (include A slices B, exclude B slices C, ...). Instead: merge the
-    # spans of every word an edge could slice into FORBIDDEN INTERVALS and
-    # place the edge outside them in one deterministic step — expansion when
-    # cheap, contraction otherwise, and contraction never crosses a highlight
-    # (a larger crop is the lesser evil than cutting evidence).
+    # columns (include A slices B, exclude B slices C, ...). Instead: inflate
+    # every sliceable word span by the pad and merge into FORBIDDEN INTERVALS.
+    # Inflation makes words closer than 2*pad merge, so an interval boundary
+    # can never fall inside another interval — one move per edge lands in true
+    # whitespace, and chained sub-pad gaps (the panel's 7d ladder) cannot
+    # re-slice. Expansion when cheap, contraction otherwise; contraction never
+    # crosses a highlight (a larger crop is the lesser evil than cut evidence).
     def merged_intervals(spans: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
         merged: List[List[float]] = []
-        for start, end in sorted(spans):
+        for start, end in sorted((s - pad, e + pad) for s, e in spans):
             if merged and start <= merged[-1][1]:
                 merged[-1][1] = max(merged[-1][1], end)
             else:
@@ -486,42 +505,63 @@ def snap_crop_to_text_lines(
         lo_bound: float,
         hi_bound: float,
         expand_low: bool,
-        protect_limit: Optional[float],
+        protect_limit: float,
     ) -> float:
         # Labels and headers live LEFT of and ABOVE values — inclusion on those
         # edges preserves interpretive context (which table, which field), so
-        # they get double the expansion allowance before contraction wins.
+        # they get triple the expansion allowance before contraction wins.
         allowance = max_expand * 3.0 if expand_low else max_expand
         for start, end in merged_intervals(spans):
-            if start < edge < end:
+            # Half-pixel epsilon: intervals are pad-inflated, so a sub-pixel
+            # incursion (int rounding of a float landing) still has ~pad of
+            # real whitespace — treating it as sliced would deny integer
+            # crops a fixpoint and re-nudge them by 1px forever.
+            if start + 0.5 < edge < end - 0.5:
+                # Interval bounds already carry the pad (inflated above).
                 if expand_low:  # left/top edges expand by moving toward lo_bound
-                    expand_pos = max(lo_bound, start - pad)
-                    contract_pos = end + pad
+                    expand_pos = max(lo_bound, start)
+                    contract_pos = end
                     expand_cost = edge - expand_pos
-                    contract_ok = protect_limit is None or contract_pos <= protect_limit
+                    contract_ok = contract_pos <= protect_limit
                 else:  # right/bottom edges expand by moving toward hi_bound
-                    expand_pos = min(hi_bound, end + pad)
-                    contract_pos = start - pad
+                    expand_pos = min(hi_bound, end)
+                    contract_pos = start
                     expand_cost = expand_pos - edge
-                    contract_ok = protect_limit is None or contract_pos >= protect_limit
-                return expand_pos if (expand_cost <= allowance or not contract_ok) else contract_pos
+                    contract_ok = contract_pos >= protect_limit
+                # A page-bound clamp can leave the expanded edge still inside
+                # the interval (word flush against the page margin) — prefer a
+                # clean contraction then, if protection allows one.
+                expand_clean = not (start < expand_pos < end)
+                if (expand_cost <= allowance or not contract_ok) and (expand_clean or not contract_ok):
+                    return expand_pos
+                return contract_pos
         return edge
 
-    for _ in range(2):  # vertical edges first, then horizontal against the new band
+    # Each resolve_edge lands outside every interval of ITS list, but moving a
+    # vertical edge widens the band the horizontal edges were resolved against
+    # (and vice versa) — newly admitted words could be sliced by an already-
+    # placed edge. Re-run the block until no edge moves (cross-axis fixpoint).
+    # The cap only backstops pathology: band growth is monotone per edge and
+    # bounded by the page, so dense tables settle at their true whitespace
+    # boundary well inside it (8 passes proved too few on real table slides).
+    for _ in range(32):
+        prev = (top, bottom, left, right)
         x_overlapping = [
             (float(w.box["y"]), float(w.box["y"]) + float(w.box["height"]))
             for w in words
             if float(w.box["x"]) + float(w.box["width"]) > left and float(w.box["x"]) < right
         ]
-        top = resolve_edge(top, x_overlapping, 0.0, page_height, True, (p_top - pad) if has_protected else None)
-        bottom = resolve_edge(bottom, x_overlapping, 0.0, page_height, False, (p_bottom + pad) if has_protected else None)
+        top = resolve_edge(top, x_overlapping, 0.0, page_height, True, p_top - pad)
+        bottom = resolve_edge(bottom, x_overlapping, 0.0, page_height, False, p_bottom + pad)
         y_overlapping = [
             (float(w.box["x"]), float(w.box["x"]) + float(w.box["width"]))
             for w in words
             if float(w.box["y"]) + float(w.box["height"]) > top and float(w.box["y"]) < bottom
         ]
-        left = resolve_edge(left, y_overlapping, 0.0, page_width, True, (p_left - pad) if has_protected else None)
-        right = resolve_edge(right, y_overlapping, 0.0, page_width, False, (p_right + pad) if has_protected else None)
+        left = resolve_edge(left, y_overlapping, 0.0, page_width, True, p_left - pad)
+        right = resolve_edge(right, y_overlapping, 0.0, page_width, False, p_right + pad)
+        if max(abs(a - b) for a, b in zip(prev, (top, bottom, left, right))) < 0.01:
+            break
 
     left = max(0.0, min(left, page_width - 1.0))
     top = max(0.0, min(top, page_height - 1.0))
